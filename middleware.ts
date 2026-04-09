@@ -14,7 +14,13 @@ export default async function middleware(request: NextRequest) {
       : null;
 
   const publicPaths = ["/sign-in", "/forgot-password"];
-  const excludedPaths = ["/_next/", "/favicon.ico", "/opengraph-image.png", "/assets/"];
+  const excludedPaths = [
+    "/_next/",
+    "/favicon.ico",
+    "/opengraph-image.jpg",
+    "/opengraph-image.png",
+    "/assets/",
+  ];
 
   if (pathname.startsWith("/api/auth/")) {
     return NextResponse.next();
@@ -64,5 +70,5 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/|favicon.ico|assets/).*)"],
+  matcher: ["/((?!_next/|favicon.ico|opengraph-image.jpg|opengraph-image.png|assets/).*)"],
 };
