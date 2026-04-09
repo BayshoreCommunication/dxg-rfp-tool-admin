@@ -27,9 +27,9 @@ type PasswordFormState = {
 
 export const AdminSettingsSkeleton = () => {
   return (
-    <div className="w-full bg-white mt-6 space-y-12">
+    <div className="w-full bg-white mt-6 space-y-12 p-8">
       <div className="flex h-24 w-24 shrink-0 overflow-hidden rounded-full bg-slate-200 animate-pulse shadow-sm" />
-      
+
       <div className="max-w-4xl relative">
         <div className="mb-8 flex items-center justify-between border-b border-slate-100 pb-5">
           <div className="flex items-center gap-3">
@@ -39,7 +39,10 @@ export const AdminSettingsSkeleton = () => {
         </div>
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+            <div
+              key={i}
+              className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8"
+            >
               <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
               <div className="w-64 h-10 bg-slate-100 rounded-lg animate-pulse" />
             </div>
@@ -55,7 +58,7 @@ export const AdminSettingsSkeleton = () => {
             <div className="w-40 h-6 bg-slate-200 rounded animate-pulse" />
           </div>
         </div>
-         <div className="space-y-6">
+        <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
             <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
             <div className="w-64 h-10 bg-slate-100 rounded-lg animate-pulse" />
@@ -67,11 +70,15 @@ export const AdminSettingsSkeleton = () => {
   );
 };
 
-const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) => {
+const AdminSettings = ({
+  profile,
+  loadError,
+  isLoading,
+}: AdminSettingsProps) => {
   const [profileData, setProfileData] = useState<AdminUserProfile | null>(
-    profile || null
+    profile || null,
   );
-  
+
   useEffect(() => {
     if (profile) setProfileData(profile);
   }, [profile]);
@@ -235,7 +242,6 @@ const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) =>
 
   return (
     <div className="w-full bg-white mt-6 space-y-12 font-sans rounded-2xl p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
-      
       {/* Avatar Section */}
       <div className="flex items-center gap-6 pb-6 border-b border-slate-100">
         <div className="relative group flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 border-4 border-white shadow-lg ring-1 ring-slate-100">
@@ -268,7 +274,7 @@ const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) =>
             </>
           ) : (
             <>
-               {avatarPreviewUrl ? (
+              {avatarPreviewUrl ? (
                 <Image
                   width={96}
                   height={96}
@@ -283,17 +289,25 @@ const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) =>
           )}
         </div>
         <div>
-           {editingProfile ? (
-             <>
-               <p className="text-sm font-semibold text-slate-700">Profile Picture</p>
-               <p className="text-xs text-slate-500 mt-0.5">Click the image to upload a new avatar.</p>
-             </>
-           ) : (
-             <>
-               <h3 className="text-xl font-bold text-slate-900">{profileData?.name || "Admin"}</h3>
-               <p className="text-sm text-slate-500 mt-1">{profileData?.email || "No email provided"}</p>
-             </>
-           )}
+          {editingProfile ? (
+            <>
+              <p className="text-sm font-semibold text-slate-700">
+                Profile Picture
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Click the image to upload a new avatar.
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-xl font-bold text-slate-900">
+                {profileData?.name || "Admin"}
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">
+                {profileData?.email || "No email provided"}
+              </p>
+            </>
+          )}
         </div>
       </div>
 
@@ -319,7 +333,9 @@ const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) =>
               <h3 className="text-lg font-bold tracking-tight text-slate-900">
                 Profile Settings
               </h3>
-              <p className="text-sm text-slate-500 mt-0.5">Manage your personal information</p>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Manage your personal information
+              </p>
             </div>
           </div>
         </div>
@@ -347,7 +363,9 @@ const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) =>
             Email Address
           </label>
           <div className="sm:col-span-9">
-            <p className={`text-sm font-medium ${editingProfile ? 'text-slate-500 bg-slate-100 cursor-not-allowed border-slate-200 w-full max-w-md px-4 py-2.5 rounded-lg border' : 'text-slate-900'}`}>
+            <p
+              className={`text-sm font-medium ${editingProfile ? "text-slate-500 bg-slate-100 cursor-not-allowed border-slate-200 w-full max-w-md px-4 py-2.5 rounded-lg border" : "text-slate-900"}`}
+            >
               {profileData?.email || "Not specified"}
             </p>
           </div>
@@ -407,7 +425,7 @@ const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) =>
       {/* Password Settings Box */}
       <div className="max-w-4xl relative pt-6 border-t border-slate-100">
         <div className="mb-6 flex items-center justify-between">
-           <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <div className="p-2.5 bg-amber-50 rounded-xl">
               <KeyRound className="w-5 h-5 text-amber-600" />
             </div>
@@ -415,7 +433,9 @@ const AdminSettings = ({ profile, loadError, isLoading }: AdminSettingsProps) =>
               <h3 className="text-lg font-bold tracking-tight text-slate-900">
                 Password Settings
               </h3>
-              <p className="text-sm text-slate-500 mt-0.5">Secure your administrative access</p>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Secure your administrative access
+              </p>
             </div>
           </div>
         </div>
