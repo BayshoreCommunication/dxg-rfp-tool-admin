@@ -1,5 +1,6 @@
 import { AdminOverviewClient } from "@/app/actions/admin";
 import { Calendar, ChevronRight, Mail, User } from "lucide-react";
+import Link from "next/link";
 
 type RecentClientsProps = {
   isLoading?: boolean;
@@ -92,7 +93,7 @@ export const RecentClientsSkeleton = () => {
       </div>
     </div>
   );
-}
+};
 
 const RecentClients = ({ clients = [], isLoading }: RecentClientsProps) => {
   if (isLoading) return <RecentClientsSkeleton />;
@@ -106,14 +107,21 @@ const RecentClients = ({ clients = [], isLoading }: RecentClientsProps) => {
             <User className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Recent Clients</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Latest client acquisitions and engagements</p>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              Recent Clients
+            </h2>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Latest client acquisitions and engagements
+            </p>
           </div>
         </div>
-        <button className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1 group">
-          View All 
+        <Link
+          href="/clients"
+          className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1 group"
+        >
+          View All
           <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </button>
+        </Link>
       </div>
 
       {/* Table section */}
@@ -144,7 +152,9 @@ const RecentClients = ({ clients = [], isLoading }: RecentClientsProps) => {
                 <td colSpan={5} className="px-4 py-12 text-center align-middle">
                   <div className="flex flex-col items-center justify-center">
                     <User className="w-12 h-12 text-slate-200 mb-3" />
-                    <p className="text-sm font-medium text-slate-500">No recent clients found.</p>
+                    <p className="text-sm font-medium text-slate-500">
+                      No recent clients found.
+                    </p>
                   </div>
                 </td>
               </tr>
@@ -157,7 +167,9 @@ const RecentClients = ({ clients = [], isLoading }: RecentClientsProps) => {
                   {/* Client Details */}
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-4">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${generateGradient(client.name || 'User')} text-sm font-bold text-white shadow-sm ring-2 ring-white`}>
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${generateGradient(client.name || "User")} text-sm font-bold text-white shadow-sm ring-2 ring-white`}
+                      >
                         {client.name?.trim()?.charAt(0)?.toUpperCase() || "U"}
                       </div>
                       <div className="flex flex-col">
@@ -167,15 +179,17 @@ const RecentClients = ({ clients = [], isLoading }: RecentClientsProps) => {
                       </div>
                     </div>
                   </td>
-                  
+
                   {/* Client Email */}
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-2 text-slate-600">
                       <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">{client.email}</span>
+                      <span className="text-sm font-medium">
+                        {client.email}
+                      </span>
                     </div>
                   </td>
-                  
+
                   {/* Proposal Count */}
                   <td className="px-4 py-3 text-center align-middle">
                     <div className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100/50">
@@ -189,12 +203,14 @@ const RecentClients = ({ clients = [], isLoading }: RecentClientsProps) => {
                       {client.totalEmailSent || 0}
                     </div>
                   </td>
-                  
+
                   {/* Joining Date */}
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-2 text-slate-500">
                       <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">{formatDate(client.joinDate)}</span>
+                      <span className="text-sm font-medium">
+                        {formatDate(client.joinDate)}
+                      </span>
                     </div>
                   </td>
                 </tr>
