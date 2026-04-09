@@ -1,158 +1,294 @@
-import { User } from "lucide-react";
+import { getAllClientsAction } from "@/app/actions/allClients";
+import Link from "next/link";
+import { User, Mail, Calendar, Search } from "lucide-react";
 
-type Client = {
-  id: string;
-  name: string;
-  email: string;
-  proposalCount: number;
-  joiningDate: string;
-  avatarUrl: string;
+type ClientDetailsProps = {
+  isLoading?: boolean;
+  search?: string;
+  page?: number;
 };
 
-// Mock Data matching the screenshot exactly
-const CLIENTS_DATA: Client[] = [
-  {
-    id: "1",
-    name: "Hamid Hasan",
-    email: "hamid@gmail.com",
-    proposalCount: 1567,
-    joiningDate: "7/11/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=hamid1",
-  },
-  {
-    id: "2",
-    name: "Nahid khan",
-    email: "nahid@gmail.com",
-    proposalCount: 1567,
-    joiningDate: "1/4/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=nahid",
-  },
-  {
-    id: "3",
-    name: "Urmila Hasan",
-    email: "urmila@gmail.com",
-    proposalCount: 1244,
-    joiningDate: "3/1/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=urmila",
-  },
-  {
-    id: "4",
-    name: "Husain Rahman",
-    email: "husain@gmail.com",
-    proposalCount: 3213,
-    joiningDate: "17/6/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=husain",
-  },
-  {
-    id: "5",
-    name: "Nabila Khan",
-    email: "nabila@gmail.com",
-    proposalCount: 24244,
-    joiningDate: "27/17/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=nabila",
-  },
-  {
-    id: "6",
-    name: "Alex Biny",
-    email: "hamid@gmail.com",
-    proposalCount: 24214,
-    joiningDate: "8/8/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=alex",
-  },
-  {
-    id: "7",
-    name: "Joly lnn",
-    email: "Joly@gmail.com",
-    proposalCount: 2141,
-    joiningDate: "5/1/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=joly",
-  },
-  {
-    id: "8",
-    name: "Hamid Hasan",
-    email: "hamid@gmail.com",
-    proposalCount: 414,
-    joiningDate: "3/11/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=hamid2",
-  },
-  {
-    id: "9",
-    name: "Dgaiu Fhgh",
-    email: "Dgaiu@gmail.com",
-    proposalCount: 241,
-    joiningDate: "12/11/2022",
-    avatarUrl: "https://i.pravatar.cc/150?u=dgaiu",
-  },
-];
+const formatDate = (isoDate?: string) => {
+  if (!isoDate) return "N/A";
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "N/A";
+  return date.toLocaleDateString("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
 
-const ClientDetails = () => {
+const generateGradient = (name: string) => {
+  const colors = [
+    "from-rose-400 to-red-500",
+    "from-blue-400 to-indigo-500",
+    "from-emerald-400 to-teal-500",
+    "from-amber-400 to-orange-500",
+    "from-purple-400 to-fuchsia-500",
+    "from-cyan-400 to-blue-500",
+  ];
+  const charCode = name?.charCodeAt(0) || 0;
+  return colors[charCode % colors.length];
+};
+
+export const ClientDetailsSkeleton = () => {
   return (
-    <div className="bg-white rounded-md  p-6 shadow-sm overflow-hidden mt-6">
-      {/* Header section */}
-      <div className="flex items-center gap-3 mb-8 px-2">
-        <User className="w-5 h-5 text-red-500 fill-current" />
-        <h2 className="text-lg font-bold text-gray-800">All Client</h2>
+    <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 mt-6">
+      {/* Header section skeleton */}
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-slate-100 rounded-xl w-10 h-10 animate-pulse" />
+          <div className="w-32 h-6 bg-slate-200 rounded animate-pulse" />
+        </div>
+        <div className="w-80 h-10 bg-slate-100 rounded-lg animate-pulse" />
       </div>
 
-      {/* Table section */}
-      <div className="w-full overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      {/* Table section skeleton */}
+      <div className="w-full overflow-hidden rounded-xl border border-slate-100">
+        <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead>
-            <tr className="border-b border-gray-100">
-              <th className="px-2 py-4 text-xs font-semibold text-gray-400 tracking-wide uppercase">
-                Client Name
-              </th>
-              <th className="px-2 py-4 text-xs font-semibold text-gray-400 tracking-wide uppercase">
-                Client Email
-              </th>
-              <th className="px-2 py-4 text-xs font-semibold text-gray-400 tracking-wide uppercase">
-                Proposal Count
-              </th>
-              <th className="px-2 py-4 text-xs font-semibold text-gray-400 tracking-wide uppercase">
-                Joining Date
-              </th>
+            <tr className="bg-slate-50/80 border-b border-slate-100">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <th key={i} className="px-4 py-3 leading-tight">
+                  <div className="w-20 h-3 bg-slate-200 rounded animate-pulse" />
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody>
-            {CLIENTS_DATA.map((client, index) => (
-              <tr
-                key={client.id}
-                className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors"
-                style={{ height: "60px" }}
-              >
-                {/* Client Name & Avatar */}
-                <td className="px-2 py-2">
+          <tbody className="divide-y divide-slate-100">
+            {[1, 2, 3, 4, 5].map((row) => (
+              <tr key={row} className="bg-white">
+                <td className="px-4 py-3 align-middle">
                   <div className="flex items-center gap-4">
-                    <img
-                      src={client.avatarUrl}
-                      alt={client.name}
-                      className="w-8 h-8 rounded-full object-cover bg-gray-100 ring-1 ring-gray-200"
-                    />
-                    <span className="text-[13px] font-medium text-gray-700">
-                      {client.name}
-                    </span>
+                    <div className="w-10 h-10 rounded-full bg-slate-200 animate-pulse" />
+                    <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
                   </div>
                 </td>
-                
-                {/* Client Email */}
-                <td className="px-2 py-2 text-[13px] font-medium text-gray-700">
-                  {client.email}
+                <td className="px-4 py-3 align-middle">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-slate-200 animate-pulse" />
+                    <div className="w-32 h-4 bg-slate-200 rounded animate-pulse" />
+                  </div>
                 </td>
-                
-                {/* Proposal Count */}
-                <td className="px-2 py-2 text-[13px] font-medium text-gray-700">
-                  {client.proposalCount}
+                <td className="px-4 py-3 align-middle">
+                  <div className="w-12 h-6 mx-auto rounded-full bg-emerald-100 animate-pulse" />
                 </td>
-                
-                {/* Joining Date */}
-                <td className="px-2 py-2 text-[13px] font-medium text-gray-700">
-                  {client.joiningDate}
+                <td className="px-4 py-3 align-middle">
+                  <div className="w-12 h-6 mx-auto rounded-full bg-blue-100 animate-pulse" />
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded bg-slate-200 animate-pulse" />
+                    <div className="w-20 h-4 bg-slate-200 rounded animate-pulse" />
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination skeleton */}
+      <div className="mt-5 flex items-center justify-between border-t border-slate-100 px-2 pt-6">
+        <div className="w-40 h-4 bg-slate-100 rounded animate-pulse" />
+        <div className="flex items-center gap-2">
+          <div className="w-20 h-8 bg-slate-100 rounded-md animate-pulse" />
+          <div className="w-20 h-8 bg-slate-100 rounded-md animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetailsProps) => {
+  if (isLoading) return <ClientDetailsSkeleton />;
+
+  const response = await getAllClientsAction(search, page);
+  const clients = response.data?.data || [];
+  const pagination = response.data?.pagination;
+
+  const safePage = Math.max(1, page);
+  const prevPage = Math.max(1, safePage - 1);
+  const nextPage = safePage + 1;
+
+  const baseQuery = new URLSearchParams();
+  if (search.trim()) {
+    baseQuery.set("search", search.trim());
+  }
+
+  const withPage = (targetPage: number) => {
+    const q = new URLSearchParams(baseQuery);
+    q.set("page", String(targetPage));
+    return `/clients?${q.toString()}`;
+  };
+
+  return (
+    <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 mt-6">
+      {/* Header section */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-indigo-50 rounded-xl">
+            <User className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">All Clients</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Manage and search your complete client list</p>
+          </div>
+        </div>
+
+        <form className="flex items-center gap-2 w-full sm:w-auto" method="GET" action="/clients">
+          <div className="relative w-full sm:w-64">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Search className="w-4 h-4 text-slate-400" />
+            </div>
+            <input
+              type="text"
+              name="search"
+              defaultValue={search}
+              placeholder="Search name or email"
+              className="h-10 w-full rounded-lg border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow"
+            />
+          </div>
+          <button
+            type="submit"
+            className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 transition-colors shadow-sm"
+          >
+            Search
+          </button>
+        </form>
+      </div>
+
+      {/* Table section */}
+      <div className="w-full overflow-x-auto rounded-xl border border-slate-100">
+        <table className="w-full text-left border-collapse whitespace-nowrap">
+          <thead>
+            <tr className="bg-slate-50/80 border-b border-slate-100">
+              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
+                Client Details
+              </th>
+              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
+                Contact Info
+              </th>
+              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase text-center">
+                Proposals
+              </th>
+              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase text-center">
+                Emails Sent
+              </th>
+              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
+                Joined Date
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {!response.ok ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center align-middle">
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-sm font-medium text-rose-500 bg-rose-50 px-4 py-2 rounded-lg border border-rose-100/50">
+                      {response.error || "Failed to load clients."}
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            ) : clients.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-12 text-center align-middle">
+                  <div className="flex flex-col items-center justify-center">
+                    <User className="w-12 h-12 text-slate-200 mb-3" />
+                    <p className="text-sm font-medium text-slate-500">No clients found matching your criteria.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              clients.map((client) => (
+                <tr
+                  key={client.id}
+                  className="group hover:bg-slate-50/50 transition-colors duration-200"
+                >
+                  {/* Client Details */}
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${generateGradient(client.name || 'User')} text-sm font-bold text-white shadow-sm ring-2 ring-white`}>
+                        {client.name?.trim()?.charAt(0)?.toUpperCase() || "U"}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                          {client.name || "Unknown Client"}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  
+                  {/* Client Email */}
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-2 text-slate-600">
+                      <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="text-sm font-medium">{client.email}</span>
+                    </div>
+                  </td>
+                  
+                  {/* Proposal Count */}
+                  <td className="px-4 py-3 text-center align-middle">
+                    <div className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100/50">
+                      {client.totalProposals || 0}
+                    </div>
+                  </td>
+
+                  {/* Email Sent */}
+                  <td className="px-4 py-3 text-center align-middle">
+                    <div className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100/50">
+                      {client.totalEmailSent || 0}
+                    </div>
+                  </td>
+                  
+                  {/* Joining Date */}
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="text-sm font-medium">{formatDate(client.joinDate)}</span>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {response.ok && pagination ? (
+        <div className="mt-6 flex items-center justify-between border-t border-slate-100 px-2 pt-6">
+          <p className="text-sm font-medium text-slate-500">
+            Showing Page <span className="font-bold text-slate-900">{pagination.page}</span> of <span className="font-bold text-slate-900">{pagination.totalPages}</span> 
+            <span className="mx-2 text-slate-300">|</span> 
+            Total: <span className="font-bold text-slate-900">{pagination.total}</span> clients
+          </p>
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Link
+              href={withPage(prevPage)}
+              className={`rounded-lg border px-4 py-2 transition-colors ${
+                pagination.hasPrevPage
+                  ? "border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                  : "pointer-events-none border-slate-100 text-slate-300 bg-slate-50/50"
+              }`}
+            >
+              Previous
+            </Link>
+            <Link
+              href={withPage(nextPage)}
+              className={`rounded-lg border px-4 py-2 transition-colors ${
+                pagination.hasNextPage
+                  ? "border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+                  : "pointer-events-none border-slate-100 text-slate-300 bg-slate-50/50"
+              }`}
+            >
+              Next
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
