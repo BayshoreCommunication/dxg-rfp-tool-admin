@@ -89,16 +89,7 @@ const Sidebar = () => {
       <div className="mx-4 h-px bg-linear-to-r from-transparent via-gray-200 to-transparent" />
 
       <div className="flex shrink-0 flex-col items-center gap-2 px-3 py-4">
-        {bottomIcons.map(({ icon, label }) => (
-          <button
-            key={label}
-            type="button"
-            title={label}
-            className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-400 transition-all duration-200 hover:bg-primary/5 hover:text-primary"
-          >
-            {icon}
-          </button>
-        ))}
+       
 
         <div
           className="relative mb-4 mt-2"
