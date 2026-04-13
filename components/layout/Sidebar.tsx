@@ -89,8 +89,6 @@ const Sidebar = () => {
       <div className="mx-4 h-px bg-linear-to-r from-transparent via-gray-200 to-transparent" />
 
       <div className="flex shrink-0 flex-col items-center gap-2 px-3 py-4">
-       
-
         <div
           className="relative mb-4 mt-2"
           onMouseEnter={() => setShowSignOut(true)}
