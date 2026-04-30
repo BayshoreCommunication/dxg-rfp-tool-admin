@@ -1,4 +1,5 @@
 import { getAllClientsAction } from "@/app/actions/allClients";
+import BlockClientButton from "./BlockClientButton";
 import Link from "next/link";
 import { User, Mail, Calendar, Search } from "lucide-react";
 
@@ -49,7 +50,7 @@ export const ClientDetailsSkeleton = () => {
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {[1, 2, 3, 4, 5].map((i) => (
+              {[1, 2, 3, 4, 5, 6].map((i) => (
                 <th key={i} className="px-4 py-3 leading-tight">
                   <div className="w-20 h-3 bg-slate-200 rounded animate-pulse" />
                 </th>
@@ -82,6 +83,9 @@ export const ClientDetailsSkeleton = () => {
                     <div className="w-4 h-4 rounded bg-slate-200 animate-pulse" />
                     <div className="w-20 h-4 bg-slate-200 rounded animate-pulse" />
                   </div>
+                </td>
+                <td className="px-4 py-3 align-middle">
+                  <div className="w-16 h-7 mx-auto rounded-lg bg-slate-100 animate-pulse" />
                 </td>
               </tr>
             ))}
@@ -179,12 +183,15 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
               <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
                 Joined Date
               </th>
+              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase text-center">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {!response.ok ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center align-middle">
+                <td colSpan={6} className="px-4 py-12 text-center align-middle">
                   <div className="flex flex-col items-center justify-center">
                     <p className="text-sm font-medium text-rose-500 bg-rose-50 px-4 py-2 rounded-lg border border-rose-100/50">
                       {response.error || "Failed to load clients."}
@@ -194,7 +201,7 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
               </tr>
             ) : clients.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center align-middle">
+                <td colSpan={6} className="px-4 py-12 text-center align-middle">
                   <div className="flex flex-col items-center justify-center">
                     <User className="w-12 h-12 text-slate-200 mb-3" />
                     <p className="text-sm font-medium text-slate-500">No clients found matching your criteria.</p>
@@ -213,10 +220,19 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${generateGradient(client.name || 'User')} text-sm font-bold text-white shadow-sm ring-2 ring-white`}>
                         {client.name?.trim()?.charAt(0)?.toUpperCase() || "U"}
                       </div>
-                      <div className="flex flex-col">
+                      <div className="flex flex-col gap-1">
                         <span className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
                           {client.name || "Unknown Client"}
                         </span>
+                        {client.isBlocked ? (
+                          <span className="inline-flex w-max items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-600 border border-rose-100">
+                            Blocked
+                          </span>
+                        ) : (
+                          <span className="inline-flex w-max items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 border border-emerald-100">
+                            Active
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -249,6 +265,14 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
                       <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
                       <span className="text-sm font-medium">{formatDate(client.joinDate)}</span>
                     </div>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-3 text-center align-middle">
+                    <BlockClientButton
+                      clientId={client.id}
+                      isBlocked={client.isBlocked ?? false}
+                    />
                   </td>
                 </tr>
               ))

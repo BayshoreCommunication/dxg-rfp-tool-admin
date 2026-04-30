@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
+import { revalidatePath } from "next/cache";
 
 const BACKEND_URL =
   process.env.BACKEND_URL ||
@@ -14,6 +15,7 @@ export interface AllClientItem {
   joinDate: string;
   totalProposals: number;
   totalEmailSent: number;
+  isBlocked: boolean;
 }
 
 export interface AllClientsResponse {
@@ -86,6 +88,50 @@ export async function getAllClientsAction(
       ok: false,
       error: error instanceof Error ? error.message : "Network error",
       data: null,
+    };
+  }
+}
+
+export async function blockClientAction(
+  clientId: string,
+  isBlocked: boolean,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  const accessToken = session?.user?.accessToken;
+
+  if (!accessToken) {
+    return { ok: false, error: "User is not authenticated." };
+  }
+
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/all-clients/${clientId}/block`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ isBlocked }),
+        cache: "no-store",
+      },
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: result?.message || "Failed to update client status.",
+      };
+    }
+
+    revalidatePath("/clients");
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Network error",
     };
   }
 }
