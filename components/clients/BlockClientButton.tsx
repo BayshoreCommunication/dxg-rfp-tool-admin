@@ -41,8 +41,8 @@ export default function BlockClientButton({ clientId, isBlocked }: Props) {
         title={blocked ? "Unblock this client" : "Block this client"}
         className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
           blocked
-            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            : "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
+            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+            : "border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
         }`}
       >
         {loading ? (

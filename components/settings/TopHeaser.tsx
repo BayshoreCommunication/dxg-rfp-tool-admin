@@ -43,10 +43,8 @@ const TopHeader = () => {
             Overview
           </span>
 
-          <h1 className="text-[30px] font-black tracking-tight leading-none">
-            <span className="bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent">
-              Settings
-            </span>
+          <h1 className="text-[30px] font-black tracking-tight leading-none text-gray-100">
+            Settings
           </h1>
 
           <p className="mt-1 text-[13px] text-slate-400 font-medium flex items-center gap-2 min-h-[20px]">

@@ -28,8 +28,8 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-screen w-[90px] flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200">
+    <aside className="fixed left-0 top-0 z-50 flex h-screen w-[90px] flex-col border-r border-gray-700/50 bg-[#111318]">
+      <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-700/50">
         <Link href="/dashboard">
           <Image
             src="/assets/logo/logo.svg"
@@ -51,8 +51,8 @@ const Sidebar = () => {
                 className={cn(
                   "group relative flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-3 transition-all duration-200",
                   isActive
-                    ? "bg-linear-to-b from-primary/10 to-primary/5"
-                    : "hover:bg-primary/5",
+                    ? "bg-primary/15"
+                    : "hover:bg-primary/10",
                 )}
               >
                 {isActive && (
@@ -63,8 +63,8 @@ const Sidebar = () => {
                   className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200",
                     isActive
-                      ? "bg-primary/15 text-primary"
-                      : "text-gray-400 group-hover:bg-primary/10 group-hover:text-primary",
+                      ? "bg-primary/20 text-primary"
+                      : "text-gray-500 group-hover:bg-primary/10 group-hover:text-primary",
                   )}
                 >
                   {item.icon}
@@ -75,7 +75,7 @@ const Sidebar = () => {
                     "text-[9.5px] font-bold leading-none tracking-wide",
                     isActive
                       ? "text-primary"
-                      : "text-gray-400 group-hover:text-primary",
+                      : "text-gray-500 group-hover:text-primary",
                   )}
                 >
                   {item.title}
@@ -86,7 +86,7 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="mx-4 h-px bg-linear-to-r from-transparent via-gray-200 to-transparent" />
+      <div className="mx-4 h-px bg-gray-700/50" />
 
       <div className="flex shrink-0 flex-col items-center gap-2 px-3 py-4">
         <div
@@ -100,13 +100,13 @@ const Sidebar = () => {
             className="block cursor-pointer"
           >
             <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-primary/20 transition-all duration-200 hover:scale-105 hover:ring-primary/40">
-              <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary to-blue-500 text-sm font-black text-white">
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary to-blue-500 text-sm font-black text-white">
                 A
               </div>
             </div>
           </button>
 
-          <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white" />
+          <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-[#111318]" />
           <div className="pointer-events-none absolute left-full top-1/2 h-12 w-2 -translate-y-1/2" />
 
           <div
@@ -120,10 +120,10 @@ const Sidebar = () => {
             <button
               type="button"
               onClick={() => void signOutHandler()}
-              className="relative flex w-24 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-3 text-[12px] font-semibold text-gray-700 shadow-md hover:bg-gray-50"
+              className="relative flex w-24 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-700 bg-[#1a1d27] px-3 py-3 text-[12px] font-semibold text-gray-300 shadow-md hover:bg-gray-700"
             >
-              <span className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-b border-l border-gray-200 bg-white" />
-              <LogOut size={12} className="text-gray-500" />
+              <span className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-b border-l border-gray-700 bg-[#1a1d27]" />
+              <LogOut size={12} className="text-gray-400" />
               Sign Out
             </button>
           </div>

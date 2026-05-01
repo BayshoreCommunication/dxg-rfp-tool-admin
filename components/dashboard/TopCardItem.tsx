@@ -61,15 +61,15 @@ export const TopCardItemSkeleton = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="relative overflow-hidden rounded-2xl p-6 bg-slate-100 shadow-sm border border-slate-200">
+        <div key={i} className="relative overflow-hidden rounded-2xl p-6 bg-[#111318] border border-gray-700/50">
           <div className="relative z-10 flex flex-col h-full justify-between">
             <div className="flex justify-between items-start mb-4">
-              <div className="w-12 h-12 rounded-xl bg-slate-200 animate-pulse" />
-              <div className="w-12 h-6 rounded-full bg-slate-200 animate-pulse" />
+              <div className="w-12 h-12 rounded-xl bg-gray-700 animate-pulse" />
+              <div className="w-12 h-6 rounded-full bg-gray-700 animate-pulse" />
             </div>
             <div>
-              <div className="w-24 h-4 bg-slate-200 rounded animate-pulse mb-2" />
-              <div className="w-16 h-8 bg-slate-200 rounded animate-pulse" />
+              <div className="w-24 h-4 bg-gray-700 rounded animate-pulse mb-2" />
+              <div className="w-16 h-8 bg-gray-700 rounded animate-pulse" />
             </div>
           </div>
         </div>
