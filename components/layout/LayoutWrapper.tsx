@@ -8,7 +8,7 @@ export default function LayoutWrapper({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-[#0d0f16]">
+    <div className="min-h-screen">
       <Sidebar />
       <main className="ml-[90px] min-h-screen">
         <div className="p-6">{children}</div>

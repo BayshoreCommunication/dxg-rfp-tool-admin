@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0d0f16;
-  --foreground: #f1f5f9;
+  --background: #F0F2F5;
+  --foreground: #000000;
   --primary: #2dc6f5;
   --font-gabarito: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-geist-mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
@@ -14,6 +14,13 @@
   --color-primary: var(--primary);
   --font-sans: var(--font-gabarito);
   --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #000000;
+  }
 }
 
 body {

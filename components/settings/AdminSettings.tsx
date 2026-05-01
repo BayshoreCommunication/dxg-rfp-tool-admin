@@ -27,41 +27,44 @@ type PasswordFormState = {
 
 export const AdminSettingsSkeleton = () => {
   return (
-    <div className="w-full bg-[#111318] mt-6 space-y-12 p-8 rounded-2xl border border-gray-700/50">
-      <div className="flex h-24 w-24 shrink-0 overflow-hidden rounded-full bg-gray-700 animate-pulse shadow-sm" />
+    <div className="w-full bg-white mt-6 space-y-12 p-8">
+      <div className="flex h-24 w-24 shrink-0 overflow-hidden rounded-full bg-slate-200 animate-pulse shadow-sm" />
 
       <div className="max-w-4xl relative">
-        <div className="mb-8 flex items-center justify-between border-b border-gray-700/50 pb-5">
+        <div className="mb-8 flex items-center justify-between border-b border-slate-100 pb-5">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gray-700 rounded-xl w-10 h-10 animate-pulse" />
-            <div className="w-40 h-6 bg-gray-700 rounded animate-pulse" />
+            <div className="p-2.5 bg-slate-100 rounded-xl w-10 h-10 animate-pulse" />
+            <div className="w-40 h-6 bg-slate-200 rounded animate-pulse" />
           </div>
         </div>
         <div className="space-y-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-              <div className="w-24 h-4 bg-gray-700 rounded animate-pulse" />
-              <div className="w-64 h-10 bg-gray-800 rounded-lg animate-pulse" />
+            <div
+              key={i}
+              className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8"
+            >
+              <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
+              <div className="w-64 h-10 bg-slate-100 rounded-lg animate-pulse" />
             </div>
           ))}
         </div>
-        <div className="mt-8 w-36 h-10 bg-gray-700 rounded-lg animate-pulse" />
+        <div className="mt-8 w-36 h-10 bg-slate-200 rounded-lg animate-pulse" />
       </div>
 
       <div className="max-w-4xl relative">
-        <div className="mb-8 flex items-center justify-between border-b border-gray-700/50 pb-5">
+        <div className="mb-8 flex items-center justify-between border-b border-slate-100 pb-5">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gray-700 rounded-xl w-10 h-10 animate-pulse" />
-            <div className="w-40 h-6 bg-gray-700 rounded animate-pulse" />
+            <div className="p-2.5 bg-slate-100 rounded-xl w-10 h-10 animate-pulse" />
+            <div className="w-40 h-6 bg-slate-200 rounded animate-pulse" />
           </div>
         </div>
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-            <div className="w-24 h-4 bg-gray-700 rounded animate-pulse" />
-            <div className="w-64 h-10 bg-gray-800 rounded-lg animate-pulse" />
+            <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
+            <div className="w-64 h-10 bg-slate-100 rounded-lg animate-pulse" />
           </div>
         </div>
-        <div className="mt-8 w-44 h-10 bg-gray-700 rounded-lg animate-pulse" />
+        <div className="mt-8 w-44 h-10 bg-slate-200 rounded-lg animate-pulse" />
       </div>
     </div>
   );
@@ -84,7 +87,9 @@ const AdminSettings = ({
   const [editingPassword, setEditingPassword] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
-  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(
+    null,
+  );
   const [error, setError] = useState<string>(loadError || "");
   const [success, setSuccess] = useState("");
 
@@ -96,7 +101,8 @@ const AdminSettings = ({
     [profileData],
   );
 
-  const [profileForm, setProfileForm] = useState<ProfileFormState>(initialProfileForm);
+  const [profileForm, setProfileForm] =
+    useState<ProfileFormState>(initialProfileForm);
   const [passwordForm, setPasswordForm] = useState<PasswordFormState>({
     oldPassword: "",
     newPassword: "",
@@ -171,14 +177,22 @@ const AdminSettings = ({
   };
 
   const startPasswordEdit = () => {
-    setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordForm({
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
     setEditingPassword(true);
     setError("");
     setSuccess("");
   };
 
   const cancelPasswordEdit = () => {
-    setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordForm({
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
     setEditingPassword(false);
   };
 
@@ -186,17 +200,28 @@ const AdminSettings = ({
     setError("");
     setSuccess("");
 
-    const { oldPassword, newPassword, confirmPassword } = passwordForm;
+    const oldPassword = passwordForm.oldPassword;
+    const newPassword = passwordForm.newPassword;
+    const confirmPassword = passwordForm.confirmPassword;
 
-    if (!oldPassword) { setError("Old password is required."); return; }
-    if (!newPassword) { setError("New password is required."); return; }
+    if (!oldPassword) {
+      setError("Old password is required.");
+      return;
+    }
+    if (!newPassword) {
+      setError("New password is required.");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setError("New password and confirm password do not match.");
       return;
     }
 
     setSavingPassword(true);
-    const response = await updateAdminUserProfileAction({ oldPassword, newPassword });
+    const response = await updateAdminUserProfileAction({
+      oldPassword,
+      newPassword,
+    });
     setSavingPassword(false);
 
     if (!response.ok) {
@@ -204,7 +229,11 @@ const AdminSettings = ({
       return;
     }
 
-    setPasswordForm({ oldPassword: "", newPassword: "", confirmPassword: "" });
+    setPasswordForm({
+      oldPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
     setEditingPassword(false);
     setSuccess("Password changed successfully.");
   };
@@ -212,13 +241,13 @@ const AdminSettings = ({
   if (isLoading) return <AdminSettingsSkeleton />;
 
   return (
-    <div className="w-full bg-[#111318] mt-6 space-y-12 font-sans rounded-2xl p-6 sm:p-8 border border-gray-700/50">
+    <div className="w-full bg-white mt-6 space-y-12 font-sans rounded-2xl p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
       {/* Avatar Section */}
-      <div className="flex items-center gap-6 pb-6 border-b border-gray-700/50">
-        <div className="relative group flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-500/10 border-4 border-gray-700 shadow-lg ring-1 ring-gray-700">
+      <div className="flex items-center gap-6 pb-6 border-b border-slate-100">
+        <div className="relative group flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 border-4 border-white shadow-lg ring-1 ring-slate-100">
           {editingProfile ? (
             <>
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
+              <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
                 <Camera className="w-6 h-6 text-white" />
               </div>
               <input
@@ -240,7 +269,7 @@ const AdminSettings = ({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <UserIcon className="w-10 h-10 text-indigo-400" />
+                <UserIcon className="w-10 h-10 text-indigo-300" />
               )}
             </>
           ) : (
@@ -254,7 +283,7 @@ const AdminSettings = ({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <UserIcon className="w-10 h-10 text-indigo-400" />
+                <UserIcon className="w-10 h-10 text-indigo-300" />
               )}
             </>
           )}
@@ -262,25 +291,33 @@ const AdminSettings = ({
         <div>
           {editingProfile ? (
             <>
-              <p className="text-sm font-semibold text-gray-300">Profile Picture</p>
-              <p className="text-xs text-gray-500 mt-0.5">Click the image to upload a new avatar.</p>
+              <p className="text-sm font-semibold text-slate-700">
+                Profile Picture
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Click the image to upload a new avatar.
+              </p>
             </>
           ) : (
             <>
-              <h3 className="text-xl font-bold text-gray-100">{profileData?.name || "Admin"}</h3>
-              <p className="text-sm text-gray-400 mt-1">{profileData?.email || "No email provided"}</p>
+              <h3 className="text-xl font-bold text-slate-900">
+                {profileData?.name || "Admin"}
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">
+                {profileData?.email || "No email provided"}
+              </p>
             </>
           )}
         </div>
       </div>
 
       {error && (
-        <div className="max-w-4xl p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 text-sm font-medium text-rose-400 flex items-center gap-3">
+        <div className="max-w-4xl p-4 rounded-xl border border-rose-200 bg-rose-50 text-sm font-medium text-rose-600 flex items-center gap-3">
           {error}
         </div>
       )}
       {success && (
-        <div className="max-w-4xl p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-sm font-medium text-emerald-400 flex items-center gap-3">
+        <div className="max-w-4xl p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 flex items-center gap-3">
           {success}
         </div>
       )}
@@ -289,49 +326,65 @@ const AdminSettings = ({
       <div className="max-w-4xl relative">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 rounded-xl">
-              <UserIcon className="w-5 h-5 text-blue-400" />
+            <div className="p-2.5 bg-blue-50 rounded-xl">
+              <UserIcon className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-lg font-bold tracking-tight text-gray-100">Profile Settings</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Manage your personal information</p>
+              <h3 className="text-lg font-bold tracking-tight text-slate-900">
+                Profile Settings
+              </h3>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Manage your personal information
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-gray-800/30 p-6 rounded-xl border border-gray-700/50">
-          <label className="sm:col-span-3 text-sm font-semibold text-gray-400">Full Name</label>
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-slate-50/50 p-6 rounded-xl border border-slate-100">
+          <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
+            Full Name
+          </label>
           <div className="sm:col-span-9">
             {editingProfile ? (
               <input
                 type="text"
                 value={profileForm.name}
                 onChange={onProfileChange("name")}
-                className="w-full max-w-md rounded-lg border border-gray-600 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-100 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm placeholder:text-gray-600"
+                className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm"
               />
             ) : (
-              <p className="text-sm font-medium text-gray-200">{profileData?.name || "Not specified"}</p>
+              <p className="text-sm font-medium text-slate-900">
+                {profileData?.name || "Not specified"}
+              </p>
             )}
           </div>
 
-          <label className="sm:col-span-3 text-sm font-semibold text-gray-400">Email Address</label>
+          <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
+            Email Address
+          </label>
           <div className="sm:col-span-9">
-            <p className={`text-sm font-medium ${editingProfile ? "text-gray-500 bg-gray-700/50 cursor-not-allowed border-gray-600 w-full max-w-md px-4 py-2.5 rounded-lg border" : "text-gray-200"}`}>
+            <p
+              className={`text-sm font-medium ${editingProfile ? "text-slate-500 bg-slate-100 cursor-not-allowed border-slate-200 w-full max-w-md px-4 py-2.5 rounded-lg border" : "text-slate-900"}`}
+            >
               {profileData?.email || "Not specified"}
             </p>
           </div>
 
-          <label className="sm:col-span-3 text-sm font-semibold text-gray-400">Phone Number</label>
+          <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
+            Phone Number
+          </label>
           <div className="sm:col-span-9">
             {editingProfile ? (
               <input
                 type="text"
                 value={profileForm.phone}
                 onChange={onProfileChange("phone")}
-                className="w-full max-w-md rounded-lg border border-gray-600 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-100 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm placeholder:text-gray-600"
+                className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm"
               />
             ) : (
-              <p className="text-sm font-medium text-gray-200">{profileData?.phone || "Not specified"}</p>
+              <p className="text-sm font-medium text-slate-900">
+                {profileData?.phone || "Not specified"}
+              </p>
             )}
           </div>
         </div>
@@ -342,7 +395,7 @@ const AdminSettings = ({
               type="button"
               onClick={cancelProfileEdit}
               disabled={savingProfile}
-              className="rounded-lg border border-gray-600 bg-gray-800 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-gray-700 disabled:opacity-60 transition-colors"
+              className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition-colors shadow-sm"
             >
               Cancel
             </button>
@@ -350,7 +403,7 @@ const AdminSettings = ({
               type="button"
               onClick={saveProfile}
               disabled={savingProfile}
-              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-60 transition-colors"
+              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60 shadow-sm transition-colors"
             >
               {savingProfile ? "Saving..." : "Save Changes"}
             </button>
@@ -360,7 +413,7 @@ const AdminSettings = ({
             <button
               type="button"
               onClick={startProfileEdit}
-              className="flex items-center gap-2 rounded-lg bg-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-100 hover:bg-gray-600 transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
             >
               <PencilLine size={16} />
               Update Profile
@@ -370,64 +423,76 @@ const AdminSettings = ({
       </div>
 
       {/* Password Settings Box */}
-      <div className="max-w-4xl relative pt-6 border-t border-gray-700/50">
+      <div className="max-w-4xl relative pt-6 border-t border-slate-100">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/10 rounded-xl">
-              <KeyRound className="w-5 h-5 text-amber-400" />
+            <div className="p-2.5 bg-amber-50 rounded-xl">
+              <KeyRound className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <h3 className="text-lg font-bold tracking-tight text-gray-100">Password Settings</h3>
-              <p className="text-sm text-gray-500 mt-0.5">Secure your administrative access</p>
+              <h3 className="text-lg font-bold tracking-tight text-slate-900">
+                Password Settings
+              </h3>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Secure your administrative access
+              </p>
             </div>
           </div>
         </div>
 
         {!editingPassword ? (
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-gray-800/30 p-6 rounded-xl border border-gray-700/50">
-            <label className="sm:col-span-3 text-sm font-semibold text-gray-400">Current Password</label>
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-slate-50/50 p-6 rounded-xl border border-slate-100">
+            <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
+              Current Password
+            </label>
             <div className="sm:col-span-9">
               <input
                 type="password"
                 value="••••••••••••"
                 readOnly
-                className="bg-transparent text-sm font-bold tracking-widest text-gray-500 outline-none cursor-default"
+                className="bg-transparent text-sm font-bold tracking-widest text-slate-500 outline-none cursor-default"
               />
             </div>
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-gray-800/30 p-6 rounded-xl border border-gray-700/50">
-              <label className="sm:col-span-3 text-sm font-semibold text-gray-400">Old Password</label>
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-slate-50/50 p-6 rounded-xl border border-slate-100">
+              <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
+                Old Password
+              </label>
               <div className="sm:col-span-9">
                 <input
                   type="password"
                   value={passwordForm.oldPassword}
                   onChange={onPasswordChange("oldPassword")}
                   placeholder="Enter current password"
-                  className="w-full max-w-md rounded-lg border border-gray-600 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-100 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm placeholder:text-gray-600"
+                  className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
                 />
               </div>
 
-              <label className="sm:col-span-3 text-sm font-semibold text-gray-400">New Password</label>
+              <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
+                New Password
+              </label>
               <div className="sm:col-span-9">
                 <input
                   type="password"
                   value={passwordForm.newPassword}
                   onChange={onPasswordChange("newPassword")}
                   placeholder="Enter new password"
-                  className="w-full max-w-md rounded-lg border border-gray-600 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-100 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm placeholder:text-gray-600"
+                  className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
                 />
               </div>
 
-              <label className="sm:col-span-3 text-sm font-semibold text-gray-400">Confirm Password</label>
+              <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
+                Confirm Password
+              </label>
               <div className="sm:col-span-9">
                 <input
                   type="password"
                   value={passwordForm.confirmPassword}
                   onChange={onPasswordChange("confirmPassword")}
                   placeholder="Confirm new password"
-                  className="w-full max-w-md rounded-lg border border-gray-600 bg-gray-800 px-4 py-2.5 text-sm font-medium text-gray-100 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm placeholder:text-gray-600"
+                  className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
                 />
               </div>
             </div>
@@ -437,7 +502,7 @@ const AdminSettings = ({
                 type="button"
                 onClick={cancelPasswordEdit}
                 disabled={savingPassword}
-                className="rounded-lg border border-gray-600 bg-gray-800 px-5 py-2.5 text-sm font-semibold text-gray-300 hover:bg-gray-700 disabled:opacity-60 transition-colors"
+                className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition-colors shadow-sm"
               >
                 Cancel
               </button>
@@ -445,7 +510,7 @@ const AdminSettings = ({
                 type="button"
                 onClick={savePassword}
                 disabled={savingPassword}
-                className="rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-500 disabled:opacity-60 transition-colors"
+                className="rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-60 shadow-sm transition-colors"
               >
                 {savingPassword ? "Updating..." : "Update Password"}
               </button>
@@ -458,7 +523,7 @@ const AdminSettings = ({
             <button
               type="button"
               onClick={startPasswordEdit}
-              className="flex items-center gap-2 rounded-lg bg-gray-700 px-5 py-2.5 text-sm font-semibold text-gray-100 hover:bg-gray-600 transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
             >
               <PencilLine size={16} />
               Update Password
