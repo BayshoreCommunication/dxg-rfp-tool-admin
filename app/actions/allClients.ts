@@ -3,10 +3,7 @@
 import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 
-const BACKEND_URL =
-  process.env.BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:8000";
+import { BACKEND_URL } from "@/lib/config";
 
 export interface AllClientItem {
   id: string;
