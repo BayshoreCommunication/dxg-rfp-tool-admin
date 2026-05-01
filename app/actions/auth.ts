@@ -1,6 +1,7 @@
 "use server";
 
 import { auth, signIn } from "@/auth";
+import { AuthError } from "next-auth";
 
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 
@@ -96,24 +97,27 @@ export async function signInAction(
   callbackUrl?: string,
 ) {
   try {
-    const result = await signIn("credentials", {
+    await signIn("credentials", {
       email,
       password,
       redirect: false,
     });
-    const signInResult = result as { error?: string } | undefined;
-
-    if (signInResult?.error) {
-      return { success: false, message: "Invalid admin email or password." };
-    }
 
     return {
       success: true,
       callbackUrl: getSafeCallbackUrl(callbackUrl),
       message: "Login successful",
     };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+  } catch (error: unknown) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return { success: false, message: "Invalid credentials." };
+        default:
+          return { success: false, message: "Login failed. Please try again." };
+      }
+    }
+    return { success: false, message: "An unexpected error occurred." };
   }
 }
 
