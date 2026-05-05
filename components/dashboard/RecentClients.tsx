@@ -18,7 +18,7 @@ const formatDate = (isoDate?: string) => {
   });
 };
 
-// Generates a consistent gradient background for avatars based on name
+// Generates a consistent gradient background for avatars 
 const generateGradient = (name: string) => {
   const colors = [
     "from-rose-400 to-red-500",
