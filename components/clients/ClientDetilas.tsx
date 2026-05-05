@@ -1,7 +1,9 @@
 import { getAllClientsAction } from "@/app/actions/allClients";
-import BlockClientButton from "./BlockClientButton";
+import { auth } from "@/auth";
+import { Calendar, Mail, Search, User } from "lucide-react";
 import Link from "next/link";
-import { User, Mail, Calendar, Search } from "lucide-react";
+import BlockClientButton from "./BlockClientButton";
+import DeleteClientButton from "./DeleteClientButton";
 
 type ClientDetailsProps = {
   isLoading?: boolean;
@@ -20,6 +22,24 @@ const formatDate = (isoDate?: string) => {
   });
 };
 
+const buildPageList = (
+  current: number,
+  total: number,
+): (number | "...")[] => {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+  for (
+    let i = Math.max(2, current - 1);
+    i <= Math.min(total - 1, current + 1);
+    i++
+  )
+    pages.push(i);
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+  return pages;
+};
+
 const generateGradient = (name: string) => {
   const colors = [
     "from-rose-400 to-red-500",
@@ -35,7 +55,7 @@ const generateGradient = (name: string) => {
 
 export const ClientDetailsSkeleton = () => {
   return (
-    <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 mt-6">
+    <div className="bg-white rounded-xl p-5 sm:p-6 shadow-md border border-slate-100 mt-6">
       {/* Header section skeleton */}
       <div className="flex items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
@@ -50,7 +70,7 @@ export const ClientDetailsSkeleton = () => {
         <table className="w-full text-left border-collapse whitespace-nowrap">
           <thead>
             <tr className="bg-slate-50/80 border-b border-slate-100">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
                 <th key={i} className="px-4 py-3 leading-tight">
                   <div className="w-20 h-3 bg-slate-200 rounded animate-pulse" />
                 </th>
@@ -85,14 +105,17 @@ export const ClientDetailsSkeleton = () => {
                   </div>
                 </td>
                 <td className="px-4 py-3 align-middle">
-                  <div className="w-16 h-7 mx-auto rounded-lg bg-slate-100 animate-pulse" />
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-16 h-7 rounded-lg bg-slate-100 animate-pulse" />
+                    <div className="w-16 h-7 rounded-lg bg-slate-100 animate-pulse" />
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      
+
       {/* Pagination skeleton */}
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 px-2 pt-6">
         <div className="w-40 h-4 bg-slate-100 rounded animate-pulse" />
@@ -105,8 +128,16 @@ export const ClientDetailsSkeleton = () => {
   );
 };
 
-const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetailsProps) => {
+const ClientDetails = async ({
+  search = "",
+  page = 1,
+  isLoading,
+}: ClientDetailsProps) => {
   if (isLoading) return <ClientDetailsSkeleton />;
+
+  const session = await auth();
+  const sessionRole = (session?.user?.role || "").toLowerCase().trim().replace(/[\s-]/g, "_");
+  const isSuperAdmin = sessionRole === "super_admin" || sessionRole === "superadmin";
 
   const response = await getAllClientsAction(search, page);
   const clients = response.data?.data || [];
@@ -128,7 +159,7 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
   };
 
   return (
-    <div className="bg-white rounded-2xl p-5 sm:p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 mt-6">
+    <div className="bg-white rounded-xl p-5 sm:p-6 shadow border border-slate-100 mt-6">
       {/* Header section */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
@@ -136,12 +167,20 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
             <User className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">All Clients</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Manage and search your complete client list</p>
+            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+              All Clients
+            </h2>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Manage and search your complete client list
+            </p>
           </div>
         </div>
 
-        <form className="flex items-center gap-2 w-full sm:w-auto" method="GET" action="/clients">
+        <form
+          className="flex items-center gap-2 w-full sm:w-auto"
+          method="GET"
+          action="/clients"
+        >
           <div className="relative w-full sm:w-64">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <Search className="w-4 h-4 text-slate-400" />
@@ -174,6 +213,9 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
               <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
                 Contact Info
               </th>
+              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
+                Company
+              </th>
               <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase text-center">
                 Proposals
               </th>
@@ -191,7 +233,7 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
           <tbody className="divide-y divide-slate-100">
             {!response.ok ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center align-middle">
+                <td colSpan={7} className="px-4 py-12 text-center align-middle">
                   <div className="flex flex-col items-center justify-center">
                     <p className="text-sm font-medium text-rose-500 bg-rose-50 px-4 py-2 rounded-lg border border-rose-100/50">
                       {response.error || "Failed to load clients."}
@@ -201,10 +243,12 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
               </tr>
             ) : clients.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center align-middle">
+                <td colSpan={7} className="px-4 py-12 text-center align-middle">
                   <div className="flex flex-col items-center justify-center">
                     <User className="w-12 h-12 text-slate-200 mb-3" />
-                    <p className="text-sm font-medium text-slate-500">No clients found matching your criteria.</p>
+                    <p className="text-sm font-medium text-slate-500">
+                      No clients found matching your criteria.
+                    </p>
                   </div>
                 </td>
               </tr>
@@ -217,7 +261,9 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
                   {/* Client Details */}
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-4">
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${generateGradient(client.name || 'User')} text-sm font-bold text-white shadow-sm ring-2 ring-white`}>
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br ${generateGradient(client.name || "User")} text-sm font-bold text-white shadow-sm ring-2 ring-white`}
+                      >
                         {client.name?.trim()?.charAt(0)?.toUpperCase() || "U"}
                       </div>
                       <div className="flex flex-col gap-1">
@@ -236,15 +282,28 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
                       </div>
                     </div>
                   </td>
-                  
+
                   {/* Client Email */}
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-2 text-slate-600">
                       <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">{client.email}</span>
+                      <span className="text-sm font-medium">
+                        {client.email}
+                      </span>
                     </div>
                   </td>
-                  
+
+                  {/* Company */}
+                  <td className="px-4 py-3 align-middle">
+                    {client.company ? (
+                      <span className="text-sm font-medium text-slate-700 truncate max-w-40 block">
+                        {client.company}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300 text-sm">—</span>
+                    )}
+                  </td>
+
                   {/* Proposal Count */}
                   <td className="px-4 py-3 text-center align-middle">
                     <div className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100/50">
@@ -258,21 +317,30 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
                       {client.totalEmailSent || 0}
                     </div>
                   </td>
-                  
+
                   {/* Joining Date */}
                   <td className="px-4 py-3 align-middle">
                     <div className="flex items-center gap-2 text-slate-500">
                       <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">{formatDate(client.joinDate)}</span>
+                      <span className="text-sm font-medium">
+                        {formatDate(client.joinDate)}
+                      </span>
                     </div>
                   </td>
 
                   {/* Actions */}
                   <td className="px-4 py-3 text-center align-middle">
-                    <BlockClientButton
-                      clientId={client.id}
-                      isBlocked={client.isBlocked ?? false}
-                    />
+                    {isSuperAdmin ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <BlockClientButton
+                          clientId={client.id}
+                          isBlocked={client.isBlocked ?? false}
+                        />
+                        <DeleteClientButton clientId={client.id} />
+                      </div>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </td>
                 </tr>
               ))
@@ -281,34 +349,58 @@ const ClientDetails = async ({ search = "", page = 1, isLoading }: ClientDetails
         </table>
       </div>
 
-      {/* Pagination */}
-      {response.ok && pagination ? (
-        <div className="mt-6 flex items-center justify-between border-t border-slate-100 px-2 pt-6">
-          <p className="text-sm font-medium text-slate-500">
-            Showing Page <span className="font-bold text-slate-900">{pagination.page}</span> of <span className="font-bold text-slate-900">{pagination.totalPages}</span> 
-            <span className="mx-2 text-slate-300">|</span> 
-            Total: <span className="font-bold text-slate-900">{pagination.total}</span> clients
-          </p>
-          <div className="flex items-center gap-2 text-sm font-medium">
+      {/* Pagination — only shown when there is more than one page */}
+      {response.ok && pagination && pagination.totalPages > 1 ? (
+        <div className="mt-6 flex justify-end border-t border-slate-100 pt-5">
+          <div className="flex items-center gap-1">
+            {/* Prev */}
             <Link
               href={withPage(prevPage)}
-              className={`rounded-lg border px-4 py-2 transition-colors ${
+              aria-label="Previous page"
+              className={`inline-flex items-center justify-center h-8 px-3 rounded-md border text-sm font-medium transition-colors ${
                 pagination.hasPrevPage
-                  ? "border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
-                  : "pointer-events-none border-slate-100 text-slate-300 bg-slate-50/50"
+                  ? "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+                  : "pointer-events-none border-slate-100 text-slate-300 bg-slate-50/40"
               }`}
             >
-              Previous
+              ‹
             </Link>
+
+            {buildPageList(pagination.page, pagination.totalPages).map(
+              (p, i) =>
+                p === "..." ? (
+                  <span
+                    key={`ellipsis-${i}`}
+                    className="inline-flex items-center justify-center h-8 w-8 text-sm text-slate-400 select-none"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <Link
+                    key={p}
+                    href={withPage(p)}
+                    className={`inline-flex items-center justify-center h-8 w-8 rounded-md border text-sm font-medium transition-colors ${
+                      p === pagination.page
+                        ? "border-indigo-400 bg-indigo-50 text-indigo-600 pointer-events-none"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+                    }`}
+                  >
+                    {p}
+                  </Link>
+                ),
+            )}
+
+            {/* Next */}
             <Link
               href={withPage(nextPage)}
-              className={`rounded-lg border px-4 py-2 transition-colors ${
+              aria-label="Next page"
+              className={`inline-flex items-center justify-center h-8 px-3 rounded-md border text-sm font-medium transition-colors ${
                 pagination.hasNextPage
-                  ? "border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
-                  : "pointer-events-none border-slate-100 text-slate-300 bg-slate-50/50"
+                  ? "border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
+                  : "pointer-events-none border-slate-100 text-slate-300 bg-slate-50/40"
               }`}
             >
-              Next
+              ›
             </Link>
           </div>
         </div>

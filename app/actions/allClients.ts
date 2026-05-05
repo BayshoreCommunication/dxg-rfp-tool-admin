@@ -9,6 +9,7 @@ export interface AllClientItem {
   id: string;
   name: string;
   email: string;
+  company?: string;
   joinDate: string;
   totalProposals: number;
   totalEmailSent: number;
@@ -120,6 +121,48 @@ export async function blockClientAction(
       return {
         ok: false,
         error: result?.message || "Failed to update client status.",
+      };
+    }
+
+    revalidatePath("/clients");
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Network error",
+    };
+  }
+}
+
+export async function deleteClientAction(
+  clientId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await auth();
+  const accessToken = session?.user?.accessToken;
+
+  if (!accessToken) {
+    return { ok: false, error: "User is not authenticated." };
+  }
+
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/all-clients/${clientId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        cache: "no-store",
+      },
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: result?.message || "Failed to delete client.",
       };
     }
 

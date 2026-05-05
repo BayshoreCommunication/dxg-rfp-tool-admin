@@ -91,18 +91,48 @@ function getSafeCallbackUrl(callbackUrl?: string) {
   return callbackUrl;
 }
 
+const ADMIN_AUTH_ERRORS: Record<string, string> = {
+  USER_NOT_FOUND: "No account found with this email.",
+  WRONG_PASSWORD: "Incorrect password. Please try again.",
+  USER_BLOCKED: "Your account has been blocked. Please contact support.",
+  NOT_ADMIN: "This account does not have admin access.",
+};
+
 export async function signInAction(
   email: string,
   password: string,
   callbackUrl?: string,
 ) {
+  // Pre-check credentials against backend to get specific error messages
   try {
-    await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
+    const { BACKEND_URL: BASE } = await import("@/lib/config");
+    const apiUrl = BASE.endsWith("/api") ? BASE.slice(0, -4) : BASE;
+
+    const preCheck = await fetch(`${apiUrl}/api/auth/admin/signin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+      cache: "no-store",
     });
 
+    if (!preCheck.ok) {
+      const errData = await preCheck.json().catch(() => ({}));
+      const code = errData?.errorCode as string | undefined;
+      return {
+        success: false,
+        message:
+          (code && ADMIN_AUTH_ERRORS[code]) ||
+          errData?.message ||
+          "Login failed. Please try again.",
+      };
+    }
+  } catch {
+    return { success: false, message: "Could not reach the server. Please try again." };
+  }
+
+  // Credentials are valid — create the NextAuth session
+  try {
+    await signIn("credentials", { email, password, redirect: false });
     return {
       success: true,
       callbackUrl: getSafeCallbackUrl(callbackUrl),
@@ -110,12 +140,7 @@ export async function signInAction(
     };
   } catch (error: unknown) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return { success: false, message: "Invalid credentials." };
-        default:
-          return { success: false, message: "Login failed. Please try again." };
-      }
+      return { success: false, message: "Login failed. Please try again." };
     }
     return { success: false, message: "An unexpected error occurred." };
   }

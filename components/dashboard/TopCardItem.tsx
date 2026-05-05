@@ -23,7 +23,7 @@ interface TopCardItemProps {
 
 const StatCard = ({ title, value, icon, bgGradient, textColor, trendValue }: StatMetric) => {
   return (
-    <div className={`relative overflow-hidden rounded-2xl p-6 ${bgGradient} text-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl`}>
+    <div className={`relative overflow-hidden rounded-xl p-6 ${bgGradient} text-white shadow-lg transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl`}>
       {/* Large watermark background icon */}
       <div className="absolute -bottom-4 -right-4 opacity-20 pointer-events-none text-white w-32 h-32">
         {React.cloneElement(icon, { className: "w-full h-full" })}
@@ -61,7 +61,7 @@ export const TopCardItemSkeleton = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {[1, 2, 3, 4].map((i) => (
-        <div key={i} className="relative overflow-hidden rounded-2xl p-6 bg-slate-100 shadow-sm border border-slate-200">
+        <div key={i} className="relative overflow-hidden rounded-xl p-6 bg-slate-100 shadow border border-slate-200">
           <div className="relative z-10 flex flex-col h-full justify-between">
             <div className="flex justify-between items-start mb-4">
               <div className="w-12 h-12 rounded-xl bg-slate-200 animate-pulse" />

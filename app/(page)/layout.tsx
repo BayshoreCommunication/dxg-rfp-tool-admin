@@ -1,4 +1,5 @@
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
+import { ToastContainer } from "@/components/ui/Toast";
 import "../globals.css";
 
 export const metadata = {
@@ -14,6 +15,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased font-sans">
         <LayoutWrapper>{children}</LayoutWrapper>
+        <ToastContainer />
       </body>
     </html>
   );

@@ -28,7 +28,7 @@ type PasswordFormState = {
 export const AdminSettingsSkeleton = () => {
   return (
     <div className="w-full bg-white mt-6 space-y-12 p-8">
-      <div className="flex h-24 w-24 shrink-0 overflow-hidden rounded-full bg-slate-200 animate-pulse shadow-sm" />
+      <div className="flex h-24 w-24 shrink-0 overflow-hidden rounded-full bg-slate-200 animate-pulse shadow" />
 
       <div className="max-w-4xl relative">
         <div className="mb-8 flex items-center justify-between border-b border-slate-100 pb-5">
@@ -241,7 +241,7 @@ const AdminSettings = ({
   if (isLoading) return <AdminSettingsSkeleton />;
 
   return (
-    <div className="w-full bg-white mt-6 space-y-12 font-sans rounded-2xl p-6 sm:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+    <div className="w-full bg-white mt-6 space-y-12 font-sans rounded-xl p-6 sm:p-8 shadow border border-slate-100">
       {/* Avatar Section */}
       <div className="flex items-center gap-6 pb-6 border-b border-slate-100">
         <div className="relative group flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 border-4 border-white shadow-lg ring-1 ring-slate-100">

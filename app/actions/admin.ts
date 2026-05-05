@@ -8,6 +8,7 @@ export interface AdminOverviewClient {
   id: string;
   name: string;
   email: string;
+  company?: string;
   joinDate: string;
   totalProposals: number;
   totalEmailSent: number;

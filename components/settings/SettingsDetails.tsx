@@ -2,7 +2,7 @@ import { getAdminUserProfileAction } from "@/app/actions/adminUser";
 import AdminSettings from "./AdminSettings";
 import TopHeader from "./TopHeaser";
 
-const SettingsDetials = async () => {
+const SettingsDetails = async () => {
   const response = await getAdminUserProfileAction();
 
   return (
@@ -13,4 +13,4 @@ const SettingsDetials = async () => {
   );
 };
 
-export default SettingsDetials;
+export default SettingsDetails;

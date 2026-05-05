@@ -1,4 +1,4 @@
-import { House, Settings, UsersRound } from "lucide-react";
+import { House, Settings, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -19,7 +19,14 @@ export const navigationConfig: NavItem[] = [
     id: "clients",
     title: "Clients",
     href: "/clients",
-    icon: <UsersRound  size={22} />,
+    icon: <UserRound size={22} />,
+  },
+
+  {
+    id: "users",
+    title: "Users",
+    href: "/users",
+    icon: <Users size={22} />,
   },
 
   {

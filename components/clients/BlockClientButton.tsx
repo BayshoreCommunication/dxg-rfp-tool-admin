@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { blockClientAction } from "@/app/actions/allClients";
 import { ShieldOff, ShieldCheck, Loader2 } from "lucide-react";
 
@@ -14,7 +13,6 @@ export default function BlockClientButton({ clientId, isBlocked }: Props) {
   const [loading, setLoading] = useState(false);
   const [blocked, setBlocked] = useState(isBlocked);
   const [error, setError] = useState("");
-  const router = useRouter();
 
   const handleToggle = async () => {
     setLoading(true);
@@ -26,8 +24,7 @@ export default function BlockClientButton({ clientId, isBlocked }: Props) {
     if (!res.ok) {
       setBlocked(!next);
       setError(res.error || "Failed.");
-    } else {
-      router.refresh();
+      setTimeout(() => setError(""), 5000);
     }
     setLoading(false);
   };

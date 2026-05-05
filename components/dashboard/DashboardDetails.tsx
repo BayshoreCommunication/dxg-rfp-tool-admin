@@ -3,7 +3,7 @@ import RecentClients from "./RecentClients";
 import TopCardItem from "./TopCardItem";
 import TopHeader from "./TopHeader";
 
-const DashboardDetials = async () => {
+const DashboardDetails = async () => {
   const response = await getAdminOverviewAction();
   const totals = response.data?.totals;
   const latestClients = response.data?.latestClients || [];
@@ -17,4 +17,4 @@ const DashboardDetials = async () => {
   );
 };
 
-export default DashboardDetials;
+export default DashboardDetails;

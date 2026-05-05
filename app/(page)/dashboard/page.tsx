@@ -1,4 +1,4 @@
-import DashboardDetials from "@/components/dashboard/DashboardDetials"
+import DashboardDetials from "@/components/dashboard/DashboardDetails"
 
     const page = () => {
       return <DashboardDetials />

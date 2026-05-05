@@ -1,4 +1,4 @@
-import SettingsDetials from "@/components/settings/SettingsDetials"
+import SettingsDetials from "@/components/settings/SettingsDetails"
 
 const page = () => {
   return (
