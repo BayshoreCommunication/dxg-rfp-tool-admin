@@ -56,7 +56,7 @@ const Sidebar = () => {
                 )}
               >
                 {isActive && (
-                  <div className="absolute -left-3 top-1/2 h-7 w-[4px] -translate-y-1/2 rounded-r-full bg-primary shadow-[2px_0_8px_rgba(45,198,245,0.4)]" />
+                  <div className="absolute -left-3 top-1/2 h-7 w-[4px] -translate-y-1/2 rounded-r-full bg-primary shadow-[2px_0_8px_rgba(0,194,201,0.4)]" />
                 )}
 
                 <div
@@ -100,7 +100,7 @@ const Sidebar = () => {
             className="block cursor-pointer"
           >
             <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-primary/20 transition-all duration-200 hover:scale-105 hover:ring-primary/40">
-              <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary to-blue-500 text-sm font-black text-white">
+              <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-[#00c2c9] to-[#0e1b2b] text-sm font-black text-white">
                 A
               </div>
             </div>

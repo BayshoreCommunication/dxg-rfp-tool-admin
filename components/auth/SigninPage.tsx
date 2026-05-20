@@ -117,13 +117,14 @@ const SigninPage = () => {
           <button
             type="submit"
             disabled={submitting}
-            className="group relative mb-2 flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-2xl bg-black py-4 text-[15px] font-bold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-gray-900 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="group relative mb-2 flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 text-[15px] font-bold text-white shadow-[0_4px_20px_rgba(14,165,233,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(14,165,233,0.6)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
+            style={{ background: "linear-gradient(135deg, #00c2c9 0%, #06b6d4 30%, #0ea5e9 60%, #2563eb 100%)" }}
           >
+            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/20 skew-x-[-20deg] transition-transform duration-700 group-hover:translate-x-full" />
             <span>{submitting ? "Signing In..." : "Sign In to Dashboard"}</span>
             <ArrowRight
               className={`h-4 w-4 transition-transform ${submitting ? "animate-pulse" : "group-hover:translate-x-1"}`}
             />
-            <div className="absolute inset-0 -translate-x-full bg-white/20 blur-md transition-transform duration-500 group-hover:translate-x-full"></div>
           </button>
         </form>
       </div>
