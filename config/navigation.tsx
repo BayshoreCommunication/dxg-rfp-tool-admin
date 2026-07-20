@@ -1,4 +1,4 @@
-import { House, Settings, UserRound, Users } from "lucide-react";
+import { Database, House, Settings, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -28,6 +28,13 @@ export const navigationConfig: NavItem[] = [
     href: "/users",
     icon: <Users size={22} />,
   },
+
+  ...(process.env.NEXT_PUBLIC_KNOWLEDGE_IMPORTS_ENABLED === "true" ? [{
+    id: "knowledge-sources",
+    title: "Knowledge",
+    href: "/knowledge-sources",
+    icon: <Database size={22} />,
+  }] : []),
 
   {
     id: "settings",
