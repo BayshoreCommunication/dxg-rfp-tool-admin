@@ -88,10 +88,6 @@ export const { auth, signIn, signOut, handlers } = NextAuth({
           user.avatar = token.avatar;
         }
 
-        if (typeof token.accessToken === "string") {
-          user.accessToken = token.accessToken;
-        }
-
         session.user = user;
       }
       return session;

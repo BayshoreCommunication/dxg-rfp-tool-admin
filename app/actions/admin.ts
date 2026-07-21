@@ -1,8 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
-
 import { BACKEND_URL } from "@/lib/config";
+import { getBackendAccessToken } from "@/lib/server/backendSession";
 
 export interface AdminOverviewClient {
   id: string;
@@ -29,8 +28,7 @@ export async function getAdminOverviewAction(): Promise<{
   error?: string;
   data: AdminOverviewData | null;
 }> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) {
     return { ok: false, error: "User is not authenticated.", data: null };

@@ -1,9 +1,9 @@
 "use server";
 
-import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 
 import { BACKEND_URL } from "@/lib/config";
+import { getBackendAccessToken } from "@/lib/server/backendSession";
 
 export interface AllClientItem {
   id: string;
@@ -41,8 +41,7 @@ export async function getAllClientsAction(
   error?: string;
   data: AllClientsResponse | null;
 }> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) {
     return {
@@ -94,8 +93,7 @@ export async function blockClientAction(
   clientId: string,
   isBlocked: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) {
     return { ok: false, error: "User is not authenticated." };
@@ -137,8 +135,7 @@ export async function blockClientAction(
 export async function deleteClientAction(
   clientId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) {
     return { ok: false, error: "User is not authenticated." };

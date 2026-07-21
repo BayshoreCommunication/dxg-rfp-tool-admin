@@ -1,8 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
-
 import { BACKEND_URL } from "@/lib/config";
+import { getBackendAccessToken } from "@/lib/server/backendSession";
 
 export interface AdminUserProfile {
   _id: string;
@@ -54,8 +53,7 @@ export type UpdateAdminUserByIdPayload = {
 // ─── Own profile ─────────────────────────────────────────────────────────────
 
 export async function getAdminUserProfileAction(): Promise<AdminUserResponse> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) {
     return { ok: false, error: "User is not authenticated.", data: null };
@@ -85,8 +83,7 @@ export async function getAdminUserProfileAction(): Promise<AdminUserResponse> {
 export async function updateAdminUserProfileAction(
   payload: UpdateAdminUserPayload,
 ): Promise<AdminUserResponse> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) {
     return { ok: false, error: "User is not authenticated.", data: null };
@@ -124,8 +121,7 @@ export async function updateAdminUserProfileAction(
 // ─── Admin user management (super admin only) ─────────────────────────────────
 
 export async function getAdminUsersListAction(): Promise<AdminUsersListResponse> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) return { ok: false, error: "User is not authenticated.", data: [] };
 
@@ -153,8 +149,7 @@ export async function getAdminUsersListAction(): Promise<AdminUsersListResponse>
 export async function createAdminUserAction(
   payload: CreateAdminUserPayload,
 ): Promise<AdminUserResponse> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) return { ok: false, error: "User is not authenticated.", data: null };
 
@@ -184,8 +179,7 @@ export async function updateAdminUserByIdAction(
   userId: string,
   payload: UpdateAdminUserByIdPayload,
 ): Promise<AdminUserResponse> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) return { ok: false, error: "User is not authenticated.", data: null };
 
@@ -214,8 +208,7 @@ export async function updateAdminUserByIdAction(
 export async function deleteAdminUserAction(
   userId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const accessToken = await getBackendAccessToken();
 
   if (!accessToken) return { ok: false, error: "User is not authenticated." };
 

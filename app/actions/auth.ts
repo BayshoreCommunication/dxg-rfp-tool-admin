@@ -1,9 +1,10 @@
 "use server";
 
-import { auth, signIn } from "@/auth";
+import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
 
 import { BACKEND_URL } from "@/lib/config";
+import { getBackendAccessToken } from "@/lib/server/backendSession";
 
 /* ─────────────────────────────────────────
    SIGNUP — Step 1: Send OTP (spam check)
@@ -244,8 +245,7 @@ export async function getCurrentUserAction(accessToken: string) {
 ───────────────────────────────────────── */
 export async function signOutAction() {
   try {
-    const session = await auth();
-    const accessToken = (session?.user as any)?.accessToken;
+    const accessToken = await getBackendAccessToken();
 
     // Call backend logout if accessToken exists
     if (accessToken) {

@@ -31,19 +31,19 @@ export default async function middleware(request: NextRequest) {
   }
 
   const session = await auth();
-  const accessToken = session?.user?.accessToken;
+  const isAuthenticated = Boolean(session?.user);
   const role = String(session?.user?.role || "").toLowerCase();
   const isAdminRole =
     role === "admin" || role === "superadmin" || role === "super_admin";
 
   if (pathname === "/") {
-    if (accessToken && isAdminRole) {
+    if (isAuthenticated && isAdminRole) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 
-  if (pathname === "/sign-in" && accessToken && isAdminRole) {
+  if (pathname === "/sign-in" && isAuthenticated && isAdminRole) {
     return NextResponse.redirect(
       new URL(safeCallbackUrl || "/dashboard", request.url),
     );
@@ -57,7 +57,7 @@ export default async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!session?.user || !accessToken || !isAdminRole) {
+  if (!isAuthenticated || !isAdminRole) {
     const url = new URL("/sign-in", request.url);
     const requestUrl = `${pathname}${search}`;
     if (!requestUrl.startsWith("/sign-in")) {

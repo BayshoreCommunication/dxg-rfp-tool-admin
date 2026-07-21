@@ -1,4 +1,4 @@
-import { Database, House, Settings, UserRound, Users } from "lucide-react";
+import { CircleDollarSign, Database, House, Settings, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -34,6 +34,13 @@ export const navigationConfig: NavItem[] = [
     title: "Knowledge",
     href: "/knowledge-sources",
     icon: <Database size={22} />,
+  }] : []),
+
+  ...(process.env.NEXT_PUBLIC_PRICING_ENABLED === "true" ? [{
+    id: "pricing-knowledge",
+    title: "Pricing",
+    href: "/pricing-knowledge",
+    icon: <CircleDollarSign size={22} />,
   }] : []),
 
   {
