@@ -1,67 +1,47 @@
 "use client";
-import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const TopHeader = () => {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    setCurrentTime(new Date());
+    const initialTimer = window.setTimeout(() => setCurrentTime(new Date()), 0);
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
-    return () => clearInterval(timer);
+    return () => {
+      window.clearTimeout(initialTimer);
+      clearInterval(timer);
+    };
   }, []);
 
   const formattedDate = currentTime
     ? currentTime.toLocaleDateString("en-US", {
         weekday: "long",
+        year: "numeric",
         month: "long",
         day: "numeric",
       })
     : "";
 
-  const greeting = () => {
-    if (!currentTime) return "Welcome back";
-    const h = currentTime.getHours();
-    if (h < 12) return "Good morning";
-    if (h < 17) return "Good afternoon";
-    return "Good evening";
-  };
-
   return (
-    <div className="relative">
-      {/* Ambient glow behind header */}
-      <div className="absolute -inset-4 bg-gradient-to-r from-[#00c2c9]/5 via-[#00c2c9]/3 to-[#0e1b2b]/5 rounded-3xl blur-2xl pointer-events-none" />
+    <header className="flex min-h-14 flex-col justify-center gap-2 sm:flex-row sm:items-center sm:justify-start sm:gap-5">
+      <h1 className="text-[30px] font-extrabold leading-none tracking-[-0.035em] text-[#12213a] sm:text-[34px]">
+        Dashboard
+      </h1>
 
-      <div className="relative flex items-center justify-between">
-        {/* Left: Title block */}
-        <div className="flex flex-col gap-1">
-          {/* Pill badge */}
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-[#00c2c9] mb-1">
-            <Sparkles size={10} className="fill-[#00c2c9]" />
-            Overview
-          </span>
-
-          <h1 className="text-[30px] font-black tracking-tight leading-none">
-            <span className="bg-gradient-to-r from-slate-900 via-slate-700 to-slate-900 bg-clip-text text-transparent">
-              Dashboard
-            </span>
-          </h1>
-
-          <p className="mt-1 text-[13px] text-slate-400 font-medium flex items-center gap-2 min-h-[20px]">
-            {mounted && (
-              <>
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {greeting()}
-                {formattedDate ? ` · ${formattedDate}` : ""}
-              </>
-            )}
-            {!mounted && <span className="opacity-0">Loading date...</span>}
-          </p>
-        </div>
-      </div>
-    </div>
+      <p className="flex min-h-5 items-center gap-2 text-sm font-medium text-slate-500">
+        {currentTime ? (
+          <>
+            <span
+              className="dashboard-status-heartbeat h-2 w-2 shrink-0 rounded-full bg-[#16c7a4]"
+              aria-hidden="true"
+            />
+            <span>{formattedDate}</span>
+          </>
+        ) : (
+          <span className="h-4 w-56 animate-pulse rounded bg-slate-200" />
+        )}
+      </p>
+    </header>
   );
 };
 

@@ -1,4 +1,6 @@
 import LayoutWrapper from "@/components/layout/LayoutWrapper";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ThemeScript } from "@/components/theme/ThemeScript";
 import { ToastContainer } from "@/components/ui/Toast";
 import "../globals.css";
 
@@ -12,10 +14,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className="antialiased font-sans">
-        <LayoutWrapper>{children}</LayoutWrapper>
-        <ToastContainer />
+        <ThemeProvider>
+          <LayoutWrapper>{children}</LayoutWrapper>
+          <ToastContainer />
+        </ThemeProvider>
       </body>
     </html>
   );

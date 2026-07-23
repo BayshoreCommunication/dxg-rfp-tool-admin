@@ -3,7 +3,7 @@ import UserLists from "./UserLists";
 
 const UsersDetails = () => {
   return (
-    <div className="space-y-8 px-6">
+    <div className="mx-auto w-full max-w-[1540px] space-y-6">
       <TopHeader />
       <UserLists />
     </div>

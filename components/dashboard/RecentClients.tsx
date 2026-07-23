@@ -1,5 +1,5 @@
 import { AdminOverviewClient } from "@/app/actions/admin";
-import { Calendar, ChevronRight, Mail, User } from "lucide-react";
+import { Building2, CalendarDays, ChevronRight, Mail, UsersRound } from "lucide-react";
 import Link from "next/link";
 
 type RecentClientsProps = {
@@ -18,224 +18,190 @@ const formatDate = (isoDate?: string) => {
   });
 };
 
-// Generates a consistent gradient background for avatars 
-const generateGradient = (name: string) => {
-  const colors = [
-    "from-rose-400 to-red-500",
-    "from-blue-400 to-indigo-500",
-    "from-emerald-400 to-teal-500",
-    "from-amber-400 to-orange-500",
-    "from-purple-400 to-fuchsia-500",
-    "from-cyan-400 to-blue-500",
-  ];
-  const charCode = name?.charCodeAt(0) || 0;
-  return colors[charCode % colors.length];
+const getInitial = (name?: string) => {
+  const firstLetter = name?.trim().charAt(0);
+  return firstLetter ? firstLetter.toUpperCase() : "U";
 };
 
-export const RecentClientsSkeleton = () => {
-  return (
-    <div className="bg-white rounded-xl p-5 sm:p-6 shadow border border-slate-100 mt-2">
-      {/* Header section skeleton */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-slate-100 rounded-xl w-10 h-10 animate-pulse" />
-          <div className="flex flex-col gap-2">
-            <div className="w-32 h-5 bg-slate-200 rounded animate-pulse" />
-            <div className="w-48 h-3 bg-slate-100 rounded animate-pulse" />
-          </div>
-        </div>
-        <div className="w-16 h-4 bg-slate-100 rounded animate-pulse" />
-      </div>
+const avatarTones = [
+  "bg-cyan-50 text-cyan-700",
+  "bg-violet-50 text-violet-700",
+  "bg-emerald-50 text-emerald-700",
+  "bg-amber-50 text-amber-700",
+  "bg-sky-50 text-sky-700",
+];
 
-      {/* Table section skeleton */}
-      <div className="w-full overflow-hidden rounded-xl border border-slate-100">
-        <table className="w-full text-left border-collapse whitespace-nowrap">
-          <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-100">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <th key={i} className="px-4 py-3">
-                  <div className="w-20 h-3 bg-slate-200 rounded animate-pulse" />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {[1, 2, 3, 4].map((row) => (
-              <tr key={row} className="bg-white">
-                <td className="px-4 py-3 align-middle">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 animate-pulse" />
-                    <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
-                  </div>
-                </td>
-                <td className="px-4 py-3 align-middle">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-slate-200 animate-pulse" />
-                    <div className="w-32 h-4 bg-slate-200 rounded animate-pulse" />
-                  </div>
-                </td>
-                <td className="px-4 py-3 align-middle">
-                  <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
-                </td>
-                <td className="px-4 py-3 align-middle">
-                  <div className="w-12 h-6 mx-auto rounded-full bg-emerald-100 animate-pulse" />
-                </td>
-                <td className="px-4 py-3 align-middle">
-                  <div className="w-12 h-6 mx-auto rounded-full bg-blue-100 animate-pulse" />
-                </td>
-                <td className="px-4 py-3 align-middle">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded bg-slate-200 animate-pulse" />
-                    <div className="w-20 h-4 bg-slate-200 rounded animate-pulse" />
-                  </div>
-                </td>
-              </tr>
+const getAvatarTone = (name?: string) => {
+  const firstCharacter = name?.trim().charCodeAt(0) ?? 0;
+  return avatarTones[firstCharacter % avatarTones.length];
+};
+
+export const RecentClientsSkeleton = () => (
+  <section className="h-full overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+      <div className="flex items-center gap-3">
+        <div className="h-11 w-11 animate-pulse rounded-2xl bg-slate-100" />
+        <div className="space-y-2">
+          <div className="h-5 w-32 animate-pulse rounded bg-slate-200" />
+          <div className="h-3 w-52 animate-pulse rounded bg-slate-100" />
+        </div>
+      </div>
+      <div className="h-5 w-24 animate-pulse rounded bg-slate-100" />
+    </div>
+
+    <div className="p-4 sm:p-5">
+      <div className="overflow-hidden rounded-xl border border-slate-100">
+        <div className="h-11 animate-pulse border-b border-slate-100 bg-slate-50" />
+        {[1, 2, 3, 4, 5].map((row) => (
+          <div key={row} className="grid grid-cols-[1.6fr_1.5fr_1.2fr_.6fr_.7fr_.9fr] items-center gap-4 border-b border-slate-100 px-4 py-3 last:border-b-0">
+            {Array.from({ length: 6 }).map((_, column) => (
+              <div key={column} className="h-4 animate-pulse rounded bg-slate-100" />
             ))}
-          </tbody>
-        </table>
+          </div>
+        ))}
       </div>
     </div>
-  );
-};
+  </section>
+);
 
-const RecentClients = ({ clients = [], isLoading }: RecentClientsProps) => {
+const EmptyClients = () => (
+  <div className="flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
+      <UsersRound className="h-7 w-7" aria-hidden="true" />
+    </div>
+    <p className="mt-4 text-sm font-semibold text-slate-600">No recent clients found</p>
+    <p className="mt-1 max-w-xs text-sm text-slate-400">
+      Newly added clients will appear here with their proposal and email activity.
+    </p>
+  </div>
+);
+
+export default function RecentClients({ clients = [], isLoading }: RecentClientsProps) {
   if (isLoading) return <RecentClientsSkeleton />;
 
   return (
-    <div className="bg-white rounded-xl p-5 sm:p-6 shadow border border-slate-100 mt-2">
-      {/* Header section */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-50 rounded-xl">
-            <User className="w-5 h-5 text-indigo-600" />
+    <section className="h-full overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-5 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#eaf9f8] text-[#00a7ae]">
+            <UsersRound className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Recent Clients
-            </h2>
-            <p className="text-sm text-slate-500 mt-0.5">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-[-0.02em] text-[#12213a]">Recent Clients</h2>
+            <p className="mt-0.5 truncate text-sm text-slate-500">
               Latest client acquisitions and engagements
             </p>
           </div>
         </div>
+
         <Link
           href="/clients"
-          className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1 group"
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-2 text-sm font-bold text-[#009ca4] transition hover:bg-cyan-50 hover:text-[#007e85] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5]"
         >
-          View All
-          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          <span className="hidden sm:inline">View all clients</span>
+          <span className="sm:hidden">View all</span>
+          <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
         </Link>
       </div>
 
-      {/* Table section */}
-      <div className="w-full overflow-x-auto rounded-xl border border-slate-100">
-        <table className="w-full text-left border-collapse whitespace-nowrap">
-          <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-100">
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                Client Details
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                Contact Info
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                Company
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase text-center">
-                Proposals
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase text-center">
-                Emails Sent
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                Joined Date
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {clients.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-12 text-center align-middle">
-                  <div className="flex flex-col items-center justify-center">
-                    <User className="w-12 h-12 text-slate-200 mb-3" />
-                    <p className="text-sm font-medium text-slate-500">
-                      No recent clients found.
-                    </p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              clients.map((client) => (
-                <tr
-                  key={client.id}
-                  className="group hover:bg-slate-50/50 transition-colors duration-200"
-                >
-                  {/* Client Details */}
-                  <td className="px-4 py-3 align-middle">
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${generateGradient(client.name || "User")} text-sm font-bold text-white shadow-sm ring-2 ring-white`}
-                      >
-                        {client.name?.trim()?.charAt(0)?.toUpperCase() || "U"}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                          {client.name || "Unknown Client"}
+      {clients.length === 0 ? (
+        <EmptyClients />
+      ) : (
+        <>
+          <div className="hidden p-4 md:block sm:p-5">
+            <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <table className="w-full min-w-[800px] table-fixed border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-[#f8fafc]">
+                    <th className="w-[23%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Client details</th>
+                    <th className="w-[23%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Contact info</th>
+                    <th className="w-[18%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Company</th>
+                    <th className="w-[10%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Proposals</th>
+                    <th className="w-[12%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Emails sent</th>
+                    <th className="w-[14%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Joined date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {clients.map((client) => (
+                    <tr key={client.id} className="group transition-colors hover:bg-[#f8fcfc]">
+                      <td className="px-4 py-3.5 align-middle">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${getAvatarTone(client.name)}`}>
+                            {getInitial(client.name)}
+                          </span>
+                          <span className="truncate text-[13px] font-semibold text-[#20304b] group-hover:text-[#008f96]">
+                            {client.name || "Unknown client"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 align-middle">
+                        <a
+                          href={`mailto:${client.email}`}
+                          className="block truncate text-[13px] text-slate-500 transition hover:text-[#008f96]"
+                          title={client.email}
+                        >
+                          {client.email}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3.5 align-middle">
+                        <span className="block truncate text-[13px] text-slate-500" title={client.company || undefined}>
+                          {client.company || "—"}
                         </span>
-                      </div>
-                    </div>
-                  </td>
+                      </td>
+                      <td className="px-3 py-3.5 text-center align-middle text-sm font-semibold tabular-nums text-[#34445f]">
+                        {client.totalProposals ?? 0}
+                      </td>
+                      <td className="px-3 py-3.5 text-center align-middle text-sm font-semibold tabular-nums text-[#34445f]">
+                        {client.totalEmailSent ?? 0}
+                      </td>
+                      <td className="px-4 py-3.5 align-middle text-[13px] font-medium text-slate-500">
+                        {formatDate(client.joinDate)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-                  {/* Client Email */}
-                  <td className="px-4 py-3 align-middle">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">
-                        {client.email}
+          <div className="divide-y divide-slate-100 md:hidden">
+            {clients.map((client) => (
+              <article key={client.id} className="px-5 py-4 transition-colors hover:bg-[#f8fcfc]">
+                <div className="flex items-start gap-3">
+                  <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${getAvatarTone(client.name)}`}>
+                    {getInitial(client.name)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-sm font-bold text-[#20304b]">{client.name || "Unknown client"}</h3>
+                    <a href={`mailto:${client.email}`} className="mt-1 flex items-center gap-1.5 truncate text-xs text-slate-500">
+                      <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{client.email}</span>
+                    </a>
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        {client.company || "No company"}
                       </span>
-                    </div>
-                  </td>
-
-                  {/* Company */}
-                  <td className="px-4 py-3 align-middle">
-                    <span className="text-sm text-slate-600 font-medium">
-                      {client.company || (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </span>
-                  </td>
-
-                  {/* Proposal Count */}
-                  <td className="px-4 py-3 text-center align-middle">
-                    <div className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-100/50">
-                      {client.totalProposals || 0}
-                    </div>
-                  </td>
-
-                  {/* Email Sent */}
-                  <td className="px-4 py-3 text-center align-middle">
-                    <div className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100/50">
-                      {client.totalEmailSent || 0}
-                    </div>
-                  </td>
-
-                  {/* Joining Date */}
-                  <td className="px-4 py-3 align-middle">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
                         {formatDate(client.joinDate)}
                       </span>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                    <div className="mt-3 flex gap-2">
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                        {client.totalProposals ?? 0} proposals
+                      </span>
+                      <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">
+                        {client.totalEmailSent ?? 0} emails
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
-};
-
-export default RecentClients;
+}

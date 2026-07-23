@@ -91,10 +91,10 @@ export default function KnowledgeReviewPanel({
   const version = detail?.reviewVersion;
 
   return (
-    <div className="mt-6 border-t pt-6">
+    <div className="mt-6 border-t border-slate-100 pt-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-semibold">Human review</h3>
+          <h3 className="font-bold text-[#12213a]">Human review</h3>
           <p className="text-sm text-slate-500">
             Status: {version?.status || "Not started"} · {detail?.total || 0} fragments
           </p>
@@ -109,7 +109,7 @@ export default function KnowledgeReviewPanel({
           <button
             disabled={busy}
             onClick={() => void run(() => startKnowledgeReview(batch.id), "Review started.")}
-            className="rounded-lg bg-[#103B4C] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="inline-flex h-10 items-center rounded-xl bg-[#103b4c] px-4 text-sm font-bold text-white transition hover:bg-[#0b2f3d] disabled:opacity-50"
           >
             Start review
           </button>
@@ -117,7 +117,7 @@ export default function KnowledgeReviewPanel({
       </div>
 
       {error && (
-        <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-800">
+        <p role="alert" className="mt-3 rounded-xl border border-rose-100 bg-rose-50 p-3 text-sm text-rose-800">
           {error}
         </p>
       )}
@@ -125,7 +125,7 @@ export default function KnowledgeReviewPanel({
         <p
           role="status"
           aria-live="polite"
-          className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900"
+          className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-900"
         >
           {notice}
         </p>
@@ -137,7 +137,7 @@ export default function KnowledgeReviewPanel({
             {detail?.fragments.map((fragment) => {
               const saving = busyFragmentId === fragment.id;
               return (
-                <article key={fragment.id} className="rounded-lg border p-4">
+                <article key={fragment.id} className="rounded-xl border border-slate-100 p-4 transition hover:border-slate-200">
                   <p className="whitespace-pre-wrap text-sm">{fragment.content}</p>
                   <p className="mt-2 text-xs text-slate-500">
                     {JSON.stringify(fragment.coordinates)} · Decision: {fragment.decision}
@@ -146,7 +146,7 @@ export default function KnowledgeReviewPanel({
                     <button
                       disabled={busy || fragment.decision === "accepted"}
                       onClick={() => void decide(version.id, fragment.id, "accepted")}
-                      className={`rounded border px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed ${
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed ${
                         fragment.decision === "accepted"
                           ? "border-emerald-700 bg-emerald-700 text-white"
                           : "border-emerald-600 text-emerald-700 disabled:opacity-50"
@@ -164,7 +164,7 @@ export default function KnowledgeReviewPanel({
                           "Rejected by reviewer.",
                         )
                       }
-                      className={`rounded border px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed ${
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed ${
                         fragment.decision === "rejected"
                           ? "border-red-700 bg-red-700 text-white"
                           : "border-red-600 text-red-700 disabled:opacity-50"
@@ -178,7 +178,7 @@ export default function KnowledgeReviewPanel({
                         const reason = window.prompt("Reason for flagging (required)");
                         if (reason) void decide(version.id, fragment.id, "flagged", reason);
                       }}
-                      className={`rounded border px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed ${
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed ${
                         fragment.decision === "flagged"
                           ? "border-amber-700 bg-amber-700 text-white"
                           : "disabled:opacity-50"
@@ -196,7 +196,7 @@ export default function KnowledgeReviewPanel({
             <button
               disabled={offset === 0 || busy}
               onClick={() => setOffset(Math.max(0, offset - 100))}
-              className="rounded border px-3 py-1 text-sm disabled:opacity-40"
+              className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
             >
               Previous
             </button>
@@ -206,7 +206,7 @@ export default function KnowledgeReviewPanel({
             <button
               disabled={offset + 100 >= (detail?.total || 0) || busy}
               onClick={() => setOffset(offset + 100)}
-              className="rounded border px-3 py-1 text-sm disabled:opacity-40"
+              className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
             >
               Next
             </button>
@@ -220,7 +220,7 @@ export default function KnowledgeReviewPanel({
                 "Review submitted for approval.",
               )
             }
-            className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="mt-4 h-10 rounded-xl bg-[#00aeb5] px-4 text-sm font-bold text-white transition hover:bg-[#009ca4] disabled:opacity-50"
           >
             {busy ? "Saving…" : "Submit for approval"}
           </button>
@@ -228,7 +228,7 @@ export default function KnowledgeReviewPanel({
       )}
 
       {version?.status === "submitted" && (
-        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4">
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm">
             An authorized admin may approve and publish this immutable version. The approval is
             recorded separately in the audit history.
@@ -242,7 +242,7 @@ export default function KnowledgeReviewPanel({
                   "Knowledge release approved and published.",
                 )
               }
-              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="h-10 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50"
             >
               Approve and publish release
             </button>
@@ -256,7 +256,7 @@ export default function KnowledgeReviewPanel({
                     "Review rejected.",
                   );
               }}
-              className="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="h-10 rounded-xl bg-rose-700 px-4 text-sm font-bold text-white disabled:opacity-50"
             >
               Reject
             </button>
@@ -265,7 +265,7 @@ export default function KnowledgeReviewPanel({
       )}
 
       {version?.status === "approved" && (
-        <p className="mt-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">
+        <p className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
           Approved release created. It is not automatically applied to a proposal.
         </p>
       )}
@@ -276,7 +276,7 @@ export default function KnowledgeReviewPanel({
           onClick={() =>
             void run(() => startKnowledgeReview(batch.id), "Corrected review version created.")
           }
-          className="mt-4 rounded-lg bg-[#103B4C] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="mt-4 h-10 rounded-xl bg-[#103b4c] px-4 text-sm font-bold text-white disabled:opacity-50"
         >
           Create corrected review version
         </button>

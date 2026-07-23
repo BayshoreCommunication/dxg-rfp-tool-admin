@@ -6,9 +6,13 @@ const SettingsDetails = async () => {
   const response = await getAdminUserProfileAction();
 
   return (
-    <div className="space-y-8 px-6">
+    <div className="mx-auto w-full max-w-[1540px] space-y-6">
       <TopHeader />
-      <AdminSettings profile={response.data} loadError={response.error} />
+      <AdminSettings
+        key={`${response.data?._id || "admin"}-${response.data?.updatedAt || "current"}`}
+        profile={response.data}
+        loadError={response.error}
+      />
     </div>
   );
 };

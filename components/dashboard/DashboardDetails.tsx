@@ -10,11 +10,13 @@ const DashboardDetails = async () => {
   const latestClients = response.data?.latestClients || [];
 
   return (
-    <div className="space-y-8 px-6">
+    <div className="mx-auto w-full max-w-[1540px] space-y-6">
       <TopHeader />
       <TopCardItem totals={totals} />
-      <LiveAiPilotCard />
-      <RecentClients clients={latestClients} />
+      <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(300px,0.92fr)]">
+        <RecentClients clients={latestClients} />
+        <LiveAiPilotCard />
+      </div>
     </div>
   );
 };

@@ -2,34 +2,43 @@
 
 import { signOutAction } from "@/app/actions/auth";
 import { navigationConfig, NavItem } from "@/config/navigation";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { BellDot, LogOut } from "lucide-react";
+import { LoaderCircle, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const bottomIcons = [{ icon: <BellDot size={17} />, label: "Alerts" }];
-
 const Sidebar = () => {
   const pathname = usePathname();
-  const [showSignOut, setShowSignOut] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const isItemActive = (item: NavItem) => pathname === item.href;
+  const isItemActive = (item: NavItem) =>
+    pathname === item.href || pathname.startsWith(`${item.href}/`);
 
   const signOutHandler = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+
     try {
-      await signOutAction();
+      try {
+        await signOutAction();
+      } catch (error) {
+        console.error("Backend logout failed:", error);
+      }
+      await signOut({ callbackUrl: "/sign-in" });
     } catch (error) {
-      console.error("Backend logout failed:", error);
+      console.error("Sign out failed:", error);
+      setIsSigningOut(false);
     }
-    await signOut({ callbackUrl: "/sign-in" });
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-50 flex h-screen w-[90px] flex-col border-r border-gray-200 bg-white">
-      <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200">
+    <>
+      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-[90px] flex-col border-r border-[#e1e8ee] bg-white transition-colors dark:border-[#253746] dark:bg-[#0d1d28] md:flex">
+      <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200 dark:border-[#253746]">
         <Link href="/dashboard">
           <Image
             src="/assets/logo/logo.svg"
@@ -41,7 +50,7 @@ const Sidebar = () => {
         </Link>
       </div>
 
-      <nav className="flex flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto px-3 py-4">
+      <nav aria-label="Primary navigation" className="flex flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto px-3 py-4">
         {navigationConfig.map((item) => {
           const isActive = isItemActive(item);
 
@@ -51,8 +60,8 @@ const Sidebar = () => {
                 className={cn(
                   "group relative flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-3 transition-all duration-200",
                   isActive
-                    ? "bg-linear-to-b from-primary/10 to-primary/5"
-                    : "hover:bg-primary/5",
+                    ? "bg-[#eaf9f8] dark:bg-cyan-950/50"
+                    : "hover:bg-primary/5 dark:hover:bg-cyan-950/30",
                 )}
               >
                 {isActive && (
@@ -63,8 +72,8 @@ const Sidebar = () => {
                   className={cn(
                     "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200",
                     isActive
-                      ? "bg-primary/15 text-primary"
-                      : "text-gray-400 group-hover:bg-primary/10 group-hover:text-primary",
+                      ? "bg-white text-primary shadow-[0_1px_3px_rgba(15,23,42,0.08)] dark:bg-[#142a37]"
+                      : "text-gray-400 group-hover:bg-primary/10 group-hover:text-primary dark:text-slate-500",
                   )}
                 >
                   {item.icon}
@@ -86,50 +95,117 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="mx-4 h-px bg-linear-to-r from-transparent via-gray-200 to-transparent" />
+      <div className="mx-4 h-px bg-slate-100 dark:bg-[#253746]" />
 
-      <div className="flex shrink-0 flex-col items-center gap-2 px-3 py-4">
-        <div
-          className="relative mb-4 mt-2"
-          onMouseEnter={() => setShowSignOut(true)}
-          onMouseLeave={() => setShowSignOut(false)}
+      <div className="flex shrink-0 flex-col items-center gap-2.5 px-3 py-4">
+        <ThemeToggle className="h-9 w-9 px-0" />
+
+        <button
+          type="button"
+          onClick={() => void signOutHandler()}
+          disabled={isSigningOut}
+          aria-label="Sign out of the admin account"
+          title="Sign out"
+          className="group flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 disabled:cursor-wait disabled:opacity-60 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
         >
-          <button
-            type="button"
-            onClick={() => setShowSignOut((prev) => !prev)}
-            className="block cursor-pointer"
-          >
-            <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-primary/20 transition-all duration-200 hover:scale-105 hover:ring-primary/40">
-              <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-[#00c2c9] to-[#0e1b2b] text-sm font-black text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white transition group-hover:border-rose-200 group-hover:bg-rose-50 dark:border-[#2b4352] dark:bg-[#102432] dark:group-hover:border-rose-800 dark:group-hover:bg-rose-950/40">
+            {isSigningOut ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <LogOut className="h-4 w-4" aria-hidden="true" />
+            )}
+          </span>
+          <span className="text-[9.5px] font-bold leading-none tracking-wide">
+            {isSigningOut ? "Signing out" : "Sign out"}
+          </span>
+        </button>
+
+        <Link
+          href="/settings"
+          aria-label="Open admin settings"
+          title="Open settings"
+          className="group flex flex-col items-center gap-1 rounded-xl px-1.5 py-1.5 transition hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:hover:bg-cyan-950/30"
+        >
+          <div className="relative">
+            <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-primary/20 transition group-hover:ring-primary/50">
+              <div className="flex h-full w-full items-center justify-center bg-[#153443] text-sm font-black text-white">
                 A
               </div>
             </div>
-          </button>
-
-          <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white" />
-          <div className="pointer-events-none absolute left-full top-1/2 h-12 w-2 -translate-y-1/2" />
-
-          <div
-            className={cn(
-              "absolute left-full top-1/2 z-10 -translate-y-1/2 pl-2 transition-all duration-200 ease-out",
-              showSignOut
-                ? "pointer-events-auto translate-x-0 opacity-100"
-                : "pointer-events-none -translate-x-1 opacity-0",
-            )}
-          >
-            <button
-              type="button"
-              onClick={() => void signOutHandler()}
-              className="relative flex w-24 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-3 text-[12px] font-semibold text-gray-700 shadow-md hover:bg-gray-50"
-            >
-              <span className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-b border-l border-gray-200 bg-white" />
-              <LogOut size={12} className="text-gray-500" />
-              Sign Out
-            </button>
+            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0d1d28]" />
           </div>
-        </div>
+          <span className="text-[9px] font-bold leading-none tracking-wide text-slate-400 transition group-hover:text-primary">
+            Admin
+          </span>
+        </Link>
       </div>
-    </aside>
+      </aside>
+
+      <header className="fixed inset-x-0 top-0 z-50 flex h-[62px] items-center justify-between border-b border-[#dce5ee] bg-white/95 px-4 backdrop-blur transition-colors dark:border-[#253746] dark:bg-[#0d1d28]/95 md:hidden">
+        <Link
+          href="/dashboard"
+          className="rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <Image
+            src="/assets/logo/logo.svg"
+            alt="DXG Digital"
+            width={52}
+            height={42}
+            className="h-auto w-[48px]"
+            priority
+          />
+        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle className="h-9 w-9 px-0" />
+          <button
+            type="button"
+            onClick={() => void signOutHandler()}
+            disabled={isSigningOut}
+            aria-label="Sign out of the admin account"
+            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-[#2b4352] dark:bg-[#102432] dark:text-slate-300 dark:hover:border-rose-800 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+          >
+            {isSigningOut ? (
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <LogOut size={14} aria-hidden="true" />
+            )}
+            {isSigningOut ? "Signing out" : "Sign out"}
+          </button>
+        </div>
+      </header>
+
+      <nav
+        aria-label="Mobile navigation"
+        className="fixed inset-x-0 bottom-0 z-50 grid h-[76px] grid-flow-col auto-cols-fr items-stretch overflow-x-hidden border-t border-[#dce5ee] bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur transition-colors dark:border-[#253746] dark:bg-[#0d1d28]/95 dark:shadow-[0_-8px_30px_rgba(0,0,0,0.3)] md:hidden"
+      >
+        {navigationConfig.map((item) => {
+          const isActive = isItemActive(item);
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={cn(
+                "relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[8.5px] font-bold transition min-[380px]:text-[9px]",
+                isActive ? "text-primary" : "text-slate-400 hover:text-slate-600",
+              )}
+            >
+              {isActive ? (
+                <span className="absolute top-0 h-0.5 w-8 rounded-full bg-primary" />
+              ) : null}
+              <span
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-xl",
+                  isActive ? "bg-[#eaf9f8] dark:bg-cyan-950/50" : "",
+                )}
+              >
+                {item.icon}
+              </span>
+              <span>{item.title}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </>
   );
 };
 

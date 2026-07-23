@@ -52,7 +52,7 @@ export const navigationConfig: NavItem[] = [
 
   {
     id: "settings",
-    title: "Setting",
+    title: "Settings",
     href: "/settings",
     icon: <Settings size={22} />,
   },

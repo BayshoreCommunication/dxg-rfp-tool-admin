@@ -4,7 +4,17 @@ import {
   AdminUserProfile,
   updateAdminUserProfileAction,
 } from "@/app/actions/adminUser";
-import { Camera, KeyRound, PencilLine, User as UserIcon } from "lucide-react";
+import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  KeyRound,
+  PencilLine,
+  Save,
+  ShieldCheck,
+  UserRound,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
@@ -25,64 +35,65 @@ type PasswordFormState = {
   confirmPassword: string;
 };
 
-export const AdminSettingsSkeleton = () => {
-  return (
-    <div className="w-full bg-white mt-6 space-y-12 p-8">
-      <div className="flex h-24 w-24 shrink-0 overflow-hidden rounded-full bg-slate-200 animate-pulse shadow" />
+const fieldClass =
+  "h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-medium text-[#20304b] outline-none transition placeholder:text-slate-400 focus:border-[#00aeb5] focus:ring-4 focus:ring-cyan-500/10";
 
-      <div className="max-w-4xl relative">
-        <div className="mb-8 flex items-center justify-between border-b border-slate-100 pb-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-slate-100 rounded-xl w-10 h-10 animate-pulse" />
-            <div className="w-40 h-6 bg-slate-200 rounded animate-pulse" />
-          </div>
-        </div>
-        <div className="space-y-6">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8"
-            >
-              <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
-              <div className="w-64 h-10 bg-slate-100 rounded-lg animate-pulse" />
-            </div>
-          ))}
-        </div>
-        <div className="mt-8 w-36 h-10 bg-slate-200 rounded-lg animate-pulse" />
-      </div>
+const PrimaryButton = ({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#00aeb5] px-4 text-sm font-bold text-white shadow-[0_6px_18px_rgba(0,174,181,0.18)] transition hover:bg-[#009ca4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5] disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {children}
+  </button>
+);
 
-      <div className="max-w-4xl relative">
-        <div className="mb-8 flex items-center justify-between border-b border-slate-100 pb-5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-slate-100 rounded-xl w-10 h-10 animate-pulse" />
-            <div className="w-40 h-6 bg-slate-200 rounded animate-pulse" />
-          </div>
-        </div>
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-            <div className="w-24 h-4 bg-slate-200 rounded animate-pulse" />
-            <div className="w-64 h-10 bg-slate-100 rounded-lg animate-pulse" />
-          </div>
-        </div>
-        <div className="mt-8 w-44 h-10 bg-slate-200 rounded-lg animate-pulse" />
-      </div>
+const SecondaryButton = ({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {children}
+  </button>
+);
+
+export const AdminSettingsSkeleton = () => (
+  <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+    <div className="space-y-6">
+      <div className="h-80 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+      <div className="h-64 animate-pulse rounded-2xl border border-slate-200 bg-white" />
     </div>
-  );
-};
+  </div>
+);
 
-const AdminSettings = ({
+export default function AdminSettings({
   profile,
   loadError,
   isLoading,
-}: AdminSettingsProps) => {
+}: AdminSettingsProps) {
   const [profileData, setProfileData] = useState<AdminUserProfile | null>(
     profile || null,
   );
-
-  useEffect(() => {
-    if (profile) setProfileData(profile);
-  }, [profile]);
-
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingPassword, setEditingPassword] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -121,14 +132,20 @@ const AdminSettings = ({
 
   const onProfileChange =
     (field: keyof ProfileFormState) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setProfileForm((prev) => ({ ...prev, [field]: e.target.value }));
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setProfileForm((current) => ({
+        ...current,
+        [field]: event.target.value,
+      }));
     };
 
   const onPasswordChange =
     (field: keyof PasswordFormState) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setPasswordForm((prev) => ({ ...prev, [field]: e.target.value }));
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setPasswordForm((current) => ({
+        ...current,
+        [field]: event.target.value,
+      }));
     };
 
   const startProfileEdit = () => {
@@ -151,7 +168,6 @@ const AdminSettings = ({
 
     const name = profileForm.name.trim();
     const phone = profileForm.phone.trim();
-
     if (!name) {
       setError("Name is required.");
       return;
@@ -200,27 +216,23 @@ const AdminSettings = ({
     setError("");
     setSuccess("");
 
-    const oldPassword = passwordForm.oldPassword;
-    const newPassword = passwordForm.newPassword;
-    const confirmPassword = passwordForm.confirmPassword;
-
-    if (!oldPassword) {
+    if (!passwordForm.oldPassword) {
       setError("Old password is required.");
       return;
     }
-    if (!newPassword) {
+    if (!passwordForm.newPassword) {
       setError("New password is required.");
       return;
     }
-    if (newPassword !== confirmPassword) {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setError("New password and confirm password do not match.");
       return;
     }
 
     setSavingPassword(true);
     const response = await updateAdminUserProfileAction({
-      oldPassword,
-      newPassword,
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
     });
     setSavingPassword(false);
 
@@ -240,26 +252,35 @@ const AdminSettings = ({
 
   if (isLoading) return <AdminSettingsSkeleton />;
 
+  const profileInitial =
+    profileData?.name?.trim().charAt(0).toUpperCase() || "A";
+  const normalizedRole = (profileData?.role || "admin").replace(/_/g, " ");
+
   return (
-    <div className="w-full bg-white mt-6 space-y-12 font-sans rounded-xl p-6 sm:p-8 shadow border border-slate-100">
-      {/* Avatar Section */}
-      <div className="flex items-center gap-6 pb-6 border-b border-slate-100">
-        <div className="relative group flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-50 border-4 border-white shadow-lg ring-1 ring-slate-100">
-          {editingProfile ? (
-            <>
-              <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none z-10">
-                <Camera className="w-6 h-6 text-white" />
-              </div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  if (e.target.files && e.target.files[0]) {
-                    setSelectedAvatarFile(e.target.files[0]);
-                  }
-                }}
-                className="absolute inset-0 w-full h-full cursor-pointer opacity-0 z-20"
-              />
+    <div className="space-y-5">
+      {error ? (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm text-rose-700"
+        >
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="font-medium">{error}</span>
+        </div>
+      ) : null}
+      {success ? (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-sm text-emerald-700"
+        >
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span className="font-medium">{success}</span>
+        </div>
+      ) : null}
+
+      <div className="grid items-start gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="overflow-hidden rounded-2xl border border-[#dce5ee] bg-white xl:sticky xl:top-6">
+          <div className="border-b border-slate-100 p-6 text-center">
+            <div className="group relative mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-violet-50 text-2xl font-extrabold text-violet-700 ring-4 ring-slate-50">
               {avatarPreviewUrl ? (
                 <Image
                   width={96}
@@ -269,278 +290,241 @@ const AdminSettings = ({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <UserIcon className="w-10 h-10 text-indigo-300" />
+                profileInitial
               )}
-            </>
-          ) : (
-            <>
-              {avatarPreviewUrl ? (
-                <Image
-                  width={96}
-                  height={96}
-                  src={avatarPreviewUrl}
-                  alt={profileData?.name || "Admin avatar"}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <UserIcon className="w-10 h-10 text-indigo-300" />
-              )}
-            </>
-          )}
-        </div>
-        <div>
-          {editingProfile ? (
-            <>
-              <p className="text-sm font-semibold text-slate-700">
-                Profile Picture
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Click the image to upload a new avatar.
-              </p>
-            </>
-          ) : (
-            <>
-              <h3 className="text-xl font-bold text-slate-900">
-                {profileData?.name || "Admin"}
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">
-                {profileData?.email || "No email provided"}
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {error && (
-        <div className="max-w-4xl p-4 rounded-xl border border-rose-200 bg-rose-50 text-sm font-medium text-rose-600 flex items-center gap-3">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="max-w-4xl p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700 flex items-center gap-3">
-          {success}
-        </div>
-      )}
-
-      {/* Profile Settings Box */}
-      <div className="max-w-4xl relative">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-50 rounded-xl">
-              <UserIcon className="w-5 h-5 text-blue-600" />
+              {editingProfile ? (
+                <label className="absolute inset-0 flex cursor-pointer items-center justify-center bg-slate-950/55 text-white opacity-0 transition group-hover:opacity-100">
+                  <Camera className="h-5 w-5" aria-hidden="true" />
+                  <span className="sr-only">Upload profile picture</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      const nextFile = event.target.files?.[0];
+                      if (nextFile) setSelectedAvatarFile(nextFile);
+                    }}
+                    className="sr-only"
+                  />
+                </label>
+              ) : null}
             </div>
-            <div>
-              <h3 className="text-lg font-bold tracking-tight text-slate-900">
-                Profile Settings
-              </h3>
-              <p className="text-sm text-slate-500 mt-0.5">
-                Manage your personal information
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-slate-50/50 p-6 rounded-xl border border-slate-100">
-          <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
-            Full Name
-          </label>
-          <div className="sm:col-span-9">
-            {editingProfile ? (
-              <input
-                type="text"
-                value={profileForm.name}
-                onChange={onProfileChange("name")}
-                className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-              />
-            ) : (
-              <p className="text-sm font-medium text-slate-900">
-                {profileData?.name || "Not specified"}
-              </p>
-            )}
-          </div>
-
-          <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
-            Email Address
-          </label>
-          <div className="sm:col-span-9">
-            <p
-              className={`text-sm font-medium ${editingProfile ? "text-slate-500 bg-slate-100 cursor-not-allowed border-slate-200 w-full max-w-md px-4 py-2.5 rounded-lg border" : "text-slate-900"}`}
-            >
-              {profileData?.email || "Not specified"}
+            <h2 className="mt-4 text-xl font-bold text-[#12213a]">
+              {profileData?.name || "Admin"}
+            </h2>
+            <p className="mt-1 truncate text-sm text-slate-500">
+              {profileData?.email || "No email provided"}
             </p>
+            <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#eaf9f8] px-2.5 py-1 text-[11px] font-bold capitalize text-[#008f96]">
+              <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+              {normalizedRole}
+            </span>
           </div>
+          <div className="space-y-3 p-5 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Profile status</span>
+              <span className="font-bold text-emerald-600">Active</span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Phone</span>
+              <span className="truncate font-semibold text-[#34445f]">
+                {profileData?.phone || "Not added"}
+              </span>
+            </div>
+          </div>
+        </aside>
 
-          <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
-            Phone Number
-          </label>
-          <div className="sm:col-span-9">
+        <div className="space-y-6">
+          <section className="overflow-hidden rounded-2xl border border-[#dce5ee] bg-white">
+            <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+                  <UserRound className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-bold text-[#12213a]">
+                    Profile information
+                  </h2>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    Update the details attached to your admin account.
+                  </p>
+                </div>
+              </div>
+              {!editingProfile ? (
+                <SecondaryButton onClick={startProfileEdit}>
+                  <PencilLine className="h-4 w-4" aria-hidden="true" />
+                  Edit profile
+                </SecondaryButton>
+              ) : null}
+            </div>
+
+            <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold text-slate-600">
+                  Full name
+                </span>
+                {editingProfile ? (
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={onProfileChange("name")}
+                    className={fieldClass}
+                  />
+                ) : (
+                  <span className="flex h-11 items-center rounded-xl border border-slate-100 bg-slate-50 px-3.5 text-sm font-semibold text-[#20304b]">
+                    {profileData?.name || "Not specified"}
+                  </span>
+                )}
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold text-slate-600">
+                  Email address
+                </span>
+                <span className="flex h-11 items-center rounded-xl border border-slate-100 bg-slate-50 px-3.5 text-sm font-semibold text-slate-500">
+                  {profileData?.email || "Not specified"}
+                </span>
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="mb-2 block text-xs font-bold text-slate-600">
+                  Phone number
+                </span>
+                {editingProfile ? (
+                  <input
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={onProfileChange("phone")}
+                    placeholder="Add a phone number"
+                    className={`${fieldClass} sm:max-w-md`}
+                  />
+                ) : (
+                  <span className="flex h-11 items-center rounded-xl border border-slate-100 bg-slate-50 px-3.5 text-sm font-semibold text-[#20304b] sm:max-w-md">
+                    {profileData?.phone || "Not specified"}
+                  </span>
+                )}
+              </label>
+            </div>
+
             {editingProfile ? (
-              <input
-                type="text"
-                value={profileForm.phone}
-                onChange={onProfileChange("phone")}
-                className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 shadow-sm"
-              />
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4 sm:px-6">
+                <SecondaryButton
+                  onClick={cancelProfileEdit}
+                  disabled={savingProfile}
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                  Cancel
+                </SecondaryButton>
+                <PrimaryButton onClick={saveProfile} disabled={savingProfile}>
+                  <Save className="h-4 w-4" aria-hidden="true" />
+                  {savingProfile ? "Saving…" : "Save changes"}
+                </PrimaryButton>
+              </div>
+            ) : null}
+          </section>
+
+          <section className="overflow-hidden rounded-2xl border border-[#dce5ee] bg-white">
+            <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                  <KeyRound className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="text-lg font-bold text-[#12213a]">
+                    Password and security
+                  </h2>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    Use a strong password unique to this workspace.
+                  </p>
+                </div>
+              </div>
+              {!editingPassword ? (
+                <SecondaryButton onClick={startPasswordEdit}>
+                  <PencilLine className="h-4 w-4" aria-hidden="true" />
+                  Change password
+                </SecondaryButton>
+              ) : null}
+            </div>
+
+            {!editingPassword ? (
+              <div className="p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#20304b]">
+                      Current password
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Last update is managed securely by the account service.
+                    </p>
+                  </div>
+                  <span className="font-black tracking-[0.22em] text-slate-400">
+                    ••••••••
+                  </span>
+                </div>
+              </div>
             ) : (
-              <p className="text-sm font-medium text-slate-900">
-                {profileData?.phone || "Not specified"}
-              </p>
+              <>
+                <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
+                  <label className="block sm:col-span-2">
+                    <span className="mb-2 block text-xs font-bold text-slate-600">
+                      Current password
+                    </span>
+                    <input
+                      type="password"
+                      value={passwordForm.oldPassword}
+                      onChange={onPasswordChange("oldPassword")}
+                      autoComplete="current-password"
+                      placeholder="Enter current password"
+                      className={`${fieldClass} sm:max-w-md`}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-bold text-slate-600">
+                      New password
+                    </span>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={onPasswordChange("newPassword")}
+                      autoComplete="new-password"
+                      placeholder="Enter new password"
+                      className={fieldClass}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-bold text-slate-600">
+                      Confirm new password
+                    </span>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={onPasswordChange("confirmPassword")}
+                      autoComplete="new-password"
+                      placeholder="Repeat new password"
+                      className={fieldClass}
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-5 py-4 sm:px-6">
+                  <SecondaryButton
+                    onClick={cancelPasswordEdit}
+                    disabled={savingPassword}
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                    Cancel
+                  </SecondaryButton>
+                  <PrimaryButton
+                    onClick={savePassword}
+                    disabled={savingPassword}
+                  >
+                    <Save className="h-4 w-4" aria-hidden="true" />
+                    {savingPassword ? "Updating…" : "Update password"}
+                  </PrimaryButton>
+                </div>
+              </>
             )}
-          </div>
+          </section>
         </div>
-
-        {editingProfile ? (
-          <div className="mt-6 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={cancelProfileEdit}
-              disabled={savingProfile}
-              className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition-colors shadow-sm"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={saveProfile}
-              disabled={savingProfile}
-              className="group relative overflow-hidden rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(14,165,233,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(14,165,233,0.6)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: "linear-gradient(135deg, #00c2c9 0%, #06b6d4 30%, #0ea5e9 60%, #2563eb 100%)" }}
-            >
-              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/20 skew-x-[-20deg] transition-transform duration-700 group-hover:translate-x-full" />
-              {savingProfile ? "Saving..." : "Save Changes"}
-            </button>
-          </div>
-        ) : (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={startProfileEdit}
-              className="group relative flex items-center gap-2 overflow-hidden rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(14,165,233,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(14,165,233,0.6)] active:translate-y-0"
-              style={{ background: "linear-gradient(135deg, #00c2c9 0%, #06b6d4 30%, #0ea5e9 60%, #2563eb 100%)" }}
-            >
-              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/20 skew-x-[-20deg] transition-transform duration-700 group-hover:translate-x-full" />
-              <PencilLine size={16} className="shrink-0" />
-              Update Profile
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Password Settings Box */}
-      <div className="max-w-4xl relative pt-6 border-t border-slate-100">
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-50 rounded-xl">
-              <KeyRound className="w-5 h-5 text-amber-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold tracking-tight text-slate-900">
-                Password Settings
-              </h3>
-              <p className="text-sm text-slate-500 mt-0.5">
-                Secure your administrative access
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {!editingPassword ? (
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-slate-50/50 p-6 rounded-xl border border-slate-100">
-            <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
-              Current Password
-            </label>
-            <div className="sm:col-span-9">
-              <input
-                type="password"
-                value="••••••••••••"
-                readOnly
-                className="bg-transparent text-sm font-bold tracking-widest text-slate-500 outline-none cursor-default"
-              />
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-y-6 gap-x-8 items-center bg-slate-50/50 p-6 rounded-xl border border-slate-100">
-              <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
-                Old Password
-              </label>
-              <div className="sm:col-span-9">
-                <input
-                  type="password"
-                  value={passwordForm.oldPassword}
-                  onChange={onPasswordChange("oldPassword")}
-                  placeholder="Enter current password"
-                  className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
-                />
-              </div>
-
-              <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
-                New Password
-              </label>
-              <div className="sm:col-span-9">
-                <input
-                  type="password"
-                  value={passwordForm.newPassword}
-                  onChange={onPasswordChange("newPassword")}
-                  placeholder="Enter new password"
-                  className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
-                />
-              </div>
-
-              <label className="sm:col-span-3 text-sm font-semibold text-slate-700">
-                Confirm Password
-              </label>
-              <div className="sm:col-span-9">
-                <input
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={onPasswordChange("confirmPassword")}
-                  placeholder="Confirm new password"
-                  className="w-full max-w-md rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 shadow-sm"
-                />
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={cancelPasswordEdit}
-                disabled={savingPassword}
-                className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition-colors shadow-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={savePassword}
-                disabled={savingPassword}
-                className="group relative overflow-hidden rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(14,165,233,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(14,165,233,0.6)] active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{ background: "linear-gradient(135deg, #00c2c9 0%, #06b6d4 30%, #0ea5e9 60%, #2563eb 100%)" }}
-              >
-                <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/20 skew-x-[-20deg] transition-transform duration-700 group-hover:translate-x-full" />
-                {savingPassword ? "Updating..." : "Update Password"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!editingPassword && (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={startPasswordEdit}
-              className="group relative flex items-center gap-2 overflow-hidden rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_20px_rgba(14,165,233,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(14,165,233,0.6)] active:translate-y-0"
-              style={{ background: "linear-gradient(135deg, #00c2c9 0%, #06b6d4 30%, #0ea5e9 60%, #2563eb 100%)" }}
-            >
-              <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/20 skew-x-[-20deg] transition-transform duration-700 group-hover:translate-x-full" />
-              <PencilLine size={16} className="shrink-0" />
-              Update Password
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
-};
-
-export default AdminSettings;
+}

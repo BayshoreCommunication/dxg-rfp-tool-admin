@@ -13,7 +13,7 @@ export default async function middleware(request: NextRequest) {
       ? callbackUrlParam
       : null;
 
-  const publicPaths = ["/sign-in", "/forgot-password"];
+  const publicPaths = ["/sign-in", "/sign-up", "/forgot-password"];
   const excludedPaths = [
     "/_next/",
     "/favicon.ico",

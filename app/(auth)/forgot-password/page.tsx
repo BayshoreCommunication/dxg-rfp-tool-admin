@@ -1,8 +1,5 @@
+import ForgotPasswordPage from "@/components/auth/ForgotPasswordPage";
 
-const page = () => {
-  return (
-    <div>page</div>
-  )
+export default function Page() {
+  return <ForgotPasswordPage />;
 }
-
-export default page
