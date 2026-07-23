@@ -95,11 +95,13 @@ const Sidebar = () => {
         })}
       </nav>
 
+      <div className="flex shrink-0 justify-center px-3 pb-4 pt-3">
+        <ThemeToggle className="h-9 w-9 px-0" />
+      </div>
+
       <div className="mx-4 h-px bg-slate-100 dark:bg-[#253746]" />
 
-      <div className="flex shrink-0 flex-col items-center gap-2.5 px-3 py-4">
-        <ThemeToggle className="h-9 w-9 px-0" />
-
+      <div className="flex shrink-0 flex-col items-center px-3 py-3">
         <button
           type="button"
           onClick={() => void signOutHandler()}
@@ -120,24 +122,6 @@ const Sidebar = () => {
           </span>
         </button>
 
-        <Link
-          href="/settings"
-          aria-label="Open admin settings"
-          title="Open settings"
-          className="group flex flex-col items-center gap-1 rounded-xl px-1.5 py-1.5 transition hover:bg-primary/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary dark:hover:bg-cyan-950/30"
-        >
-          <div className="relative">
-            <div className="h-10 w-10 overflow-hidden rounded-full ring-2 ring-primary/20 transition group-hover:ring-primary/50">
-              <div className="flex h-full w-full items-center justify-center bg-[#153443] text-sm font-black text-white">
-                A
-              </div>
-            </div>
-            <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-[#0d1d28]" />
-          </div>
-          <span className="text-[9px] font-bold leading-none tracking-wide text-slate-400 transition group-hover:text-primary">
-            Admin
-          </span>
-        </Link>
       </div>
       </aside>
 

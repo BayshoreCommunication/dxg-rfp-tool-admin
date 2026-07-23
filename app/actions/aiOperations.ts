@@ -54,6 +54,8 @@ export type AiUsageReport = {
   totals: AiUsageTotal[];
   operations: AiOperationUsage[];
   recentAttempts: AiProviderAttempt[];
+  operationsAvailable: boolean;
+  recentAttemptsAvailable: boolean;
   note: string;
 };
 
@@ -98,6 +100,22 @@ const read = async <T,>(path: string, token: string): Promise<T> => {
   return body.data;
 };
 
+const normalizeUsageReport = (
+  report: Partial<AiUsageReport> | null | undefined,
+): AiUsageReport => ({
+  windowDays:
+    typeof report?.windowDays === "number" ? report.windowDays : 30,
+  daily: Array.isArray(report?.daily) ? report.daily : [],
+  totals: Array.isArray(report?.totals) ? report.totals : [],
+  operations: Array.isArray(report?.operations) ? report.operations : [],
+  recentAttempts: Array.isArray(report?.recentAttempts)
+    ? report.recentAttempts
+    : [],
+  operationsAvailable: Array.isArray(report?.operations),
+  recentAttemptsAvailable: Array.isArray(report?.recentAttempts),
+  note: typeof report?.note === "string" ? report.note : "",
+});
+
 export const getAiOperationsData = async (): Promise<AiOperationsData> => {
   const token = await getBackendAccessToken();
   if (!token) return { status: null, usage: null, runs: [], errors: ["Your admin session has expired."] };
@@ -115,8 +133,14 @@ export const getAiOperationsData = async (): Promise<AiOperationsData> => {
 
   return {
     status: status.status === "fulfilled" ? status.value : null,
-    usage: usage.status === "fulfilled" ? usage.value : null,
-    runs: runs.status === "fulfilled" ? runs.value : [],
+    usage:
+      usage.status === "fulfilled"
+        ? normalizeUsageReport(usage.value)
+        : null,
+    runs:
+      runs.status === "fulfilled" && Array.isArray(runs.value)
+        ? runs.value
+        : [],
     errors,
   };
 };

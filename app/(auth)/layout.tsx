@@ -16,7 +16,7 @@ export default function RootLayout({
       <head>
         <ThemeScript />
       </head>
-      <body className="antialiased font-sans">
+      <body className="antialiased font-sans" suppressHydrationWarning>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
