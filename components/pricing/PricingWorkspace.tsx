@@ -2,6 +2,7 @@
 import {
   createExpertRuleAction,
   createPricingRecordAction,
+  deletePricingRecordAction,
   listExpertRulesAction,
   listPricingRecordsAction,
   setExpertRuleStatusAction,
@@ -174,6 +175,14 @@ function PricingRecordsTab() {
   };
   const retire = (record: PricingRecord) =>
     void run(() => setPricingRecordStatusAction(record.id, "retired"), "Pricing record retired.");
+  const restore = (record: PricingRecord) => {
+    if (!window.confirm(`Restore "${record.itemLabel}" to draft? It will become editable and will not be used in investment guidance until approved again.`)) return;
+    void run(() => setPricingRecordStatusAction(record.id, "draft"), "Pricing record restored to draft.");
+  };
+  const remove = (record: PricingRecord) => {
+    if (!window.confirm(`Permanently delete "${record.itemLabel}"? This cannot be undone.`)) return;
+    void run(() => deletePricingRecordAction(record.id), "Retired pricing record permanently deleted.");
+  };
 
   return (
     <div className="mt-6 grid gap-6 lg:grid-cols-[380px_1fr]">
@@ -235,6 +244,8 @@ function PricingRecordsTab() {
                   onSave={update(record)}
                   onApprove={() => approve(record)}
                   onRetire={() => retire(record)}
+                  onRestore={() => restore(record)}
+                  onDelete={() => remove(record)}
                 />
               ))}
             </tbody>
@@ -246,7 +257,7 @@ function PricingRecordsTab() {
 }
 
 function RecordRows({
-  record, busy, editing, onEdit, onCancelEdit, onSave, onApprove, onRetire,
+  record, busy, editing, onEdit, onCancelEdit, onSave, onApprove, onRetire, onRestore, onDelete,
 }: {
   record: PricingRecord;
   busy: boolean;
@@ -256,6 +267,8 @@ function RecordRows({
   onSave: (input: Record<string, unknown>) => void;
   onApprove: () => void;
   onRetire: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
 }) {
   return (
     <>
@@ -280,6 +293,12 @@ function RecordRows({
             )}
             {record.status !== "retired" && (
               <button type="button" disabled={busy} onClick={onRetire} className={subtleButton}>Retire</button>
+            )}
+            {record.status === "retired" && (
+              <>
+                <button type="button" disabled={busy} onClick={onRestore} className={subtleButton}>Restore to draft</button>
+                <button type="button" disabled={busy} onClick={onDelete} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Delete</button>
+              </>
             )}
           </span>
         </td>

@@ -1,4 +1,4 @@
-import { CircleDollarSign, Database, House, Settings, UserRound, Users } from "lucide-react";
+import { BrainCircuit, CircleDollarSign, Database, House, Settings, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -42,6 +42,13 @@ export const navigationConfig: NavItem[] = [
     href: "/pricing-knowledge",
     icon: <CircleDollarSign size={22} />,
   }] : []),
+
+  {
+    id: "ai-operations",
+    title: "AI",
+    href: "/ai-operations",
+    icon: <BrainCircuit size={22} />,
+  },
 
   {
     id: "settings",

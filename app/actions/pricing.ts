@@ -52,6 +52,7 @@ export type ExpertRule = {
 const friendlyMessages: Record<string, string> = {
   PRICING_DISABLED: "The pricing knowledge base is not enabled in this environment.",
   PRICING_RECORD_NOT_EDITABLE: "Only draft pricing records can be edited. Approved and retired records are locked.",
+  PRICING_RECORD_NOT_DELETABLE: "Only retired pricing records can be permanently deleted.",
   EXPERT_RULE_NOT_EDITABLE: "Only draft expert rules can be edited. Active and retired rules are locked.",
   REVISION_CONFLICT: "This item was changed by someone else since you loaded it. Refresh the list and try again.",
   RULE_KEY_IMMUTABLE: "The rule key cannot be changed after a rule is created.",
@@ -135,8 +136,14 @@ export const updatePricingRecordAction = async (recordId: string, input: Record<
     record,
   );
 
-export const setPricingRecordStatusAction = async (recordId: string, status: "approved" | "retired") =>
+export const setPricingRecordStatusAction = async (recordId: string, status: "draft" | "approved" | "retired") =>
   call<PricingRecord>(`/v1/knowledge/pricing-records/${encodeURIComponent(recordId)}/status`, json({ status }), record);
+
+export const deletePricingRecordAction = async (recordId: string) =>
+  call<{ id: string; deleted: boolean }>(
+    `/v1/knowledge/pricing-records/${encodeURIComponent(recordId)}`,
+    { method: "DELETE" },
+  );
 
 export const listExpertRulesAction = async (filters: { status?: string } = {}) =>
   call<ExpertRule[]>(`/v1/knowledge/expert-rules${query(filters)}`, undefined, listOf(rule));
