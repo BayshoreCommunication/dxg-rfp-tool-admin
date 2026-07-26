@@ -1,6 +1,6 @@
 "use server";
 import { BACKEND_URL } from "@/lib/config";
-import { getBackendAccessToken } from "@/lib/server/backendSession";
+import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
 export type Result<T> =
   | { success: true; data: T; correlationId: string }
@@ -81,13 +81,12 @@ const listOf = <T,>(parse: (value: unknown) => T | null) => (value: unknown): T[
   Array.isArray(value) ? value.map(parse).filter((item): item is T => Boolean(item)) : null;
 
 const call = async <T,>(path: string, init?: RequestInit, parse?: (value: unknown) => T | null): Promise<Result<T>> => {
-  const correlationId = crypto.randomUUID(), token = await getBackendAccessToken();
-  if (!token) return { success: false, message: "Your admin session has expired.", code: "AUTHENTICATION_REQUIRED", correlationId };
+  const correlationId = crypto.randomUUID();
   try {
-    const response = await fetch(`${base}${path}`, {
+    const response = await authenticatedBackendFetch(`${base}${path}`, {
       ...init,
       cache: "no-store",
-      headers: { Authorization: `Bearer ${token}`, "X-Correlation-ID": correlationId, ...(init?.headers || {}) },
+      headers: { "X-Correlation-ID": correlationId, ...(init?.headers || {}) },
     });
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {

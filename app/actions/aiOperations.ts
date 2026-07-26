@@ -1,7 +1,7 @@
 "use server";
 
 import { BACKEND_URL } from "@/lib/config";
-import { getBackendAccessToken } from "@/lib/server/backendSession";
+import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 import type { LiveAiPilotStatus } from "./liveAiPilot";
 
 export type AiUsageDaily = {
@@ -87,11 +87,10 @@ export type AiOperationsData = {
 
 const base = BACKEND_URL.endsWith("/api") ? BACKEND_URL : `${BACKEND_URL}/api`;
 
-const read = async <T,>(path: string, token: string): Promise<T> => {
-  const response = await fetch(`${base}${path}`, {
+const read = async <T,>(path: string): Promise<T> => {
+  const response = await authenticatedBackendFetch(`${base}${path}`, {
     cache: "no-store",
     headers: {
-      Authorization: `Bearer ${token}`,
       "X-Correlation-ID": crypto.randomUUID(),
     },
   });
@@ -117,13 +116,10 @@ const normalizeUsageReport = (
 });
 
 export const getAiOperationsData = async (): Promise<AiOperationsData> => {
-  const token = await getBackendAccessToken();
-  if (!token) return { status: null, usage: null, runs: [], errors: ["Your admin session has expired."] };
-
   const [status, usage, runs] = await Promise.allSettled([
-    read<LiveAiPilotStatus>("/v1/ai/pilot/status", token),
-    read<AiUsageReport>("/v1/ai/usage-report?days=30", token),
-    read<AiGatewayRun[]>("/v1/ai/runs?limit=50", token),
+    read<LiveAiPilotStatus>("/v1/ai/pilot/status"),
+    read<AiUsageReport>("/v1/ai/usage-report?days=30"),
+    read<AiGatewayRun[]>("/v1/ai/runs?limit=50"),
   ]);
 
   const errors: string[] = [];

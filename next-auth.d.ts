@@ -8,6 +8,8 @@ declare module "next-auth" {
       role?: string;
       avatar?: string;
     };
+    authError?: string;
+    backendAccessExpired?: boolean;
   }
 
   interface User {
@@ -16,6 +18,10 @@ declare module "next-auth" {
     role?: string;
     avatar?: string;
     accessToken?: string;
+    accessTokenExpiresAt?: number;
+    refreshToken?: string;
+    refreshTokenExpiresAt?: number;
+    sessionId?: string;
   }
 }
 
@@ -26,5 +32,10 @@ declare module "next-auth/jwt" {
     role?: string;
     avatar?: string;
     accessToken?: string;
+    accessTokenExpiresAt?: number;
+    refreshToken?: string;
+    refreshTokenExpiresAt?: number;
+    sessionId?: string;
+    authError?: string;
   }
 }

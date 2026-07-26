@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { BACKEND_URL } from "@/lib/config";
-import { getBackendAccessToken } from "@/lib/server/backendSession";
+import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
 export interface AllClientItem {
   id: string;
@@ -41,30 +41,22 @@ export async function getAllClientsAction(
   error?: string;
   data: AllClientsResponse | null;
 }> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) {
-    return {
-      ok: false,
-      error: "User is not authenticated.",
-      data: null,
-    };
-  }
-
   try {
     const query = new URLSearchParams({
       search: search.trim(),
       page: String(Math.max(1, page)),
     }).toString();
 
-    const response = await fetch(`${BACKEND_URL}/api/all-clients?${query}`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/all-clients?${query}`,
+      {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
-    });
+      },
+    );
 
     const result = (await response.json()) as AllClientsResponse;
 
@@ -93,20 +85,13 @@ export async function blockClientAction(
   clientId: string,
   isBlocked: boolean,
 ): Promise<{ ok: boolean; error?: string }> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) {
-    return { ok: false, error: "User is not authenticated." };
-  }
-
   try {
-    const response = await fetch(
+    const response = await authenticatedBackendFetch(
       `${BACKEND_URL}/api/all-clients/${clientId}/block`,
       {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ isBlocked }),
         cache: "no-store",
@@ -135,20 +120,13 @@ export async function blockClientAction(
 export async function deleteClientAction(
   clientId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) {
-    return { ok: false, error: "User is not authenticated." };
-  }
-
   try {
-    const response = await fetch(
+    const response = await authenticatedBackendFetch(
       `${BACKEND_URL}/api/all-clients/${clientId}`,
       {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
         },
         cache: "no-store",
       },

@@ -1,7 +1,7 @@
 "use server";
 
 import { BACKEND_URL } from "@/lib/config";
-import { getBackendAccessToken } from "@/lib/server/backendSession";
+import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
 export interface AdminUserProfile {
   _id: string;
@@ -53,21 +53,17 @@ export type UpdateAdminUserByIdPayload = {
 // ─── Own profile ─────────────────────────────────────────────────────────────
 
 export async function getAdminUserProfileAction(): Promise<AdminUserResponse> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) {
-    return { ok: false, error: "User is not authenticated.", data: null };
-  }
-
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin-user/me`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/admin-user/me`,
+      {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
-    });
+      },
+    );
 
     const result = await response.json();
     if (!response.ok) {
@@ -83,12 +79,6 @@ export async function getAdminUserProfileAction(): Promise<AdminUserResponse> {
 export async function updateAdminUserProfileAction(
   payload: UpdateAdminUserPayload,
 ): Promise<AdminUserResponse> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) {
-    return { ok: false, error: "User is not authenticated.", data: null };
-  }
-
   try {
     const formData = new FormData();
 
@@ -100,12 +90,14 @@ export async function updateAdminUserProfileAction(
     if (payload.password !== undefined) formData.append("password", payload.password);
     if (payload.avatarFile) formData.append("avatarFile", payload.avatarFile);
 
-    const response = await fetch(`${BACKEND_URL}/api/admin-user/me`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/admin-user/me`,
+      {
       method: "PUT",
-      headers: { Authorization: `Bearer ${accessToken}` },
       body: formData,
       cache: "no-store",
-    });
+      },
+    );
 
     const result = await response.json();
     if (!response.ok) {
@@ -121,19 +113,17 @@ export async function updateAdminUserProfileAction(
 // ─── Admin user management (super admin only) ─────────────────────────────────
 
 export async function getAdminUsersListAction(): Promise<AdminUsersListResponse> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) return { ok: false, error: "User is not authenticated.", data: [] };
-
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin-user`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/admin-user`,
+      {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
-    });
+      },
+    );
 
     const result = await response.json();
     if (!response.ok) {
@@ -149,20 +139,18 @@ export async function getAdminUsersListAction(): Promise<AdminUsersListResponse>
 export async function createAdminUserAction(
   payload: CreateAdminUserPayload,
 ): Promise<AdminUserResponse> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) return { ok: false, error: "User is not authenticated.", data: null };
-
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin-user`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/admin-user`,
+      {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(payload),
       cache: "no-store",
-    });
+      },
+    );
 
     const result = await response.json();
     if (!response.ok) {
@@ -179,20 +167,18 @@ export async function updateAdminUserByIdAction(
   userId: string,
   payload: UpdateAdminUserByIdPayload,
 ): Promise<AdminUserResponse> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) return { ok: false, error: "User is not authenticated.", data: null };
-
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin-user/${userId}`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/admin-user/${userId}`,
+      {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(payload),
       cache: "no-store",
-    });
+      },
+    );
 
     const result = await response.json();
     if (!response.ok) {
@@ -208,19 +194,17 @@ export async function updateAdminUserByIdAction(
 export async function deleteAdminUserAction(
   userId: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) return { ok: false, error: "User is not authenticated." };
-
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin-user/${userId}`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/admin-user/${userId}`,
+      {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
-    });
+      },
+    );
 
     const result = await response.json();
     if (!response.ok) {

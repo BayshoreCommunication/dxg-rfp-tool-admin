@@ -1,7 +1,7 @@
 "use server";
 
 import { BACKEND_URL } from "@/lib/config";
-import { getBackendAccessToken } from "@/lib/server/backendSession";
+import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
 export interface AdminOverviewClient {
   id: string;
@@ -28,21 +28,17 @@ export async function getAdminOverviewAction(): Promise<{
   error?: string;
   data: AdminOverviewData | null;
 }> {
-  const accessToken = await getBackendAccessToken();
-
-  if (!accessToken) {
-    return { ok: false, error: "User is not authenticated.", data: null };
-  }
-
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin/overview`, {
+    const response = await authenticatedBackendFetch(
+      `${BACKEND_URL}/api/admin/overview`,
+      {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
-    });
+      },
+    );
 
     const result = await response.json();
     if (!response.ok) {

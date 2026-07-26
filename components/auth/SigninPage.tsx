@@ -134,13 +134,7 @@ export default function SigninPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-500">
-        Need an administrator account?{" "}
-        <Link
-          href="/sign-up"
-          className="font-bold text-[#009ca4] hover:text-[#007e85]"
-        >
-          Create account
-        </Link>
+        Need an administrator account? Ask an existing super admin to create it.
       </p>
     </AuthShell>
   );
