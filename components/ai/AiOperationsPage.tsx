@@ -11,8 +11,13 @@ import {
   Sparkles,
   XCircle,
 } from "lucide-react";
-import { getAiOperationsData, type AiProviderAttempt } from "@/app/actions/aiOperations";
+import {
+  getAiOperationsData,
+  type AiProviderAttempt,
+  type AssistantQualityFilters,
+} from "@/app/actions/aiOperations";
 import AdminPageHeader from "@/components/layout/AdminPageHeader";
+import AssistantQualitySection from "./AssistantQualitySection";
 
 const number = new Intl.NumberFormat("en-US");
 const date = new Intl.DateTimeFormat("en-US", {
@@ -79,8 +84,13 @@ const AttemptRow = ({ attempt }: { attempt: AiProviderAttempt }) => (
   </tr>
 );
 
-export default async function AiOperationsPage() {
-  const { status, usage, runs, errors } = await getAiOperationsData();
+export default async function AiOperationsPage({
+  qualityFilters = {},
+}: {
+  qualityFilters?: AssistantQualityFilters;
+}) {
+  const { status, usage, runs, quality, errors } =
+    await getAiOperationsData(qualityFilters);
   const usageTotals = Array.isArray(usage?.totals) ? usage.totals : [];
   const operationRows = Array.isArray(usage?.operations)
     ? usage.operations
@@ -134,6 +144,11 @@ export default async function AiOperationsPage() {
           <p className="mt-1">{loadErrors.join(" ")}</p>
         </div>
       )}
+
+      <AssistantQualitySection
+        report={quality}
+        filters={qualityFilters}
+      />
 
       <section aria-label="AI summary" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={<Activity size={22} />} title="Provider attempts" value={number.format(totals.attempts)} note="Lifetime provider-attempt ledger" />
