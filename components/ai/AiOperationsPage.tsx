@@ -18,6 +18,7 @@ import {
 } from "@/app/actions/aiOperations";
 import AdminPageHeader from "@/components/layout/AdminPageHeader";
 import AssistantQualitySection from "./AssistantQualitySection";
+import GovernedAssetsPanel from "./GovernedAssetsPanel";
 
 const number = new Intl.NumberFormat("en-US");
 const date = new Intl.DateTimeFormat("en-US", {
@@ -149,6 +150,7 @@ export default async function AiOperationsPage({
         report={quality}
         filters={qualityFilters}
       />
+      <GovernedAssetsPanel />
 
       <section aria-label="AI summary" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={<Activity size={22} />} title="Provider attempts" value={number.format(totals.attempts)} note="Lifetime provider-attempt ledger" />
