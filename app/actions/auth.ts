@@ -1,9 +1,13 @@
 "use server";
 
-import { auth, signIn } from "@/auth";
-import { AuthError } from "next-auth";
+import { signIn } from "@/auth";
 
 import { BACKEND_URL } from "@/lib/config";
+import { authenticatedBackendFetch } from "@/lib/server/backendClient";
+import { revokeCurrentBackendSession } from "@/lib/server/backendLogout";
+
+const getErrorMessage = (error: unknown, fallback = "Network error") =>
+  error instanceof Error && error.message ? error.message : fallback;
 
 /* ─────────────────────────────────────────
    SIGNUP — Step 1: Send OTP (spam check)
@@ -21,8 +25,8 @@ export async function sendSignupOtpAction(email: string) {
       success: res.ok,
       message: data.message || (res.ok ? "OTP sent" : "Failed to send OTP"),
     };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
   }
 }
 
@@ -43,8 +47,8 @@ export async function verifySignupOtpAction(email: string, otp: string) {
       message:
         data.message || (res.ok ? "Email verified" : "Verification failed"),
     };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
   }
 }
 
@@ -57,25 +61,11 @@ export async function signUpAction(payload: {
   phone?: string;
   password: string;
 }) {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/auth/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    });
-    const data = await res.json();
-    if (!res.ok)
-      return { success: false, message: data.message || "Registration failed" };
-    return {
-      success: true,
-      user: data.user,
-      accessToken: data.accessToken,
-      message: data.message,
-    };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
-  }
+  void payload;
+  return {
+    success: false,
+    message: "Administrator accounts must be created by an existing super admin.",
+  };
 }
 
 /* ─────────────────────────────────────────
@@ -103,45 +93,32 @@ export async function signInAction(
   password: string,
   callbackUrl?: string,
 ) {
-  // Pre-check credentials against backend to get specific error messages
   try {
-    const { BACKEND_URL: BASE } = await import("@/lib/config");
-    const apiUrl = BASE.endsWith("/api") ? BASE.slice(0, -4) : BASE;
-
-    const preCheck = await fetch(`${apiUrl}/api/auth/admin/signin`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      cache: "no-store",
+    const resultUrl = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
     });
-
-    if (!preCheck.ok) {
-      const errData = await preCheck.json().catch(() => ({}));
-      const code = errData?.errorCode as string | undefined;
+    const result = new URL(String(resultUrl), "http://auth.local");
+    if (result.searchParams.has("error")) {
+      const code = result.searchParams.get("code") || "credentials";
       return {
         success: false,
         message:
-          (code && ADMIN_AUTH_ERRORS[code]) ||
-          errData?.message ||
+          ADMIN_AUTH_ERRORS[code] ||
+          (code === "server_unavailable"
+            ? "Could not reach the server. Please try again."
+            : undefined) ||
           "Login failed. Please try again.",
       };
     }
-  } catch {
-    return { success: false, message: "Could not reach the server. Please try again." };
-  }
 
-  // Credentials are valid — create the NextAuth session
-  try {
-    await signIn("credentials", { email, password, redirect: false });
     return {
       success: true,
       callbackUrl: getSafeCallbackUrl(callbackUrl),
       message: "Login successful",
     };
-  } catch (error: unknown) {
-    if (error instanceof AuthError) {
-      return { success: false, message: "Login failed. Please try again." };
-    }
+  } catch {
     return { success: false, message: "An unexpected error occurred." };
   }
 }
@@ -167,8 +144,8 @@ export async function sendForgotPasswordOtpAction(email: string) {
         data.message ||
         (res.ok ? "Reset code sent" : "Failed to send reset code"),
     };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
   }
 }
 
@@ -194,8 +171,8 @@ export async function verifyForgotPasswordOtpAction(
       success: res.ok,
       message: data.message || (res.ok ? "OTP verified" : "Invalid OTP"),
     };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
   }
 }
 
@@ -217,25 +194,24 @@ export async function resetPasswordAction(email: string, newPassword: string) {
         data.message ||
         (res.ok ? "Password reset" : "Failed to reset password"),
     };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
   }
 }
 
 /* ─────────────────────────────────────────
    GET CURRENT USER
 ───────────────────────────────────────── */
-export async function getCurrentUserAction(accessToken: string) {
+export async function getCurrentUserAction() {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+    const res = await authenticatedBackendFetch(`${BACKEND_URL}/api/auth/me`, {
       cache: "no-store",
     });
     const data = await res.json();
     if (!res.ok) return { success: false, message: data.message };
     return { success: true, user: data.user };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
   }
 }
 
@@ -244,18 +220,14 @@ export async function getCurrentUserAction(accessToken: string) {
 ───────────────────────────────────────── */
 export async function signOutAction() {
   try {
-    const session = await auth();
-    const accessToken = (session?.user as any)?.accessToken;
-
-    // Call backend logout if accessToken exists
-    if (accessToken) {
-      await fetch(`${BACKEND_URL}/api/auth/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-    }
-    return { success: true, message: "Signed out successfully" };
-  } catch (error: any) {
-    return { success: false, message: error.message || "Network error" };
+    const revoked = await revokeCurrentBackendSession();
+    return revoked
+      ? { success: true, message: "Signed out successfully" }
+      : {
+          success: false,
+          message: "Backend session revocation was not confirmed.",
+        };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
   }
 }

@@ -13,6 +13,9 @@ export default function DeleteClientButton({ clientId }: Props) {
   const [error, setError] = useState("");
 
   const handleDelete = async () => {
+    if (!window.confirm("Delete this client? This action cannot be undone.")) {
+      return;
+    }
     setLoading(true);
     setError("");
 

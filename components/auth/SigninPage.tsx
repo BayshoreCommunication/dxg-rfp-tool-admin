@@ -1,11 +1,16 @@
-﻿"use client";
+"use client";
 
 import { signInAction } from "@/app/actions/auth";
 import { ArrowRight, Eye, EyeOff, KeyRound, Mail } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import AuthShell from "./AuthShell";
 
-const SigninPage = () => {
+const inputWrapClass =
+  "relative flex h-12 items-center overflow-hidden rounded-xl border border-slate-200 bg-white transition focus-within:border-[#00aeb5] focus-within:ring-4 focus-within:ring-cyan-500/10";
+
+export default function SigninPage() {
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
@@ -25,111 +30,112 @@ const SigninPage = () => {
 
     setSubmitting(true);
     const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-    const res = await signInAction(normalizedEmail, password, callbackUrl);
+    const result = await signInAction(
+      normalizedEmail,
+      password,
+      callbackUrl,
+    );
     setSubmitting(false);
 
-    if (!res.success) {
-      setErrorMessage(res.message || "Login failed. Please try again.");
+    if (!result.success) {
+      setErrorMessage(result.message || "Login failed. Please try again.");
       return;
     }
 
-    window.location.assign(res.callbackUrl || "/dashboard");
+    window.location.assign(result.callbackUrl || "/dashboard");
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#eef2f7] p-4 text-[#000000]">
-      <div className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-cyan-300/35 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-amber-200/45 blur-3xl" />
-
-      <div className="relative z-10 w-full max-w-[460px] rounded-[2.5rem] bg-white/88 px-10 py-12 shadow-[0_30px_60px_-20px_rgba(15,23,42,0.18),0_0_0_1px_rgba(255,255,255,0.5)] backdrop-blur-xl ring-1 ring-slate-200/40 sm:px-14 sm:py-16">
-        <div className="mb-6 flex justify-center">
-          <h3 className="text-primary text-2xl font-bold">Logo.</h3>
-        </div>
-
-        <h2 className="mb-3 text-center text-[32px] font-extrabold tracking-tight text-gray-900 leading-none">
-          Welcome Back
-        </h2>
-        <p className="mb-10 text-center text-[14px] font-medium text-gray-400">
-          Enter your details to access your account
-        </p>
-
-        <form onSubmit={handleSubmit} className="mb-6 space-y-4">
-          <div className="mb-0 group">
-            <label className="mb-2 block text-[13px] font-bold text-gray-700">
-              Email Address
-            </label>
-            <div className="relative flex items-center overflow-hidden rounded-2xl border border-gray-200 bg-white/70 transition-all duration-300 focus-within:border-primary focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/10 hover:border-gray-300">
-              <div className="pl-4 pr-3 text-gray-400 group-focus-within:text-primary transition-colors">
-                <Mail className="h-5 w-5" strokeWidth={2} />
-              </div>
-              <input
-                type="email"
-                placeholder="name@company.com"
-                className="w-full bg-transparent py-4 pr-4 text-[15px] font-semibold text-gray-900 outline-none placeholder:font-medium placeholder:text-gray-400"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                disabled={submitting}
-                required
-              />
-            </div>
-          </div>
-
-          <div className="group">
-            <label className="mb-2 block text-[13px] font-bold text-gray-700">
-              Password
-            </label>
-            <div className="relative flex items-center overflow-hidden rounded-2xl border border-gray-200 bg-white/70 transition-all duration-300 focus-within:border-primary focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/10 hover:border-gray-300">
-              <div className="pl-4 pr-3 text-gray-400 group-focus-within:text-primary transition-colors">
-                <KeyRound className="h-5 w-5" strokeWidth={2} />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="**********"
-                className="w-full bg-transparent py-4 pr-4 text-[15px] font-semibold text-gray-900 outline-none placeholder:font-medium placeholder:text-gray-400"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                disabled={submitting}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="flex items-center justify-center px-4 text-gray-400 transition-colors hover:text-primary focus:outline-none disabled:opacity-60"
-                disabled={submitting}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" strokeWidth={2} />
-                ) : (
-                  <Eye className="h-5 w-5" strokeWidth={2} />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {errorMessage ? (
-            <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm font-medium text-red-500">
-              {errorMessage}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="group relative mb-2 flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-2xl py-4 text-[15px] font-bold text-white shadow-[0_4px_20px_rgba(14,165,233,0.45)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(14,165,233,0.6)] active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-70"
-            style={{ background: "linear-gradient(135deg, #00c2c9 0%, #06b6d4 30%, #0ea5e9 60%, #2563eb 100%)" }}
-          >
-            <span className="pointer-events-none absolute inset-0 -translate-x-full bg-white/20 skew-x-[-20deg] transition-transform duration-700 group-hover:translate-x-full" />
-            <span>{submitting ? "Signing In..." : "Sign In to Dashboard"}</span>
-            <ArrowRight
-              className={`h-4 w-4 transition-transform ${submitting ? "animate-pulse" : "group-hover:translate-x-1"}`}
+    <AuthShell
+      title="Welcome back"
+      description="Sign in with your administrator account to continue to the DXG workspace."
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <label className="block">
+          <span className="mb-2 block text-xs font-bold text-slate-600">
+            Email address
+          </span>
+          <span className={inputWrapClass}>
+            <Mail
+              className="ml-3.5 h-4.5 w-4.5 shrink-0 text-slate-400"
+              aria-hidden="true"
             />
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-};
+            <input
+              type="email"
+              placeholder="name@company.com"
+              className="h-full w-full bg-transparent px-3.5 text-sm font-semibold text-[#20304b] outline-none placeholder:font-normal placeholder:text-slate-400"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              disabled={submitting}
+              required
+            />
+          </span>
+        </label>
 
-export default SigninPage;
+        <label className="block">
+          <span className="mb-2 flex items-center justify-between gap-3 text-xs font-bold text-slate-600">
+            Password
+            <Link
+              href="/forgot-password"
+              className="font-semibold text-[#009ca4] hover:text-[#007e85]"
+            >
+              Forgot password?
+            </Link>
+          </span>
+          <span className={inputWrapClass}>
+            <KeyRound
+              className="ml-3.5 h-4.5 w-4.5 shrink-0 text-slate-400"
+              aria-hidden="true"
+            />
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              className="h-full w-full bg-transparent px-3.5 text-sm font-semibold text-[#20304b] outline-none placeholder:font-normal placeholder:text-slate-400"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              disabled={submitting}
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              className="flex h-full w-11 shrink-0 items-center justify-center text-slate-400 transition hover:text-[#009ca4]"
+              disabled={submitting}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4.5 w-4.5" aria-hidden="true" />
+              ) : (
+                <Eye className="h-4.5 w-4.5" aria-hidden="true" />
+              )}
+            </button>
+          </span>
+        </label>
+
+        {errorMessage ? (
+          <p
+            role="alert"
+            className="rounded-xl border border-rose-100 bg-rose-50 px-3.5 py-3 text-sm font-medium text-rose-700"
+          >
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#00aeb5] px-5 text-sm font-bold text-white shadow-[0_8px_22px_rgba(0,174,181,0.22)] transition hover:bg-[#009ca4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <span>{submitting ? "Signing in…" : "Sign in to dashboard"}</span>
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </form>
+
+      <p className="mt-6 text-center text-sm text-slate-500">
+        Need an administrator account? Ask an existing super admin to create it.
+      </p>
+    </AuthShell>
+  );
+}

@@ -1,6 +1,16 @@
-import { getAdminUsersListAction } from "@/app/actions/adminUser";
+import {
+  getAdminUsersListAction,
+  type AdminUserProfile,
+} from "@/app/actions/adminUser";
 import { auth } from "@/auth";
-import { Calendar, Mail, ShieldAlert, ShieldCheck, Users } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarDays,
+  Mail,
+  ShieldAlert,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
 import AdminUserFormModal from "./AdminUserFormModal";
 import DeleteAdminUserButton from "./DeleteAdminUserButton";
 
@@ -15,87 +25,68 @@ const formatDate = (isoDate?: string) => {
   });
 };
 
-const generateGradient = (name: string) => {
-  const colors = [
-    "from-violet-400 to-purple-500",
-    "from-blue-400 to-indigo-500",
-    "from-emerald-400 to-teal-500",
-    "from-amber-400 to-orange-500",
-    "from-rose-400 to-red-500",
-    "from-cyan-400 to-blue-500",
-  ];
-  return colors[(name?.charCodeAt(0) || 0) % colors.length];
-};
+const avatarTones = [
+  "bg-cyan-50 text-cyan-700",
+  "bg-violet-50 text-violet-700",
+  "bg-emerald-50 text-emerald-700",
+  "bg-amber-50 text-amber-700",
+  "bg-sky-50 text-sky-700",
+];
+
+const getAvatarTone = (name?: string) =>
+  avatarTones[(name?.trim().charCodeAt(0) ?? 0) % avatarTones.length];
 
 const RoleBadge = ({ role }: { role?: string }) => {
   const normalized = (role || "").toLowerCase().replace(/[\s-]/g, "_");
-  const isSuperAdmin = normalized === "super_admin" || normalized === "superadmin";
-  return isSuperAdmin ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 border border-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">
-      <ShieldCheck size={10} />
-      Super Admin
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-600">
-      <ShieldAlert size={10} />
-      Admin
+  const isSuperAdmin =
+    normalized === "super_admin" || normalized === "superadmin";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+        isSuperAdmin
+          ? "bg-violet-50 text-violet-700"
+          : "bg-sky-50 text-sky-700"
+      }`}
+    >
+      {isSuperAdmin ? (
+        <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+      ) : (
+        <ShieldAlert className="h-3 w-3" aria-hidden="true" />
+      )}
+      {isSuperAdmin ? "Super Admin" : "Admin"}
     </span>
   );
 };
 
-export const UserListsSkeleton = () => (
-  <div className="bg-white rounded-xl p-5 sm:p-6 shadow border border-slate-100 mt-6">
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-slate-100 animate-pulse" />
-        <div className="w-32 h-5 rounded bg-slate-200 animate-pulse" />
-      </div>
-      <div className="w-28 h-9 rounded-lg bg-slate-100 animate-pulse" />
-    </div>
-    <div className="w-full overflow-hidden rounded-xl border border-slate-100">
-      <table className="w-full text-left border-collapse whitespace-nowrap">
-        <thead>
-          <tr className="bg-slate-50/80 border-b border-slate-100">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <th key={i} className="px-4 py-3">
-                <div className="w-20 h-3 bg-slate-200 rounded animate-pulse" />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {[1, 2, 3].map((row) => (
-            <tr key={row} className="bg-white">
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-slate-200 animate-pulse" />
-                  <div className="w-28 h-4 rounded bg-slate-200 animate-pulse" />
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <div className="w-36 h-4 rounded bg-slate-200 animate-pulse" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="w-20 h-5 rounded-full bg-slate-100 animate-pulse" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="w-24 h-4 rounded bg-slate-200 animate-pulse" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex gap-2 justify-center">
-                  <div className="w-14 h-7 rounded-lg bg-slate-100 animate-pulse" />
-                  <div className="w-14 h-7 rounded-lg bg-slate-100 animate-pulse" />
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+const UserActions = ({ user }: { user: AdminUserProfile }) => (
+  <div className="flex items-center justify-end gap-2 lg:justify-center">
+    <AdminUserFormModal mode="edit" user={user} />
+    <DeleteAdminUserButton userId={user._id} />
   </div>
 );
 
-const UserLists = async () => {
+export const UserListsSkeleton = () => (
+  <section className="overflow-hidden rounded-2xl border border-[#dce5ee] bg-white">
+    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5 sm:px-6">
+      <div className="space-y-2">
+        <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
+        <div className="h-3 w-64 animate-pulse rounded bg-slate-100" />
+      </div>
+      <div className="h-10 w-28 animate-pulse rounded-xl bg-slate-100" />
+    </div>
+    <div className="space-y-3 p-5">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div
+          key={index}
+          className="h-16 animate-pulse rounded-xl bg-slate-50"
+        />
+      ))}
+    </div>
+  </section>
+);
+
+export default async function UserLists() {
   const session = await auth();
   const sessionRole = (session?.user?.role || "")
     .toLowerCase()
@@ -108,138 +99,184 @@ const UserLists = async () => {
 
   if (!isSuperAdmin) {
     return (
-      <div className="bg-white rounded-xl p-10 shadow border border-slate-100 mt-6 flex flex-col items-center justify-center gap-2">
-        <ShieldAlert className="w-10 h-10 text-slate-200" />
-        <p className="text-sm font-medium text-slate-500">
-          Only super admins can manage admin users.
+      <section className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-[#dce5ee] bg-white px-6 text-center">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+          <ShieldAlert className="h-7 w-7" aria-hidden="true" />
+        </span>
+        <h2 className="mt-4 text-lg font-bold text-[#12213a]">
+          Super admin access required
+        </h2>
+        <p className="mt-1 max-w-md text-sm leading-6 text-slate-500">
+          Your account can use the admin workspace, but only super admins can
+          create, edit, or remove other administrators.
         </p>
-      </div>
+      </section>
     );
   }
 
   const response = await getAdminUsersListAction();
   const users = (response.data || []).filter(
-    (u) => u._id !== currentUserId,
+    (user) => user._id !== currentUserId,
   );
 
   return (
-    <div className="bg-white rounded-xl p-5 sm:p-6 shadow border border-slate-100 mt-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-violet-50 rounded-xl">
-            <Users className="w-5 h-5 text-violet-600" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">
-              Admin Users
-            </h2>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Manage admin and super admin accounts
+    <section className="overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#eaf9f8] text-[#00a3aa]">
+            <UsersRound className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-bold tracking-[-0.02em] text-[#12213a]">
+                Admin directory
+              </h2>
+              {response.ok ? (
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
+                  {users.length} {users.length === 1 ? "user" : "users"}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Assign the right level of access to each administrator.
             </p>
           </div>
         </div>
         <AdminUserFormModal mode="create" />
       </div>
 
-      {/* Table */}
-      <div className="w-full overflow-x-auto rounded-xl border border-slate-100">
-        <table className="w-full text-left border-collapse whitespace-nowrap">
-          <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-100">
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                User
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                Email
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                Role
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase">
-                Joined
-              </th>
-              <th className="px-4 py-3 text-xs font-bold text-slate-500 tracking-wider uppercase text-center">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {!response.ok ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
-                  <p className="text-sm font-medium text-rose-500 bg-rose-50 inline-block px-4 py-2 rounded-lg border border-rose-100">
-                    {response.error || "Failed to load admin users."}
-                  </p>
-                </td>
-              </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
-                  <Users className="w-10 h-10 text-slate-200 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-slate-500">
-                    No admin users found.
-                  </p>
-                </td>
-              </tr>
-            ) : (
-              users.map((user) => (
-                <tr
-                  key={user._id}
-                  className="group hover:bg-slate-50/50 transition-colors duration-150"
-                >
-                  {/* User */}
-                  <td className="px-4 py-3 align-middle">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br ${generateGradient(user.name)} text-sm font-bold text-white shadow-sm ring-2 ring-white`}
-                      >
-                        {user.name?.charAt(0)?.toUpperCase() || "A"}
-                      </div>
-                      <span className="text-sm font-semibold text-slate-900 group-hover:text-violet-700 transition-colors">
-                        {user.name}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Email */}
-                  <td className="px-4 py-3 align-middle">
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">{user.email}</span>
-                    </div>
-                  </td>
-
-                  {/* Role */}
-                  <td className="px-4 py-3 align-middle">
-                    <RoleBadge role={user.role} />
-                  </td>
-
-                  {/* Joined */}
-                  <td className="px-4 py-3 align-middle">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="text-sm font-medium">
+      {!response.ok ? (
+        <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-500">
+            <AlertCircle className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <p className="mt-4 text-sm font-bold text-rose-700">
+            Unable to load admin users
+          </p>
+          <p className="mt-1 max-w-md text-sm text-slate-500">
+            {response.error || "Please try again in a moment."}
+          </p>
+        </div>
+      ) : users.length === 0 ? (
+        <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
+            <UsersRound className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <p className="mt-4 text-sm font-bold text-slate-600">
+            No additional admins yet
+          </p>
+          <p className="mt-1 text-sm text-slate-400">
+            Add an admin when another teammate needs workspace access.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="hidden p-4 lg:block sm:p-5">
+            <div className="overflow-x-auto rounded-xl border border-slate-100">
+              <table className="w-full min-w-[800px] table-fixed border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-[#f8fafc]">
+                    <th className="w-[24%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
+                      User
+                    </th>
+                    <th className="w-[27%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
+                      Email
+                    </th>
+                    <th className="w-[16%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
+                      Role
+                    </th>
+                    <th className="w-[16%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
+                      Joined
+                    </th>
+                    <th className="w-[17%] px-4 py-3 text-center text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map((user) => (
+                    <tr
+                      key={user._id}
+                      className="group transition-colors hover:bg-[#f8fcfc]"
+                    >
+                      <td className="px-4 py-3.5">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${getAvatarTone(user.name)}`}
+                          >
+                            {user.name?.trim().charAt(0).toUpperCase() || "A"}
+                          </span>
+                          <span className="truncate text-[13px] font-bold text-[#20304b]">
+                            {user.name || "Unnamed admin"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <a
+                          href={`mailto:${user.email}`}
+                          className="block truncate text-[13px] text-slate-500 hover:text-[#008f96]"
+                        >
+                          {user.email}
+                        </a>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <RoleBadge role={user.role} />
+                      </td>
+                      <td className="px-4 py-3.5 text-[13px] font-medium text-slate-500">
                         {formatDate(user.createdAt)}
-                      </span>
-                    </div>
-                  </td>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <UserActions user={user} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-                  {/* Actions */}
-                  <td className="px-4 py-3 text-center align-middle">
-                    <div className="flex items-center justify-center gap-2">
-                      <AdminUserFormModal mode="edit" user={user} />
-                      <DeleteAdminUserButton userId={user._id} />
+          <div className="divide-y divide-slate-100 lg:hidden">
+            {users.map((user) => (
+              <article key={user._id} className="px-5 py-5">
+                <div className="flex items-start gap-3">
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${getAvatarTone(user.name)}`}
+                  >
+                    {user.name?.trim().charAt(0).toUpperCase() || "A"}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-bold text-[#20304b]">
+                          {user.name || "Unnamed admin"}
+                        </h3>
+                        <div className="mt-1">
+                          <RoleBadge role={user.role} />
+                        </div>
+                      </div>
+                      <UserActions user={user} />
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+                    <a
+                      href={`mailto:${user.email}`}
+                      className="mt-3 flex items-center gap-2 text-xs text-slate-500"
+                    >
+                      <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{user.email}</span>
+                    </a>
+                    <span className="mt-2 inline-flex items-center gap-2 text-xs text-slate-500">
+                      <CalendarDays
+                        className="h-3.5 w-3.5"
+                        aria-hidden="true"
+                      />
+                      Joined {formatDate(user.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
-};
-
-export default UserLists;
+}

@@ -15,6 +15,9 @@ export default function DeleteAdminUserButton({ userId }: Props) {
   const router = useRouter();
 
   const handleDelete = async () => {
+    if (!window.confirm("Delete this admin user? This action cannot be undone.")) {
+      return;
+    }
     setLoading(true);
 
     const res = await deleteAdminUserAction(userId);
