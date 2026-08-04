@@ -48,7 +48,7 @@ export default function SigninPage() {
   return (
     <AuthShell
       title="Welcome back"
-      description="Sign in with your administrator account to continue to the DXG workspace."
+      description="Sign in with your administrator account to continue to the admin workspace."
     >
       <form onSubmit={handleSubmit} className="space-y-5">
         <label className="block">

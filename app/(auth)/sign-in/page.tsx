@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://dxg-rfp-tool-admin.vercel.app"),
+  metadataBase: new URL("https://av-rfpilot.com"),
   title:
-    "Dxg RFP Tool - Streamline Your Request for Proposal Process with Our User-Friendly Platform",
+    "RFPilot Admin - Proposal Management Workspace",
   description:
-    "Discover the Dxg RFP Tool, a powerful platform designed to simplify and enhance your request for proposal process. Our user-friendly interface allows you to create, manage, and track RFPs with ease, ensuring you find the best solutions for your business needs. Streamline your procurement process and make informed decisions with our comprehensive RFP management features.",
+    "Securely manage proposal operations, administrative access, governed knowledge, and pricing guidance with RFPilot Admin.",
   alternates: {
     canonical: "/sign-in",
     languages: {
@@ -15,19 +15,17 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title:
-      "Dxg RFP Tool - Streamline Your Request for Proposal Process with Our User-Friendly Platform",
+    title: "RFPilot Admin - Proposal Management Workspace",
     description:
-      "Discover the Dxg RFP Tool, a powerful platform designed to simplify and enhance your request for proposal process.",
+      "Securely manage proposal operations, administrative access, governed knowledge, and pricing guidance.",
     url: "/sign-in",
     images: [{ url: "/opengraph-image.jpg" }],
   },
   twitter: {
     card: "summary_large_image",
-    title:
-      "Dxg RFP Tool - Streamline Your Request for Proposal Process with Our User-Friendly Platform",
+    title: "RFPilot Admin - Proposal Management Workspace",
     description:
-      "Discover the Dxg RFP Tool, a powerful platform designed to simplify and enhance your request for proposal process.",
+      "Securely manage proposal operations, administrative access, governed knowledge, and pricing guidance.",
     images: ["/opengraph-image.jpg"],
   },
 };

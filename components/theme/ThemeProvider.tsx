@@ -18,7 +18,7 @@ type ThemeContextValue = {
   toggleTheme: () => void;
 };
 
-const STORAGE_KEY = "dxg-theme";
+const STORAGE_KEY = "rfpilot-admin-theme";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const getSavedPreference = (): ThemePreference => {

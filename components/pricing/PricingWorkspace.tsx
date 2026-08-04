@@ -1181,7 +1181,7 @@ function ExpertRulesTab() {
       <section className="rounded-2xl border border-[#dce5ee] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] xl:flex xl:h-full xl:min-h-0 xl:flex-col xl:overflow-hidden">
         <div className="xl:shrink-0">
           <h2 className="text-lg font-bold text-[#12213a]">New expert rule</h2>
-          <p className="mt-1 text-sm text-slate-500">Rules turn DXG expertise into explainable guidance. Every rule shows a plain-language preview.</p>
+          <p className="mt-1 text-sm text-slate-500">Rules turn approved expertise into explainable guidance. Every rule shows a plain-language preview.</p>
         </div>
         <div className="mt-4 xl:min-h-0 xl:flex-1 xl:overflow-y-auto xl:pr-1">
           <RuleForm busy={busy} onSubmit={create} />

@@ -42,7 +42,7 @@ const Sidebar = () => {
         <Link href="/dashboard">
           <Image
             src="/assets/logo/Logomark- White Background.png"
-            alt="DXG Digital"
+            alt="RFPilot"
             width={64}
             height={64}
             className="h-[50px] w-[50px] object-contain"
@@ -133,7 +133,7 @@ const Sidebar = () => {
         >
           <Image
             src="/assets/logo/Logomark- White Background.png"
-            alt="DXG Digital"
+            alt="RFPilot"
             width={64}
             height={64}
             className="h-[48px] w-[48px] object-contain"

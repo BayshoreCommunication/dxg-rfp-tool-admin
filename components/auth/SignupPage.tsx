@@ -128,10 +128,10 @@ export default function SignupPage() {
       title={step === 4 ? "Account created" : "Create an account"}
       description={
         step === 4
-          ? "Your DXG administrator account is ready."
+          ? "Your administrator account is ready."
           : "Verify your email and set up your administrator profile."
       }
-      sideTitle="Create governed access for the DXG workspace."
+      sideTitle="Create governed access for your workspace."
       sideDescription="Email verification protects new accounts before profile and password details are accepted."
     >
       {step < 4 ? (

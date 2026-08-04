@@ -5,7 +5,7 @@ import { ToastContainer } from "@/components/ui/Toast";
 import "../globals.css";
 
 export const metadata = {
-  metadataBase: new URL("https://dxg-rfp-tool-admin.vercel.app"),
+  metadataBase: new URL("https://av-rfpilot.com"),
 };
 
 export default function RootLayout({

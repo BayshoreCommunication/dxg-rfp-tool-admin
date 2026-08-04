@@ -45,7 +45,7 @@ const sourceTypeOptions = [
 ];
 const classificationOptions = [
   { value: "synthetic", label: "Synthetic test data" },
-  { value: "internal", label: "DXG internal" },
+  { value: "internal", label: "Organization internal" },
   { value: "customer_confidential", label: "Customer confidential" },
   { value: "vendor_confidential", label: "Vendor confidential" },
 ];
@@ -196,7 +196,7 @@ export default function KnowledgeSourcesPage() {
       <AdminPageHeader
         eyebrow="Knowledge administration"
         title="Knowledge sources"
-        description="Import private DXG reference material, inspect deterministic extracts, and route approved content into governed review."
+        description="Import private organizational reference material, inspect deterministic extracts, and route approved content into governed review."
         icon={Database}
       />
 
