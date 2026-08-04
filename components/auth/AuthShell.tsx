@@ -32,11 +32,11 @@ export default function AuthShell({
           <div>
             <span className="theme-logo-well inline-flex rounded-2xl bg-white p-3">
               <Image
-                src="/assets/logo/logo.svg"
+                src="/assets/logo/Logomark- White Background.png"
                 alt="DXG Digital"
                 width={68}
-                height={54}
-                className="h-auto w-[68px]"
+                height={68}
+                className="h-[68px] w-[68px] object-contain"
                 priority
               />
             </span>
@@ -73,11 +73,11 @@ export default function AuthShell({
           <div className="mx-auto w-full max-w-md">
             <div className="mb-8 flex justify-center lg:hidden">
               <Image
-                src="/assets/logo/logo.svg"
+                src="/assets/logo/Logomark- White Background.png"
                 alt="DXG Digital"
                 width={76}
-                height={60}
-                className="h-auto w-[76px]"
+                height={76}
+                className="h-[76px] w-[76px] object-contain"
                 priority
               />
             </div>

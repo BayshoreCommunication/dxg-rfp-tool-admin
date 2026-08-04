@@ -23,11 +23,11 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const getSavedPreference = (): ThemePreference => {
   if (typeof window === "undefined") {
-    return "system";
+    return "light";
   }
 
   const savedTheme = window.localStorage.getItem(STORAGE_KEY);
-  return savedTheme === "light" || savedTheme === "dark" ? savedTheme : "system";
+  return savedTheme === "light" || savedTheme === "dark" ? savedTheme : "light";
 };
 
 const applyPreference = (preference: ThemePreference) => {
@@ -63,7 +63,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const nextPreference =
         event.newValue === "light" || event.newValue === "dark"
           ? event.newValue
-          : "system";
+          : "light";
       setPreferenceState(nextPreference);
     };
 

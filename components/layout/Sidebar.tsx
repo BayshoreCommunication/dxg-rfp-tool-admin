@@ -41,11 +41,12 @@ const Sidebar = () => {
       <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200 dark:border-[#253746]">
         <Link href="/dashboard">
           <Image
-            src="/assets/logo/logo.svg"
-            alt="Logo"
-            width={400}
-            height={400}
-            className="h-auto w-[50px]"
+            src="/assets/logo/Logomark- White Background.png"
+            alt="DXG Digital"
+            width={64}
+            height={64}
+            className="h-[50px] w-[50px] object-contain"
+            priority
           />
         </Link>
       </div>
@@ -131,11 +132,11 @@ const Sidebar = () => {
           className="rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           <Image
-            src="/assets/logo/logo.svg"
+            src="/assets/logo/Logomark- White Background.png"
             alt="DXG Digital"
-            width={52}
-            height={42}
-            className="h-auto w-[48px]"
+            width={64}
+            height={64}
+            className="h-[48px] w-[48px] object-contain"
             priority
           />
         </Link>

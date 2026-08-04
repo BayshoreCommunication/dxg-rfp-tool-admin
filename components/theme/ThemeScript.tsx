@@ -2,7 +2,7 @@ const themeScript = `
   (() => {
     try {
       const saved = localStorage.getItem("dxg-theme");
-      const preference = saved === "light" || saved === "dark" ? saved : "system";
+      const preference = saved === "light" || saved === "dark" ? saved : "light";
       const resolved = preference === "system"
         ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
         : preference;
