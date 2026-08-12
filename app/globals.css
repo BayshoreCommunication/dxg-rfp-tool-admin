@@ -32,6 +32,34 @@ body {
     color 180ms ease;
 }
 
+/* Slim rail scrollbar keeps the navigation and fixed footer centered. */
+.sidebar-scrollbar {
+  scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 3px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.5);
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.72);
+}
+
+.dark .sidebar-scrollbar {
+  scrollbar-color: rgba(100, 116, 139, 0.58) transparent;
+}
+
 button,
 a,
 input,

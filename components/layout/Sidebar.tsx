@@ -37,7 +37,7 @@ const Sidebar = () => {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-[90px] flex-col border-r border-[#e1e8ee] bg-white transition-colors dark:border-[#253746] dark:bg-[#0d1d28] md:flex">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden h-dvh min-h-0 w-[90px] flex-col overflow-hidden border-r border-[#e1e8ee] bg-white transition-colors dark:border-[#253746] dark:bg-[#0d1d28] md:flex">
       <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200 dark:border-[#253746]">
         <Link href="/dashboard">
           <Image
@@ -50,7 +50,7 @@ const Sidebar = () => {
         </Link>
       </div>
 
-      <nav aria-label="Primary navigation" className="flex flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto px-3 py-4">
+      <nav aria-label="Primary navigation" className="sidebar-scrollbar flex min-h-0 flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4">
         {navigationConfig.map((item) => {
           const isActive = isItemActive(item);
 
@@ -95,13 +95,11 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="flex shrink-0 justify-center px-3 pb-4 pt-3">
+      <div className="mx-4 h-px shrink-0 bg-slate-100 dark:bg-[#253746]" />
+
+      <div className="flex shrink-0 flex-col items-center gap-2 px-3 py-3">
         <ThemeToggle className="h-9 w-9 px-0" />
-      </div>
 
-      <div className="mx-4 h-px bg-slate-100 dark:bg-[#253746]" />
-
-      <div className="flex shrink-0 flex-col items-center px-3 py-3">
         <button
           type="button"
           onClick={() => void signOutHandler()}
