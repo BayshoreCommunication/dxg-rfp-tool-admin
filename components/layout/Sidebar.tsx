@@ -39,13 +39,17 @@ const Sidebar = () => {
     <>
       <aside className="fixed inset-y-0 left-0 z-50 hidden h-dvh min-h-0 w-[90px] flex-col overflow-hidden border-r border-[#e1e8ee] bg-white transition-colors dark:border-[#253746] dark:bg-[#0d1d28] md:flex">
       <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200 dark:border-[#253746] max-[800px]:h-14">
-        <Link href="/dashboard" aria-label="Go to admin dashboard">
+        <Link
+          href="/dashboard"
+          aria-label="Go to admin dashboard"
+          className="group flex h-12 w-12 items-center justify-center overflow-hidden transition-all duration-200 hover:-translate-y-0.5 max-[800px]:h-10 max-[800px]:w-10"
+        >
           <Image
             src="/assets/logo/Logomark- White Background.png"
             alt="RFPilot"
             width={64}
             height={64}
-            className="h-12 w-12 object-contain max-[800px]:h-10 max-[800px]:w-10"
+            className="h-full w-full object-contain p-1.5"
             priority
           />
         </Link>
