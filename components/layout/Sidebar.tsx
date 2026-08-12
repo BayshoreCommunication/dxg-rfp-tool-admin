@@ -102,8 +102,8 @@ const Sidebar = () => {
 
       <div className="mx-4 h-px shrink-0 bg-slate-100 dark:bg-[#253746]" />
 
-      <div className="flex shrink-0 flex-col items-center gap-2 px-2.5 py-3 max-[800px]:gap-1.5 max-[800px]:py-2">
-        <ThemeToggle className="h-12 w-12 rounded-2xl px-0 max-[800px]:h-10 max-[800px]:w-10 max-[800px]:rounded-xl" />
+      <div className="flex shrink-0 flex-col items-center gap-2 px-2.5 py-3 max-[800px]:gap-1.5 max-[800px]:py-2 [@media(max-height:800px)]:gap-1 [@media(max-height:800px)]:py-1.5">
+        <ThemeToggle className="h-12 w-12 rounded-2xl px-0 max-[800px]:h-10 max-[800px]:w-10 max-[800px]:rounded-xl [@media(max-height:800px)]:h-9 [@media(max-height:800px)]:w-9 [@media(max-height:800px)]:rounded-xl" />
 
         <button
           type="button"
@@ -111,9 +111,9 @@ const Sidebar = () => {
           disabled={isSigningOut}
           aria-label="Sign out of the admin account"
           title="Sign out"
-          className="group flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 disabled:cursor-wait disabled:opacity-60 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
+          className="group flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 disabled:cursor-wait disabled:opacity-60 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 [@media(max-height:800px)]:gap-0.5 [@media(max-height:800px)]:py-1"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white transition group-hover:border-rose-200 group-hover:bg-rose-50 dark:border-[#2b4352] dark:bg-[#102432] dark:group-hover:border-rose-800 dark:group-hover:bg-rose-950/40 max-[800px]:h-7 max-[800px]:w-7 max-[800px]:rounded-lg">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white transition group-hover:border-rose-200 group-hover:bg-rose-50 dark:border-[#2b4352] dark:bg-[#102432] dark:group-hover:border-rose-800 dark:group-hover:bg-rose-950/40 max-[800px]:h-7 max-[800px]:w-7 max-[800px]:rounded-lg [@media(max-height:800px)]:h-7 [@media(max-height:800px)]:w-7 [@media(max-height:800px)]:rounded-lg">
             {isSigningOut ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
