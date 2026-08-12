@@ -37,29 +37,29 @@ const Sidebar = () => {
 
   return (
     <>
-      <aside className="fixed left-0 top-0 z-50 hidden h-screen w-[90px] flex-col border-r border-[#e1e8ee] bg-white transition-colors dark:border-[#253746] dark:bg-[#0d1d28] md:flex">
-      <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200 dark:border-[#253746]">
-        <Link href="/dashboard">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden h-dvh min-h-0 w-[90px] flex-col overflow-hidden border-r border-[#e1e8ee] bg-white transition-colors dark:border-[#253746] dark:bg-[#0d1d28] md:flex">
+      <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200 dark:border-[#253746] max-[800px]:h-14">
+        <Link href="/dashboard" aria-label="Go to admin dashboard">
           <Image
             src="/assets/logo/Logomark- White Background.png"
             alt="RFPilot"
             width={64}
             height={64}
-            className="h-[50px] w-[50px] object-contain"
+            className="h-12 w-12 object-contain max-[800px]:h-10 max-[800px]:w-10"
             priority
           />
         </Link>
       </div>
 
-      <nav aria-label="Primary navigation" className="flex flex-1 flex-col items-center gap-1 overflow-x-hidden overflow-y-auto px-3 py-4">
+      <nav aria-label="Primary navigation" className="sidebar-scrollbar flex min-h-0 flex-1 flex-col items-center overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-2">
         {navigationConfig.map((item) => {
           const isActive = isItemActive(item);
 
           return (
-            <Link key={item.id} href={item.href} className="block w-full">
+            <Link key={item.id} href={item.href} className="flex min-h-[72px] w-full shrink-0 items-center max-[800px]:min-h-[60px]">
               <div
                 className={cn(
-                  "group relative flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-3 transition-all duration-200",
+                  "group relative flex w-full flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 transition-all duration-200 max-[800px]:gap-0.5 max-[800px]:py-1",
                   isActive
                     ? "bg-[#eaf9f8] dark:bg-cyan-950/50"
                     : "hover:bg-primary/5 dark:hover:bg-cyan-950/30",
@@ -71,7 +71,7 @@ const Sidebar = () => {
 
                 <div
                   className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200",
+                    "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 max-[800px]:h-9 max-[800px]:w-9",
                     isActive
                       ? "bg-white text-primary shadow-[0_1px_3px_rgba(15,23,42,0.08)] dark:bg-[#142a37]"
                       : "text-gray-400 group-hover:bg-primary/10 group-hover:text-primary dark:text-slate-500",
@@ -82,7 +82,7 @@ const Sidebar = () => {
 
                 <span
                   className={cn(
-                    "text-[9.5px] font-bold leading-none tracking-wide",
+                    "w-full text-center text-[9.5px] font-bold leading-[1.08] tracking-wide max-[800px]:text-[9px]",
                     isActive
                       ? "text-primary"
                       : "text-gray-400 group-hover:text-primary",
@@ -96,13 +96,11 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="flex shrink-0 justify-center px-3 pb-4 pt-3">
-        <ThemeToggle className="h-9 w-9 px-0" />
-      </div>
+      <div className="mx-4 h-px shrink-0 bg-slate-100 dark:bg-[#253746]" />
 
-      <div className="mx-4 h-px bg-slate-100 dark:bg-[#253746]" />
+      <div className="flex shrink-0 flex-col items-center gap-2 px-2.5 py-3 max-[800px]:gap-1.5 max-[800px]:py-2">
+        <ThemeToggle className="h-12 w-12 rounded-2xl px-0 max-[800px]:h-10 max-[800px]:w-10 max-[800px]:rounded-xl" />
 
-      <div className="flex shrink-0 flex-col items-center px-3 py-3">
         <button
           type="button"
           onClick={() => void signOutHandler()}
@@ -111,7 +109,7 @@ const Sidebar = () => {
           title="Sign out"
           className="group flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 disabled:cursor-wait disabled:opacity-60 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white transition group-hover:border-rose-200 group-hover:bg-rose-50 dark:border-[#2b4352] dark:bg-[#102432] dark:group-hover:border-rose-800 dark:group-hover:bg-rose-950/40">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white transition group-hover:border-rose-200 group-hover:bg-rose-50 dark:border-[#2b4352] dark:bg-[#102432] dark:group-hover:border-rose-800 dark:group-hover:bg-rose-950/40 max-[800px]:h-7 max-[800px]:w-7 max-[800px]:rounded-lg">
             {isSigningOut ? (
               <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : (
