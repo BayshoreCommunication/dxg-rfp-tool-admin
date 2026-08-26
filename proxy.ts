@@ -1,6 +1,6 @@
 import type {
   NextFetchEvent,
-  NextMiddleware,
+  NextProxy,
   NextRequest,
 } from "next/server";
 import type { NextAuthRequest } from "next-auth";
@@ -30,7 +30,7 @@ const safeCallbackUrl = (request: NextAuthRequest) => {
 const handleAuthenticatedRequest = (
   request: NextAuthRequest,
   event: NextFetchEvent,
-): ReturnType<NextMiddleware> => {
+): ReturnType<NextProxy> => {
   void event;
   const { pathname, search } = request.nextUrl;
   const sessionExpired =
@@ -98,7 +98,7 @@ const handleAuthenticatedRequest = (
 
 const withAuth = auth(handleAuthenticatedRequest);
 
-export function middleware(request: NextRequest, event: NextFetchEvent) {
+export function proxy(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
   if (
     pathname.startsWith("/api/auth/") ||
@@ -115,4 +115,4 @@ export const config = {
   ],
 };
 
-export default middleware;
+export default proxy;
