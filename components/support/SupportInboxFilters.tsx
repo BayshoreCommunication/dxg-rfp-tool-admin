@@ -5,14 +5,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import type { SupportUserSummary } from "@/app/actions/supportDesk";
 import { CATEGORY_OPTIONS, PRIORITY_OPTIONS, STATUS_OPTIONS } from "./supportLabels";
+import { SUPPORT_SELECT_CLASS } from "./supportStyles";
 
 type Props = {
   agents: SupportUserSummary[];
   values: { status: string; assignee: string; priority: string; category: string; search: string };
 };
 
-const selectClass =
-  "h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-9 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100";
+const selectClass = SUPPORT_SELECT_CLASS;
 
 export default function SupportInboxFilters({ agents, values }: Props) {
   const router = useRouter();
