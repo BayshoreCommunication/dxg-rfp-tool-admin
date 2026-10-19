@@ -21,7 +21,7 @@ export const PRIORITY_OPTIONS: ReadonlyArray<{ value: SupportTicketPriority; lab
 export const CATEGORY_OPTIONS: ReadonlyArray<{ value: SupportTicketCategory; label: string }> = [
   { value: "how_to", label: "How-to" },
   { value: "bug", label: "Bug" },
-  { value: "billing", label: "Billing" },
+  { value: "billing", label: "Account & sign-in" },
   { value: "vendor_email", label: "Vendor / email" },
   { value: "other", label: "Other" },
 ];
