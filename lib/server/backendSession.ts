@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { getToken } from "next-auth/jwt";
+import { ADMIN_SESSION_COOKIE_NAME, ADMIN_SESSION_COOKIE_SECURE } from "@/lib/authCookie";
 import {
   hasExpiredBackendSession,
   hasRetryableBackendSessionError,
@@ -25,7 +26,8 @@ export async function getBackendSession(): Promise<BackendSession> {
   const token = await getToken({
     req: { headers: { cookie: cookieHeader } },
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-    secureCookie: process.env.NODE_ENV === "production",
+    secureCookie: ADMIN_SESSION_COOKIE_SECURE,
+    cookieName: ADMIN_SESSION_COOKIE_NAME,
   });
   const expired = hasExpiredBackendSession(token);
   if (expired) {

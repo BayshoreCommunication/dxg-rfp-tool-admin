@@ -1,4 +1,5 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
+import { ADMIN_SESSION_COOKIE_NAME, ADMIN_SESSION_COOKIE_SECURE } from "@/lib/authCookie";
 import Credentials from "next-auth/providers/credentials";
 import {
   AUTH_API_ORIGIN,
@@ -184,5 +185,16 @@ export const { auth, signIn, signOut, handlers, unstable_update } = NextAuth({
   session: {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
+  },
+  cookies: {
+    sessionToken: {
+      name: ADMIN_SESSION_COOKIE_NAME,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: ADMIN_SESSION_COOKIE_SECURE,
+      },
+    },
   },
 });
