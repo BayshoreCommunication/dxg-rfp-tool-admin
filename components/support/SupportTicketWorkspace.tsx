@@ -1,8 +1,8 @@
 "use client";
 
-import { LoaderCircle, Lock, Send, StickyNote, UserRound } from "lucide-react";
+import { FileText, LoaderCircle, Lock, Send, StickyNote, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   addSupportNoteAction,
   replySupportTicketAction,
@@ -81,19 +81,39 @@ const Bubble = ({ message, ticketId }: { message: SupportMessage; ticketId: stri
         <p className="whitespace-pre-wrap break-words leading-6">{message.body}</p>
         {message.attachments.length > 0 && (
           <ul className="mt-2 flex flex-wrap gap-2 text-[11px]" aria-label="Attachments">
-            {message.attachments.map((attachment) => (
-              <li key={attachment.id}>
-                <a
-                  href={supportAttachmentHref(ticketId, attachment.id)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 font-semibold text-slate-600 underline-offset-2 hover:underline dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-200"
-                >
-                  {attachment.fileName}
-                  <span className="text-slate-400">{formatBytes(attachment.sizeBytes)}</span>
-                </a>
-              </li>
-            ))}
+            {message.attachments.map((attachment) => {
+              const href = supportAttachmentHref(ticketId, attachment.id);
+              const isImage = attachment.mimeType.startsWith("image/");
+              return (
+                <li key={attachment.id}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`${attachment.fileName} · ${formatBytes(attachment.sizeBytes)}`}
+                    className="block overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-[#253746] dark:bg-[#0f2230]"
+                  >
+                    {isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived URL from our own proxy
+                      <span className="block h-40 w-[220px] bg-slate-200/40 dark:bg-slate-700/40">
+                        <img src={href} alt={attachment.fileName} className="block h-full w-full object-cover" loading="lazy" />
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-semibold text-slate-600 dark:text-slate-200">
+                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                        {attachment.fileName}
+                        <span className="text-slate-400">{formatBytes(attachment.sizeBytes)}</span>
+                      </span>
+                    )}
+                    {isImage && (
+                      <span className="block truncate px-2 py-1 text-[10px] font-semibold text-slate-500 dark:text-slate-300">
+                        {attachment.fileName}
+                      </span>
+                    )}
+                  </a>
+                </li>
+              );
+            })}
           </ul>
         )}
       </article>
@@ -121,6 +141,12 @@ export default function SupportTicketWorkspace({
 
   const terminal = ticket.status === "resolved" || ticket.status === "closed";
   const assignedToMe = ticket.assigneeUserId === currentUserId;
+  const endOfThread = useRef<HTMLLIElement>(null);
+
+  // Keep the newest message in view, like a chat, instead of scrolling the page.
+  useEffect(() => {
+    endOfThread.current?.scrollIntoView?.({ block: "end" });
+  }, [messages.length, ticket.status]);
 
   const sortedCanned = useMemo(
     () => [...cannedReplies].sort((a, b) => a.title.localeCompare(b.title)),
@@ -183,8 +209,8 @@ export default function SupportTicketWorkspace({
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-      <section className="flex min-h-[60vh] flex-col overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+    <div className="grid gap-6 xl:h-[calc(100dvh-7.5rem)] xl:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="flex h-[70vh] min-h-0 flex-col overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] xl:h-full">
         <header className="border-b border-slate-100 px-5 py-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold text-slate-400">#{ticket.ticketNumber}</span>
@@ -200,13 +226,14 @@ export default function SupportTicketWorkspace({
           </p>
         </header>
 
-        <ul className="flex-1 space-y-3 overflow-y-auto bg-[#fafcfc] px-5 py-5 dark:bg-[#0b1a24]" aria-label="Conversation">
+        <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#fafcfc] px-5 py-5 dark:bg-[#0b1a24]" aria-label="Conversation">
           {messages.map((message) => (
             <Bubble key={message.id} message={message} ticketId={ticket.id} />
           ))}
+          <li ref={endOfThread} aria-hidden="true" className="h-px" />
         </ul>
 
-        <footer className="border-t border-slate-100 px-5 py-4">
+        <footer className="shrink-0 border-t border-slate-100 px-5 py-3">
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <div role="tablist" aria-label="Composer mode" className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 text-xs font-bold dark:border-[#253746] dark:bg-[#0f2230]">
               <button
@@ -223,6 +250,7 @@ export default function SupportTicketWorkspace({
                 role="tab"
                 aria-selected={mode === "note"}
                 onClick={() => setMode("note")}
+                title="A private note for DXG agents only — the customer never sees it"
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${mode === "note" ? "bg-white text-amber-700 shadow-sm dark:bg-[#142a37] dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}
               >
                 <StickyNote className="h-3.5 w-3.5" aria-hidden="true" /> Internal note
@@ -247,7 +275,13 @@ export default function SupportTicketWorkspace({
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            rows={4}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                event.preventDefault();
+                send();
+              }
+            }}
+            rows={3}
             maxLength={5000}
             aria-label={mode === "reply" ? "Reply to customer" : "Internal note"}
             placeholder={
@@ -284,7 +318,7 @@ export default function SupportTicketWorkspace({
                 </select>
               </label>
             ) : (
-              <span className="text-xs font-semibold text-amber-700">The customer never sees internal notes.</span>
+              <span className="text-xs font-semibold text-amber-700">Private to DXG agents — the customer never sees internal notes. Use it for context, hand-offs, or findings.</span>
             )}
             <button
               type="button"
@@ -326,6 +360,9 @@ export default function SupportTicketWorkspace({
 
         <section className="space-y-3 rounded-2xl border border-[#dce5ee] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
           <h2 className="text-xs font-bold uppercase tracking-[0.05em] text-slate-500">Triage</h2>
+          <p className="text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+            Who owns it, how urgent it is, what kind of request it is, and where it stands. Each change is logged in the conversation.
+          </p>
           <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
             Assignee
             <select

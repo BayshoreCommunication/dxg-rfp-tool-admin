@@ -14,7 +14,7 @@ describe("support desk surfaces", () => {
   it("keeps internal notes visibly distinct and never sends them as replies", () => {
     const workspace = read("components/support/SupportTicketWorkspace.tsx");
     expect(workspace).toMatch(/Internal note/);
-    expect(workspace).toMatch(/The customer never sees internal notes\./);
+    expect(workspace).toMatch(/the customer never sees internal notes\./i);
     expect(workspace).toMatch(/mode === "reply"\s*\?\s*await replySupportTicketAction/);
     expect(workspace).toMatch(/: await addSupportNoteAction/);
   });
