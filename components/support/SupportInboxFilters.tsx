@@ -5,12 +5,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import type { SupportUserSummary } from "@/app/actions/supportDesk";
 import { CATEGORY_OPTIONS, PRIORITY_OPTIONS, STATUS_OPTIONS } from "./supportLabels";
-import SupportSelect from "./SupportSelect";
 
 type Props = {
   agents: SupportUserSummary[];
   values: { status: string; assignee: string; priority: string; category: string; search: string };
 };
+
+const selectClass =
+  "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100";
 
 export default function SupportInboxFilters({ agents, values }: Props) {
   const router = useRouter();
@@ -52,9 +54,9 @@ export default function SupportInboxFilters({ agents, values }: Props) {
           className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100"
         />
       </form>
-      <SupportSelect
-        wrapperClassName="lg:w-56"
+      <select
         aria-label="Status"
+        className={selectClass}
         value={values.status}
         onChange={(event) => apply({ status: event.target.value })}
       >
@@ -65,10 +67,10 @@ export default function SupportInboxFilters({ agents, values }: Props) {
             {option.label}
           </option>
         ))}
-      </SupportSelect>
-      <SupportSelect
-        wrapperClassName="lg:w-56"
+      </select>
+      <select
         aria-label="Assignee"
+        className={selectClass}
         value={values.assignee}
         onChange={(event) => apply({ assignee: event.target.value })}
       >
@@ -80,10 +82,10 @@ export default function SupportInboxFilters({ agents, values }: Props) {
             {agent.name}
           </option>
         ))}
-      </SupportSelect>
-      <SupportSelect
-        wrapperClassName="lg:w-56"
+      </select>
+      <select
         aria-label="Priority"
+        className={selectClass}
         value={values.priority}
         onChange={(event) => apply({ priority: event.target.value })}
       >
@@ -93,10 +95,10 @@ export default function SupportInboxFilters({ agents, values }: Props) {
             {option.label}
           </option>
         ))}
-      </SupportSelect>
-      <SupportSelect
-        wrapperClassName="lg:w-56"
+      </select>
+      <select
         aria-label="Category"
+        className={selectClass}
         value={values.category}
         onChange={(event) => apply({ category: event.target.value })}
       >
@@ -106,7 +108,7 @@ export default function SupportInboxFilters({ agents, values }: Props) {
             {option.label}
           </option>
         ))}
-      </SupportSelect>
+      </select>
     </div>
   );
 }
