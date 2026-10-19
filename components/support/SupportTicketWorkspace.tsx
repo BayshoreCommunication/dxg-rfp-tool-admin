@@ -29,7 +29,7 @@ import {
   statusClass,
   statusLabel,
 } from "./supportLabels";
-import { SUPPORT_SELECT_CLASS } from "./supportStyles";
+import SupportSelect from "./SupportSelect";
 
 type Props = {
   ticket: SupportTicket;
@@ -40,8 +40,6 @@ type Props = {
   cannedReplies: SupportCannedReply[];
   currentUserId: string;
 };
-
-const selectClass = SUPPORT_SELECT_CLASS;
 
 const Badge = ({ className, children }: { className: string; children: React.ReactNode }) => (
   <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${className}`}>
@@ -257,11 +255,11 @@ export default function SupportTicketWorkspace({
               </button>
             </div>
             {mode === "reply" && sortedCanned.length > 0 && (
-              <select
+              <SupportSelect
+                wrapperClassName="w-full sm:w-64"
                 aria-label="Insert canned reply"
                 value={cannedId}
                 onChange={(event) => insertCanned(event.target.value)}
-                className={selectClass}
               >
                 <option value="">Insert canned reply…</option>
                 {sortedCanned.map((reply) => (
@@ -269,7 +267,7 @@ export default function SupportTicketWorkspace({
                     {reply.title}
                   </option>
                 ))}
-              </select>
+              </SupportSelect>
             )}
           </div>
           <textarea
@@ -304,18 +302,18 @@ export default function SupportTicketWorkspace({
             {mode === "reply" ? (
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                 After sending, set status to
-                <select
+                <SupportSelect
+                  wrapperClassName="w-full sm:w-56"
                   aria-label="Status after reply"
                   value={replyStatus}
                   onChange={(event) => setReplyStatus(event.target.value as SupportTicketStatus)}
-                  className={selectClass}
-                >
+                  >
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>
                   ))}
-                </select>
+                </SupportSelect>
               </label>
             ) : (
               <span className="text-xs font-semibold text-amber-700">Private to DXG agents — the customer never sees internal notes. Use it for context, hand-offs, or findings.</span>
@@ -365,8 +363,8 @@ export default function SupportTicketWorkspace({
           </p>
           <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
             Assignee
-            <select
-              className={`mt-1 ${selectClass}`}
+            <SupportSelect
+              wrapperClassName="mt-1"
               value={ticket.assigneeUserId ?? ""}
               disabled={controlPending === "Assignee"}
               onChange={(event) => void patch("Assignee", { assigneeUserId: event.target.value || null })}
@@ -378,7 +376,7 @@ export default function SupportTicketWorkspace({
                   {agent.id === currentUserId ? " (me)" : ""}
                 </option>
               ))}
-            </select>
+            </SupportSelect>
           </label>
           {!assignedToMe && (
             <button
@@ -392,8 +390,8 @@ export default function SupportTicketWorkspace({
           )}
           <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
             Priority
-            <select
-              className={`mt-1 ${selectClass}`}
+            <SupportSelect
+              wrapperClassName="mt-1"
               value={ticket.priority}
               disabled={controlPending === "Priority"}
               onChange={(event) => void patch("Priority", { priority: event.target.value as SupportTicketPriority })}
@@ -403,12 +401,12 @@ export default function SupportTicketWorkspace({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SupportSelect>
           </label>
           <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
             Category
-            <select
-              className={`mt-1 ${selectClass}`}
+            <SupportSelect
+              wrapperClassName="mt-1"
               value={ticket.category}
               disabled={controlPending === "Category"}
               onChange={(event) => void patch("Category", { category: event.target.value as SupportTicketCategory })}
@@ -418,12 +416,12 @@ export default function SupportTicketWorkspace({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SupportSelect>
           </label>
           <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
             Status
-            <select
-              className={`mt-1 ${selectClass}`}
+            <SupportSelect
+              wrapperClassName="mt-1"
               value={ticket.status}
               disabled={controlPending === "Status"}
               onChange={(event) => void patch("Status", { status: event.target.value as SupportTicketStatus })}
@@ -433,7 +431,7 @@ export default function SupportTicketWorkspace({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </SupportSelect>
           </label>
           {terminal && (
             <p className="text-[11px] leading-5 text-slate-500">
