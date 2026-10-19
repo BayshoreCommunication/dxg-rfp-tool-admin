@@ -94,8 +94,8 @@ const Bubble = ({ message, ticketId }: { message: SupportMessage; ticketId: stri
                     className="block overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-[#253746] dark:bg-[#0f2230]"
                   >
                     {isImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived URL from our own proxy
                       <span className="block h-40 w-[220px] bg-slate-200/40 dark:bg-slate-700/40">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- signed, short-lived URL from our own proxy */}
                         <img src={href} alt={attachment.fileName} className="block h-full w-full object-cover" loading="lazy" />
                       </span>
                     ) : (

@@ -24,16 +24,7 @@ type Filters = {
   page: number;
 };
 
-export const SupportInboxSkeleton = () => (
-  <section className="rounded-2xl border border-[#dce5ee] bg-white p-5" aria-busy="true">
-    <div className="h-10 w-full animate-pulse rounded-xl bg-slate-100" />
-    <div className="mt-5 space-y-3">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="h-14 animate-pulse rounded-xl bg-slate-50" />
-      ))}
-    </div>
-  </section>
-);
+export { SupportInboxSkeleton } from "./SupportSkeletons";
 
 const Badge = ({ className, children }: { className: string; children: React.ReactNode }) => (
   <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${className}`}>
