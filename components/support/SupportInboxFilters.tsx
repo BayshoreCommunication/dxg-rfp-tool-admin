@@ -12,7 +12,7 @@ type Props = {
 };
 
 const selectClass =
-  "h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100";
+  "h-10 rounded-xl border border-slate-200 bg-white pl-3 pr-9 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100";
 
 export default function SupportInboxFilters({ agents, values }: Props) {
   const router = useRouter();

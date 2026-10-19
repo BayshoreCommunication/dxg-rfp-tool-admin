@@ -41,7 +41,7 @@ type Props = {
 };
 
 const selectClass =
-  "h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 disabled:opacity-60 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100";
+  "h-10 w-full rounded-xl border border-slate-200 bg-white pl-3 pr-9 text-sm font-semibold text-slate-700 outline-none transition focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 disabled:opacity-60 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100";
 
 const Badge = ({ className, children }: { className: string; children: React.ReactNode }) => (
   <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${className}`}>
@@ -261,7 +261,7 @@ export default function SupportTicketWorkspace({
                 aria-label="Insert canned reply"
                 value={cannedId}
                 onChange={(event) => insertCanned(event.target.value)}
-                className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 outline-none focus:border-[#00aeb5] dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-200"
+                className="h-9 rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-xs font-semibold text-slate-600 outline-none focus:border-[#00aeb5] dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-200"
               >
                 <option value="">Insert canned reply…</option>
                 {sortedCanned.map((reply) => (
@@ -308,7 +308,7 @@ export default function SupportTicketWorkspace({
                   aria-label="Status after reply"
                   value={replyStatus}
                   onChange={(event) => setReplyStatus(event.target.value as SupportTicketStatus)}
-                  className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 outline-none focus:border-[#00aeb5] dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100"
+                  className="h-9 rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-xs font-semibold text-slate-700 outline-none focus:border-[#00aeb5] dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100"
                 >
                   {STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
