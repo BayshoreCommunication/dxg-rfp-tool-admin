@@ -23,12 +23,12 @@ import {
   PRIORITY_OPTIONS,
   STATUS_OPTIONS,
   categoryLabel,
-  formatDateTime,
   priorityClass,
   priorityLabel,
   statusClass,
   statusLabel,
 } from "./supportLabels";
+import SupportDateTime from "./SupportDateTime";
 import SupportSelect from "./SupportSelect";
 
 type Props = {
@@ -52,15 +52,18 @@ const Bubble = ({ message, ticketId }: { message: SupportMessage; ticketId: stri
     return (
       <li className="flex justify-center">
         <p className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-500 dark:bg-[#142a37] dark:text-slate-300">
-          {message.body} · {formatDateTime(message.createdAt)}
+          {message.body} · <SupportDateTime value={message.createdAt} />
         </p>
       </li>
     );
   }
   const internal = message.kind === "internal_note";
+  const internalActivity = internal && message.authorRole === "system";
   const agent = message.authorRole === "agent";
+  // Agent replies, notes, and internal triage activity all sit on the DXG side.
+  const dxgSide = agent || internal;
   return (
-    <li className={`flex ${agent ? "justify-end" : "justify-start"}`}>
+    <li className={`flex ${dxgSide ? "justify-end" : "justify-start"}`}>
       <article
         className={`max-w-[80%] rounded-2xl border px-4 py-3 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.03)] ${
           internal
@@ -73,8 +76,12 @@ const Bubble = ({ message, ticketId }: { message: SupportMessage; ticketId: stri
         <header className="mb-1 flex flex-wrap items-center gap-2 text-[11px] font-bold">
           {internal && <Lock className="h-3 w-3" aria-hidden="true" />}
           <span>{message.author?.name ?? (agent ? "DXG support" : "Customer")}</span>
-          {internal && <span className="rounded-full bg-amber-200/70 px-2 py-0.5 text-[10px] uppercase tracking-wide">Internal note</span>}
-          <span className="font-medium text-slate-400 dark:text-slate-400">{formatDateTime(message.createdAt)}</span>
+          {internal && (
+            <span className="rounded-full bg-amber-200/70 px-2 py-0.5 text-[10px] uppercase tracking-wide">
+              {internalActivity ? "Internal activity" : "Internal note"}
+            </span>
+          )}
+          <SupportDateTime value={message.createdAt} className="font-medium text-slate-400 dark:text-slate-400" />
         </header>
         <p className="whitespace-pre-wrap break-words leading-6">{message.body}</p>
         {message.attachments.length > 0 && (
@@ -218,9 +225,15 @@ export default function SupportTicketWorkspace({
             <Badge className="border-slate-200 bg-slate-50 text-slate-600">{categoryLabel(ticket.category)}</Badge>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            Opened {formatDateTime(ticket.createdAt)}
-            {ticket.firstAgentResponseAt ? ` · first response ${formatDateTime(ticket.firstAgentResponseAt)}` : " · no agent response yet"}
-            {ticket.resolvedAt ? ` · resolved ${formatDateTime(ticket.resolvedAt)}` : ""}
+            Opened <SupportDateTime value={ticket.createdAt} />
+            {ticket.firstAgentResponseAt ? (
+              <> · first response <SupportDateTime value={ticket.firstAgentResponseAt} /></>
+            ) : (
+              " · no agent response yet"
+            )}
+            {ticket.resolvedAt ? (
+              <> · resolved <SupportDateTime value={ticket.resolvedAt} /></>
+            ) : null}
           </p>
         </header>
 

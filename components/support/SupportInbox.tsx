@@ -8,12 +8,12 @@ import {
 import SupportInboxFilters from "./SupportInboxFilters";
 import {
   categoryLabel,
-  formatRelative,
   priorityClass,
   priorityLabel,
   statusClass,
   statusLabel,
 } from "./supportLabels";
+import SupportDateTime from "./SupportDateTime";
 
 type Filters = {
   status: string;
@@ -65,7 +65,7 @@ const TicketRow = ({ ticket }: { ticket: SupportTicket }) => {
           </p>
         </div>
         <div className="col-start-2 flex items-center gap-3 text-xs text-slate-500 sm:col-start-3 sm:flex-col sm:items-end sm:gap-1">
-          <span>{formatRelative(ticket.lastMessageAt)}</span>
+          <SupportDateTime value={ticket.lastMessageAt} relative />
           <span className={ticket.assignee ? "font-semibold text-slate-600 dark:text-slate-300" : "italic text-rose-500"}>
             {ticket.assignee?.name ?? "Unassigned"}
           </span>

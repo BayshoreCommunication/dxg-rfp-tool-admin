@@ -3,6 +3,7 @@ import Link from "next/link";
 import AdminPageHeader from "@/components/layout/AdminPageHeader";
 import SupportInbox from "@/components/support/SupportInbox";
 import SupportMetricsCards from "@/components/support/SupportMetricsCards";
+import SupportAutoRefresh from "@/components/support/SupportAutoRefresh";
 import { auth } from "@/auth";
 
 export const metadata = { title: "Support inbox" };
@@ -29,6 +30,7 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
 
   return (
     <div className="mx-auto w-full max-w-[1540px] space-y-6">
+      <SupportAutoRefresh />
       <AdminPageHeader
         eyebrow="Helpdesk"
         title="Support inbox"

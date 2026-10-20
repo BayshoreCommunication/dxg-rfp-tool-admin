@@ -1,4 +1,5 @@
 import SupportTicketDetail from "@/components/support/SupportTicketDetail";
+import SupportAutoRefresh from "@/components/support/SupportAutoRefresh";
 import { auth } from "@/auth";
 
 export const metadata = { title: "Support ticket" };
@@ -12,6 +13,7 @@ export default async function SupportTicketPage({
   const session = await auth();
   return (
     <div className="mx-auto w-full max-w-[1540px] space-y-6">
+      <SupportAutoRefresh />
       <SupportTicketDetail ticketId={ticketId} currentUserId={String(session?.user?.id ?? "")} />
     </div>
   );
