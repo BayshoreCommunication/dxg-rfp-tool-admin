@@ -1,4 +1,4 @@
-import { BrainCircuit, CircleDollarSign, Database, House, LifeBuoy, Settings, UserRound, Users } from "lucide-react";
+import { BrainCircuit, House, LifeBuoy, Settings, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -35,20 +35,6 @@ export const navigationConfig: NavItem[] = [
     href: "/support",
     icon: <LifeBuoy size={22} />,
   },
-
-  ...(process.env.NEXT_PUBLIC_KNOWLEDGE_IMPORTS_ENABLED === "true" ? [{
-    id: "knowledge-sources",
-    title: "Knowledge",
-    href: "/knowledge-sources",
-    icon: <Database size={22} />,
-  }] : []),
-
-  ...(process.env.NEXT_PUBLIC_PRICING_ENABLED === "true" ? [{
-    id: "pricing-knowledge",
-    title: "Pricing",
-    href: "/pricing-knowledge",
-    icon: <CircleDollarSign size={22} />,
-  }] : []),
 
   {
     id: "ai-operations",

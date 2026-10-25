@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   BrainCircuit,
   CheckCircle2,
-  CircleDollarSign,
   Database,
   FileCheck2,
   Gauge,
@@ -19,7 +18,6 @@ import {
 import AdminPageHeader from "@/components/layout/AdminPageHeader";
 import AssistantQualitySection from "./AssistantQualitySection";
 import OnboardingFunnelSection from "./OnboardingFunnelSection";
-import GovernedAssetsPanel from "./GovernedAssetsPanel";
 
 const number = new Intl.NumberFormat("en-US");
 const date = new Intl.DateTimeFormat("en-US", {
@@ -152,7 +150,6 @@ export default async function AiOperationsPage({
         filters={qualityFilters}
       />
       <OnboardingFunnelSection report={funnel} />
-      <GovernedAssetsPanel />
 
       <section aria-label="AI summary" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={<Activity size={22} />} title="Provider attempts" value={number.format(totals.attempts)} note="Lifetime provider-attempt ledger" />
@@ -196,7 +193,6 @@ export default async function AiOperationsPage({
             {[
               ["Evidence validation", "Structured output and citations are checked before use.", FileCheck2],
               ["Proposal authority", "MongoDB remains authoritative; AI cannot publish.", Database],
-              ["Pricing safety", "Investment values come from approved deterministic pricing.", CircleDollarSign],
               ["Failure isolation", "Failed and orphaned attempts remain visible in the ledger.", XCircle],
             ].map(([title, text, Icon]) => (
               <li key={String(title)} className="flex gap-3 rounded-xl border border-slate-100 p-4 dark:border-[#203541]">

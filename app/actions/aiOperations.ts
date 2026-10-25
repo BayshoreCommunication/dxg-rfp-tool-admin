@@ -128,7 +128,6 @@ export type AssistantQualityFilters = {
   organizationCohort?: string;
   model?: string;
   promptVersion?: string;
-  knowledgeVersion?: string;
   intent?: string;
   findingCategory?: string;
 };
