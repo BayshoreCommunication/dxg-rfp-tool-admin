@@ -18,6 +18,7 @@ import {
 } from "@/app/actions/aiOperations";
 import AdminPageHeader from "@/components/layout/AdminPageHeader";
 import AssistantQualitySection from "./AssistantQualitySection";
+import OnboardingFunnelSection from "./OnboardingFunnelSection";
 import GovernedAssetsPanel from "./GovernedAssetsPanel";
 
 const number = new Intl.NumberFormat("en-US");
@@ -90,7 +91,7 @@ export default async function AiOperationsPage({
 }: {
   qualityFilters?: AssistantQualityFilters;
 }) {
-  const { status, usage, runs, quality, errors } =
+  const { status, usage, runs, quality, funnel, errors } =
     await getAiOperationsData(qualityFilters);
   const usageTotals = Array.isArray(usage?.totals) ? usage.totals : [];
   const operationRows = Array.isArray(usage?.operations)
@@ -150,6 +151,7 @@ export default async function AiOperationsPage({
         report={quality}
         filters={qualityFilters}
       />
+      <OnboardingFunnelSection report={funnel} />
       <GovernedAssetsPanel />
 
       <section aria-label="AI summary" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
