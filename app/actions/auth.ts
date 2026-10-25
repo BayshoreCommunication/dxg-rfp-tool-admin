@@ -138,7 +138,7 @@ export async function signInAction(
 export async function sendForgotPasswordOtpAction(email: string) {
   try {
     const res = await fetch(
-      `${BACKEND_URL}/api/auth/forgot-password/send-otp`,
+      `${BACKEND_URL}/api/auth/admin/forgot-password/send-otp`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -167,7 +167,7 @@ export async function verifyForgotPasswordOtpAction(
 ) {
   try {
     const res = await fetch(
-      `${BACKEND_URL}/api/auth/forgot-password/verify-otp`,
+      `${BACKEND_URL}/api/auth/admin/forgot-password/verify-otp`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -190,7 +190,7 @@ export async function verifyForgotPasswordOtpAction(
 ───────────────────────────────────────── */
 export async function resetPasswordAction(email: string, newPassword: string) {
   try {
-    const res = await fetch(`${BACKEND_URL}/api/auth/forgot-password/reset`, {
+    const res = await fetch(`${BACKEND_URL}/api/auth/admin/forgot-password/reset`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, newPassword }),
