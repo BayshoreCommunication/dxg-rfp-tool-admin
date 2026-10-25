@@ -1,5 +1,7 @@
 "use server";
 
+import { CredentialsSignin } from "next-auth";
+
 import { signIn } from "@/auth";
 
 import { BACKEND_URL } from "@/lib/config";
@@ -86,7 +88,15 @@ const ADMIN_AUTH_ERRORS: Record<string, string> = {
   WRONG_PASSWORD: "Incorrect password. Please try again.",
   USER_BLOCKED: "Your account has been blocked. Please contact support.",
   NOT_ADMIN: "This account does not have admin access.",
+  server_unavailable: "Could not reach the server. Please try again.",
 };
+
+const signInFailure = (code?: string | null) => ({
+  success: false as const,
+  message:
+    (code ? ADMIN_AUTH_ERRORS[code] : undefined) ||
+    "Login failed. Please try again.",
+});
 
 export async function signInAction(
   email: string,
@@ -99,18 +109,11 @@ export async function signInAction(
       password,
       redirect: false,
     });
+    // Defensive: some next-auth versions report failures via the returned
+    // redirect URL instead of throwing.
     const result = new URL(String(resultUrl), "http://auth.local");
     if (result.searchParams.has("error")) {
-      const code = result.searchParams.get("code") || "credentials";
-      return {
-        success: false,
-        message:
-          ADMIN_AUTH_ERRORS[code] ||
-          (code === "server_unavailable"
-            ? "Could not reach the server. Please try again."
-            : undefined) ||
-          "Login failed. Please try again.",
-      };
+      return signInFailure(result.searchParams.get("code"));
     }
 
     return {
@@ -118,7 +121,13 @@ export async function signInAction(
       callbackUrl: getSafeCallbackUrl(callbackUrl),
       message: "Login successful",
     };
-  } catch {
+  } catch (error) {
+    // Server-side signIn (raw mode) throws CredentialsSignin with the code
+    // set by authorize() rather than returning an error URL.
+    if (error instanceof CredentialsSignin) {
+      return signInFailure(error.code);
+    }
+    console.error("[auth][signInAction] unexpected sign-in failure:", error);
     return { success: false, message: "An unexpected error occurred." };
   }
 }
