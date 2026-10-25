@@ -20,7 +20,6 @@ export default async function Page({
     organizationCohort: first(query.organizationCohort),
     model: first(query.model),
     promptVersion: first(query.promptVersion),
-    knowledgeVersion: first(query.knowledgeVersion),
     intent: first(query.intent),
     findingCategory: first(query.findingCategory),
   };

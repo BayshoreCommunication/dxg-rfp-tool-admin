@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  BookOpenCheck,
   Clock3,
   Filter,
   Gauge,
@@ -271,16 +270,6 @@ export default function AssistantQualitySection({
             />
           </label>
           <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
-            Knowledge version
-            <input
-              name="knowledgeVersion"
-              defaultValue={filters.knowledgeVersion}
-              placeholder="Exact version"
-              maxLength={100}
-              className={filterInput}
-            />
-          </label>
-          <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
             Intent
             <select
               name="intent"
@@ -432,19 +421,6 @@ export default function AssistantQualitySection({
               rows={report.breakdowns.promptVersions}
               empty="No prompt version meets the minimum sample."
             />
-            <ComparisonTable
-              title="Knowledge-version comparison"
-              rows={report.breakdowns.knowledgeVersions}
-              empty="No knowledge version meets the minimum sample."
-            />
-            <ComparisonTable
-              title="Rule / pricing-version comparison"
-              rows={[
-                ...report.breakdowns.ruleVersions,
-                ...report.breakdowns.pricingVersions,
-              ]}
-              empty="No rule or pricing version meets the minimum sample."
-            />
           </div>
 
           <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -493,68 +469,6 @@ export default function AssistantQualitySection({
               </ul>
             </article>
           </div>
-
-          <article className="mt-6 rounded-xl border border-slate-200 p-4 dark:border-[#203541]">
-            <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
-              <BookOpenCheck size={17} /> Governance attention
-            </h3>
-            <div className="mt-4 grid gap-4 lg:grid-cols-3">
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Expiring knowledge
-                </h4>
-                <ul className="mt-2 space-y-2 text-sm">
-                  {report.governance.expiringKnowledge.length ? (
-                    report.governance.expiringKnowledge.map((item) => (
-                      <li
-                        key={`${item.releaseNumber}-${item.expiresAt}`}
-                        className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-[#0a1923]"
-                      >
-                        Release {item.releaseNumber} · {label(item.condition)} ·{" "}
-                        {safeDate(item.expiresAt)}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-slate-500 dark:text-slate-400">
-                      No active release expires within 30 days.
-                    </li>
-                  )}
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Stale or retired rules
-                </h4>
-                <ul className="mt-2 space-y-2 text-sm">
-                  {report.governance.staleOrRetiredRules.length ? (
-                    report.governance.staleOrRetiredRules.map((item) => (
-                      <li
-                        key={item.ruleKey}
-                        className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-[#0a1923]"
-                      >
-                        {item.ruleKey} · {label(item.condition)} ·{" "}
-                        {safeDate(item.updatedAt)}
-                      </li>
-                    ))
-                  ) : (
-                    <li className="text-slate-500 dark:text-slate-400">
-                      No stale or retired rule requires attention.
-                    </li>
-                  )}
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  Missing approved prices
-                </h4>
-                <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
-                  {report.governance.unavailableApprovedPriceCategories
-                    .map(label)
-                    .join(", ") || "Every category has an approved price."}
-                </p>
-              </div>
-            </div>
-          </article>
 
           <p className="mt-5 flex items-start gap-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
             <Clock3 className="mt-0.5 shrink-0" size={14} />

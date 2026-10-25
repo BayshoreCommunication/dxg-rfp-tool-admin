@@ -15,7 +15,6 @@ describe("Assistant Quality administration", () => {
       "organizationCohort",
       "model",
       "promptVersion",
-      "knowledgeVersion",
       "intent",
       "findingCategory",
     ]) {
@@ -24,7 +23,7 @@ describe("Assistant Quality administration", () => {
     expect(action).toContain("Assistant Quality data is unavailable.");
   });
 
-  it("shows required protected quality, latency, cost, comparison, and governance views", () => {
+  it("shows protected quality, latency, cost, and comparison views without knowledge or pricing", () => {
     const component = read(
       "components/ai/AssistantQualitySection.tsx",
     );
@@ -42,15 +41,19 @@ describe("Assistant Quality administration", () => {
       "Lowest-performing intents",
       "Model comparison",
       "Prompt-version comparison",
-      "Knowledge-version comparison",
-      "Rule / pricing-version comparison",
       "Negative feedback",
       "Finding categories",
-      "Expiring knowledge",
-      "Stale or retired rules",
-      "Missing approved prices",
     ]) {
       expect(component).toContain(text);
+    }
+    for (const removed of [
+      "knowledgeVersion",
+      "Knowledge-version comparison",
+      "Rule / pricing-version comparison",
+      "Governance attention",
+      "Missing approved prices",
+    ]) {
+      expect(component).not.toContain(removed);
     }
     expect(component).toContain("Samples below");
     expect(component).toContain("Raw conversations and direct identifiers");

@@ -78,11 +78,47 @@ export type AiGatewayRun = {
   completedAt: string | null;
 };
 
+export type OnboardingMilestone = {
+  withinWindow: number | null;
+  withinWindowRate: number | null;
+  reachedEver: number | null;
+  p50Hours: number | null;
+  p90Hours: number | null;
+};
+
+export type OnboardingFunnelReport = {
+  schemaVersion: "onboarding-funnel-report.v1";
+  generatedAt: string;
+  window: { from: string; to: string; days: number };
+  activationWindowDays: number;
+  privacy: {
+    minimumSampleSize: number;
+    sampleProtected: boolean;
+    conversationsIncluded: false;
+    directIdentifiersIncluded: false;
+  };
+  accounts: {
+    started: number | null;
+    matured: number | null;
+    notYetMatured: number | null;
+    legacyExcluded: number;
+  };
+  firstMessage: OnboardingMilestone;
+  firstDraft: OnboardingMilestone;
+  definitions: {
+    accountStart: string;
+    firstMessage: string;
+    firstDraft: string;
+    withinWindow: string;
+  };
+};
+
 export type AiOperationsData = {
   status: LiveAiPilotStatus | null;
   usage: AiUsageReport | null;
   runs: AiGatewayRun[];
   quality: AssistantQualityReport | null;
+  funnel: OnboardingFunnelReport | null;
   errors: string[];
 };
 
@@ -92,7 +128,6 @@ export type AssistantQualityFilters = {
   organizationCohort?: string;
   model?: string;
   promptVersion?: string;
-  knowledgeVersion?: string;
   intent?: string;
   findingCategory?: string;
 };
@@ -209,13 +244,17 @@ const qualityQuery = (filters: AssistantQualityFilters) => {
 export const getAiOperationsData = async (
   filters: AssistantQualityFilters = {},
 ): Promise<AiOperationsData> => {
-  const [status, usage, runs, quality] = await Promise.allSettled([
+  // The onboarding funnel shares the page's date window only; its other
+  // filters do not apply to it.
+  const funnelQuery = qualityQuery({ from: filters.from, to: filters.to });
+  const [status, usage, runs, quality, funnel] = await Promise.allSettled([
     read<LiveAiPilotStatus>("/v1/ai/pilot/status"),
     read<AiUsageReport>("/v1/ai/usage-report?days=30"),
     read<AiGatewayRun[]>("/v1/ai/runs?limit=50"),
     read<AssistantQualityReport>(
       `/v1/ai/assistant-quality${qualityQuery(filters)}`,
     ),
+    read<OnboardingFunnelReport>(`/dashboard/onboarding-funnel${funnelQuery}`),
   ]);
 
   const errors: string[] = [];
@@ -224,6 +263,9 @@ export const getAiOperationsData = async (
   if (runs.status === "rejected") errors.push("Gateway run history is unavailable.");
   if (quality.status === "rejected") {
     errors.push("Assistant Quality data is unavailable.");
+  }
+  if (funnel.status === "rejected") {
+    errors.push("Onboarding funnel data is unavailable.");
   }
 
   return {
@@ -237,6 +279,7 @@ export const getAiOperationsData = async (
         ? runs.value
         : [],
     quality: quality.status === "fulfilled" ? quality.value : null,
+    funnel: funnel.status === "fulfilled" ? funnel.value : null,
     errors,
   };
 };
