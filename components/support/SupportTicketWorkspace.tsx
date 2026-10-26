@@ -60,22 +60,28 @@ const Bubble = ({ message, ticketId }: { message: SupportMessage; ticketId: stri
   const internal = message.kind === "internal_note";
   const internalActivity = internal && message.authorRole === "system";
   const agent = message.authorRole === "agent";
-  // Agent replies, notes, and internal triage activity all sit on the DXG side.
-  const dxgSide = agent || internal;
+  // The automatic acknowledgement on a new ticket is a customer-visible
+  // message authored by the system, not by the customer.
+  const automatic = !internal && message.authorRole === "system";
+  // Agent replies, automatic replies, notes, and internal triage activity all
+  // sit on the DXG side.
+  const dxgSide = agent || automatic || internal;
   return (
     <li className={`flex ${dxgSide ? "justify-end" : "justify-start"}`}>
       <article
         className={`max-w-[80%] rounded-2xl border px-4 py-3 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.03)] ${
           internal
             ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
-            : agent
+            : agent || automatic
               ? "border-[#c9efea] bg-[#eaf9f8] text-[#10303a] dark:border-cyan-800/60 dark:bg-cyan-950/50 dark:text-cyan-50"
               : "border-slate-200 bg-white text-slate-800 dark:border-[#253746] dark:bg-[#142a37] dark:text-slate-100"
         }`}
       >
         <header className="mb-1 flex flex-wrap items-center gap-2 text-[11px] font-bold">
           {internal && <Lock className="h-3 w-3" aria-hidden="true" />}
-          <span>{message.author?.name ?? (agent ? "DXG support" : "Customer")}</span>
+          <span>
+            {automatic ? "Automatic reply" : message.author?.name ?? (agent ? "DXG support" : "Customer")}
+          </span>
           {internal && (
             <span className="rounded-full bg-amber-200/70 px-2 py-0.5 text-[10px] uppercase tracking-wide">
               {internalActivity ? "Internal activity" : "Internal note"}
