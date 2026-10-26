@@ -6,6 +6,9 @@ import "react-toastify/dist/ReactToastify.css";
 export const toast = {
   success: (message: string) => _toast.success(message),
   error: (message: string) => _toast.error(message),
+  /** Longer-lived, clickable alert (e.g. a new support ticket). */
+  alert: (message: string, onClick?: () => void, toastId?: string) =>
+    _toast.info(message, { onClick, toastId, autoClose: 8000 }),
 };
 
 export function ToastContainer() {
