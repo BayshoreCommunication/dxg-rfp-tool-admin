@@ -21,7 +21,8 @@ describe("support desk surfaces", () => {
 
   it("offers attachments only on customer replies and links them through the signed proxy", () => {
     const workspace = read("components/support/SupportTicketWorkspace.tsx");
-    expect(workspace).toMatch(/mode === "reply" && \(\s*<div className="mt-3">\s*<AttachmentPicker/);
+    expect(workspace).toMatch(/mode === "reply" && \(\s*<AttachmentPicker[^>]*iconOnly/);
+    expect(workspace).toMatch(/mode === "reply" && draftFiles\.length > 0/);
     expect(workspace).toMatch(/supportAttachmentHref\(ticketId, attachment\.id\)/);
     expect(workspace).toMatch(/rel="noopener noreferrer"/);
     const download = read("app/api/support/attachments/[ticketId]/[attachmentId]/route.ts");
