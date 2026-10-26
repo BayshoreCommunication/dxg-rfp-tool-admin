@@ -3,6 +3,9 @@
 import { signOutAction } from "@/app/actions/auth";
 import { navigationConfig, NavItem } from "@/config/navigation";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import { useAdminNotifications } from "@/components/notifications/AdminNotificationsProvider";
+import { badgeLabel } from "@/lib/notifications/adminNotifications";
 import { cn } from "@/lib/utils";
 import { LoaderCircle, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
@@ -14,6 +17,9 @@ import { useState } from "react";
 const Sidebar = () => {
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const { unreadCount } = useAdminNotifications();
+  // Unread support alerts surface on the Support item from every page.
+  const badgeFor = (item: NavItem) => (item.id === "support" ? badgeLabel(unreadCount) : null);
 
   const isItemActive = (item: NavItem) =>
     pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -83,6 +89,14 @@ const Sidebar = () => {
                 >
                   {item.icon}
                 </div>
+                {badgeFor(item) ? (
+                  <span
+                    aria-label={`${unreadCount} unread`}
+                    className="absolute right-2 top-1 min-w-[18px] rounded-full bg-rose-500 px-1 text-center text-[10px] font-bold leading-[18px] text-white ring-2 ring-white dark:ring-[#0d1d28]"
+                  >
+                    {badgeFor(item)}
+                  </span>
+                ) : null}
 
                 <span
                   className={cn(
@@ -103,6 +117,10 @@ const Sidebar = () => {
       <div className="mx-4 h-px shrink-0 bg-slate-100 dark:bg-[#253746]" />
 
       <div className="flex shrink-0 flex-col items-center gap-2 px-2.5 py-3 max-[800px]:gap-1.5 max-[800px]:py-2 [@media(max-height:800px)]:gap-1 [@media(max-height:800px)]:py-1.5">
+        <NotificationBell
+          placement="sidebar"
+          className="h-12 w-12 max-[800px]:h-10 max-[800px]:w-10 [@media(max-height:800px)]:h-9 [@media(max-height:800px)]:w-9"
+        />
         <ThemeToggle className="h-12 w-12 rounded-2xl px-0 max-[800px]:h-10 max-[800px]:w-10 max-[800px]:rounded-xl [@media(max-height:800px)]:h-9 [@media(max-height:800px)]:w-9 [@media(max-height:800px)]:rounded-xl" />
 
         <button
@@ -143,6 +161,7 @@ const Sidebar = () => {
           />
         </Link>
         <div className="flex items-center gap-2">
+          <NotificationBell placement="header" className="h-9 w-9" />
           <ThemeToggle className="h-9 w-9 px-0" />
           <button
             type="button"
@@ -181,11 +200,19 @@ const Sidebar = () => {
               ) : null}
               <span
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-xl",
+                  "relative flex h-8 w-8 items-center justify-center rounded-xl",
                   isActive ? "bg-[#eaf9f8] dark:bg-cyan-950/50" : "",
                 )}
               >
                 {item.icon}
+                {badgeFor(item) ? (
+                  <span
+                    aria-label={`${unreadCount} unread`}
+                    className="absolute -right-2 -top-1 min-w-[16px] rounded-full bg-rose-500 px-1 text-center text-[9px] font-bold leading-4 text-white ring-2 ring-white dark:ring-[#0d1d28]"
+                  >
+                    {badgeFor(item)}
+                  </span>
+                ) : null}
               </span>
               <span>{item.title}</span>
             </Link>
