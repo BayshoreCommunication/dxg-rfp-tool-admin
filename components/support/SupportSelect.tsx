@@ -9,15 +9,17 @@ import type { SelectHTMLAttributes } from "react";
 export default function SupportSelect({
   className = "",
   wrapperClassName = "",
+  size = "md",
   ...props
-}: SelectHTMLAttributes<HTMLSelectElement> & { wrapperClassName?: string }) {
+}: Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> & { wrapperClassName?: string; size?: "sm" | "md" }) {
+  const small = size === "sm";
   return (
     <span
-      className={`inline-flex h-10 items-stretch rounded-xl border border-slate-200 bg-white pr-2.5 transition focus-within:border-[#00aeb5] focus-within:ring-2 focus-within:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] ${wrapperClassName}`}
+      className={`inline-flex ${small ? "h-8 rounded-lg" : "h-10 rounded-xl"} items-stretch border border-slate-200 bg-white pr-2.5 transition focus-within:border-[#00aeb5] focus-within:ring-2 focus-within:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] ${wrapperClassName}`}
     >
       <select
         {...props}
-        className={`h-full w-full rounded-xl border-0 bg-transparent pl-3 pr-1 text-sm font-semibold text-slate-700 outline-none disabled:opacity-60 dark:text-slate-100 ${className}`}
+        className={`h-full w-full border-0 bg-transparent pr-1 font-semibold ${small ? "rounded-lg pl-2.5 text-xs" : "rounded-xl pl-3 text-sm"} text-slate-700 outline-none disabled:opacity-60 dark:text-slate-100 ${className}`}
       />
     </span>
   );

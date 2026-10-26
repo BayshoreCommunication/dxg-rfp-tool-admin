@@ -35,6 +35,11 @@ export interface SupportTicket {
   firstAgentResponseAt: string | null;
   resolvedAt: string | null;
   closedAt: string | null;
+  /** When the latest customer message must be answered by; null when nothing is owed. */
+  responseDueAt?: string | null;
+  escalatedAt?: string | null;
+  waitingSince?: string | null;
+  autoCloseReminderSentAt?: string | null;
   createdAt: string;
   updatedAt: string;
   requester?: SupportUserSummary | null;
@@ -74,6 +79,7 @@ export interface SupportInboxFilters {
   priority?: string;
   category?: string;
   search?: string;
+  sort?: "urgency" | "recent";
   page?: number;
   perPage?: number;
 }
@@ -85,6 +91,7 @@ export interface SupportMetrics {
   closed: number;
   unassigned: number;
   unreadForAgents: number;
+  overdue?: number;
   averageFirstResponseMs: number | null;
   averageResolutionMs: number | null;
   perAgent: Array<{ agentUserId: string; openTickets: number; agent: SupportUserSummary | null }>;
@@ -249,4 +256,21 @@ export async function deleteCannedReplyAction(id: string): Promise<SupportAction
   });
   if (result.ok) revalidatePath("/support/canned-replies");
   return result;
+}
+
+export type SupportPresenceOther = { userId: string; name: string; state: "viewing" | "replying" };
+
+/** Heartbeat for "who else has this ticket open"; returns the other agents. */
+export async function supportPresenceAction(
+  ticketId: string,
+  state: "viewing" | "replying",
+): Promise<SupportActionResult<{ others: SupportPresenceOther[] }>> {
+  return call(`/tickets/${encodeURIComponent(ticketId)}/presence`, {
+    method: "POST",
+    body: JSON.stringify({ state }),
+  });
+}
+
+export async function leaveSupportPresenceAction(ticketId: string): Promise<SupportActionResult<{ left: boolean }>> {
+  return call(`/tickets/${encodeURIComponent(ticketId)}/presence`, { method: "DELETE" });
 }

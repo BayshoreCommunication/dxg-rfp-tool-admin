@@ -25,6 +25,7 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
     priority: single(params.priority),
     category: single(params.category),
     search: single(params.search),
+    sort: single(params.sort),
     page: Number.isNaN(page) || page < 1 ? 1 : page,
   };
 

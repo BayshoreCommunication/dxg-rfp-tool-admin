@@ -1,4 +1,4 @@
-import { Clock, Inbox, UserRoundX, Hourglass, CheckCircle2 } from "lucide-react";
+import { AlarmClock, Clock, Inbox, UserRoundX, Hourglass, CheckCircle2 } from "lucide-react";
 import { getSupportMetricsAction } from "@/app/actions/supportDesk";
 import { formatDuration } from "./supportLabels";
 
@@ -42,7 +42,14 @@ export default async function SupportMetricsCards({ compact = false }: { compact
   const busiest = [...metrics.perAgent].sort((a, b) => b.openTickets - a.openTickets).slice(0, 4);
   return (
     <section aria-label="Support metrics" className="space-y-3">
-      <div className={`grid grid-cols-2 gap-4 ${compact ? "xl:grid-cols-4" : "xl:grid-cols-5"}`}>
+      <div className={`grid grid-cols-2 gap-4 ${compact ? "xl:grid-cols-5" : "xl:grid-cols-6"}`}>
+        <Card
+          title="Overdue"
+          value={metrics.overdue ?? 0}
+          note="Past their reply target"
+          icon={<AlarmClock className="h-4 w-4" aria-hidden="true" />}
+          tone={(metrics.overdue ?? 0) > 0 ? "bg-rose-50 text-rose-600" : "bg-slate-50 text-slate-500"}
+        />
         <Card
           title="Open"
           value={metrics.open}

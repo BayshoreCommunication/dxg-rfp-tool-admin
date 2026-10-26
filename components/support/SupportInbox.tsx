@@ -13,6 +13,7 @@ import {
   statusClass,
   statusLabel,
 } from "./supportLabels";
+import ResponseDueBadge from "./ResponseDueBadge";
 import SupportDateTime from "./SupportDateTime";
 
 type Filters = {
@@ -21,6 +22,7 @@ type Filters = {
   priority: string;
   category: string;
   search: string;
+  sort: string;
   page: number;
 };
 
@@ -54,6 +56,7 @@ const TicketRow = ({ ticket }: { ticket: SupportTicket }) => {
             </span>
             <Badge className={statusClass(ticket.status)}>{statusLabel(ticket.status)}</Badge>
             <Badge className={priorityClass(ticket.priority)}>{priorityLabel(ticket.priority)}</Badge>
+            <ResponseDueBadge dueAt={ticket.responseDueAt} resolvedAt={ticket.status === "resolved" ? ticket.resolvedAt : null} />
           </div>
           <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
             {ticket.requester?.name ?? "Unknown requester"}
@@ -90,6 +93,7 @@ export default async function SupportInbox({
       priority: filters.priority || undefined,
       category: filters.category || undefined,
       search: filters.search || undefined,
+      sort: filters.sort === "recent" ? "recent" : "urgency",
       page: filters.page,
       perPage: 20,
     }),
@@ -101,7 +105,7 @@ export default async function SupportInbox({
 
   const withPage = (target: number) => {
     const query = new URLSearchParams();
-    for (const key of ["status", "assignee", "priority", "category", "search"] as const) {
+    for (const key of ["status", "assignee", "priority", "category", "search", "sort"] as const) {
       if (filters[key]) query.set(key, filters[key]);
     }
     query.set("page", String(target));
@@ -120,6 +124,7 @@ export default async function SupportInbox({
             priority: filters.priority,
             category: filters.category,
             search: filters.search,
+            sort: filters.sort,
           }}
         />
       </div>
