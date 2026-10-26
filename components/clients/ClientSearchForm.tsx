@@ -13,10 +13,14 @@ import {
 
 type ClientSearchFormProps = {
   initialSearch?: string;
+  label?: string;
+  placeholder?: string;
 };
 
 export default function ClientSearchForm({
   initialSearch = "",
+  label = "Search clients",
+  placeholder = "Search name or email",
 }: ClientSearchFormProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -113,7 +117,7 @@ export default function ClientSearchForm({
       onSubmit={handleSubmit}
     >
       <label className="relative min-w-0 flex-1 lg:w-72">
-        <span className="sr-only">Search clients</span>
+        <span className="sr-only">{label}</span>
         <Search
           className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
           aria-hidden="true"
@@ -123,7 +127,7 @@ export default function ClientSearchForm({
           name="search"
           value={query}
           onChange={handleChange}
-          placeholder="Search name or email"
+          placeholder={placeholder}
           autoComplete="off"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-[#20304b] outline-none transition placeholder:text-slate-400 focus:border-[#00aeb5] focus:ring-4 focus:ring-cyan-500/10"
         />
