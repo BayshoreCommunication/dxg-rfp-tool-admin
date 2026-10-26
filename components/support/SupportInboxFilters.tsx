@@ -9,7 +9,7 @@ import SupportSelect from "./SupportSelect";
 
 type Props = {
   agents: SupportUserSummary[];
-  values: { status: string; assignee: string; priority: string; category: string; search: string };
+  values: { status: string; assignee: string; priority: string; category: string; search: string; sort: string };
 };
 
 export default function SupportInboxFilters({ agents, values }: Props) {
@@ -106,6 +106,15 @@ export default function SupportInboxFilters({ agents, values }: Props) {
             {option.label}
           </option>
         ))}
+      </SupportSelect>
+      <SupportSelect
+        wrapperClassName="w-full lg:w-48"
+        aria-label="Sort"
+        value={values.sort === "recent" ? "recent" : ""}
+        onChange={(event) => apply({ sort: event.target.value })}
+      >
+        <option value="">Most urgent first</option>
+        <option value="recent">Most recent first</option>
       </SupportSelect>
     </div>
   );

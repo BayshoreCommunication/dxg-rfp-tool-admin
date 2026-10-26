@@ -97,3 +97,35 @@ export const formatDuration = (ms: number | null): string => {
   if (hours < 48) return `${hours.toFixed(1)} h`;
   return `${(hours / 24).toFixed(1)} d`;
 };
+
+const compactDuration = (ms: number): string => {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours < 24) return rest ? `${hours}h ${rest}m` : `${hours}h`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+};
+
+/**
+ * Where a ticket stands against its response target: overdue, due within
+ * 30 minutes ("soon"), or comfortably ahead. Null when no answer is owed.
+ */
+export const responseDue = (
+  dueIso: string | null | undefined,
+  now: number,
+): { tone: "overdue" | "soon" | "ok"; label: string } | null => {
+  if (!dueIso) return null;
+  const due = Date.parse(dueIso);
+  if (!Number.isFinite(due)) return null;
+  const remaining = due - now;
+  if (remaining <= 0) return { tone: "overdue", label: `Overdue ${compactDuration(-remaining)}` };
+  return { tone: remaining <= 30 * 60_000 ? "soon" : "ok", label: `Reply due in ${compactDuration(remaining)}` };
+};
+
+export const responseDueClass = (tone: "overdue" | "soon" | "ok"): string =>
+  tone === "overdue"
+    ? "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/60 dark:bg-rose-950/40 dark:text-rose-200"
+    : tone === "soon"
+      ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
+      : "border-slate-200 bg-slate-50 text-slate-600 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-300";

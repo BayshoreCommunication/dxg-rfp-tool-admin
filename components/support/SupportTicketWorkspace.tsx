@@ -1,12 +1,15 @@
 "use client";
 
-import { ArrowUp, FileText, LoaderCircle, Lock, Send, StickyNote, UserRound } from "lucide-react";
+import { ArrowUp, Eye, FileText, LoaderCircle, Lock, PenLine, Send, StickyNote, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import {
   addSupportNoteAction,
+  leaveSupportPresenceAction,
   replySupportTicketAction,
+  supportPresenceAction,
   updateSupportTicketAction,
+  type SupportPresenceOther,
   type SupportCannedReply,
   type SupportMessage,
   type SupportTicket,
@@ -15,6 +18,7 @@ import {
   type SupportTicketStatus,
   type SupportUserSummary,
 } from "@/app/actions/supportDesk";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { toast } from "@/components/ui/Toast";
 import { formatBytes, supportAttachmentHref, uploadSupportAttachments } from "@/lib/support/attachments";
 import { buildThreadItems, initials, isAutomaticReply, isDxgSide, timeLabel } from "@/lib/support/thread";
@@ -31,6 +35,7 @@ import {
 } from "./supportLabels";
 import SupportDateTime from "./SupportDateTime";
 import SupportSelect from "./SupportSelect";
+import ResponseDueBadge from "./ResponseDueBadge";
 
 type Props = {
   ticket: SupportTicket;
@@ -49,6 +54,10 @@ const Badge = ({ className, children }: { className: string; children: React.Rea
 );
 
 const COMPOSER_MAX_HEIGHT_PX = 220;
+const PRESENCE_HEARTBEAT_MS = 10_000;
+
+const joinNames = (names: string[]) =>
+  names.length <= 1 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 
 const subscribe = () => () => undefined;
 const useHydrated = () => useSyncExternalStore(subscribe, () => true, () => false);
@@ -201,6 +210,46 @@ export default function SupportTicketWorkspace({
   const [sending, setSending] = useState<SupportMessage | null>(null);
   const hydrated = useHydrated();
   const composer = useRef<HTMLTextAreaElement>(null);
+  const [others, setOthers] = useState<SupportPresenceOther[]>([]);
+  const [confirmSend, setConfirmSend] = useState(false);
+  const writing = body.trim().length > 0;
+  const replyingOthers = others.filter((other) => other.state === "replying");
+  const viewingOthers = others.filter((other) => other.state === "viewing");
+
+  // Tell the other agents this ticket is open here (and whether a reply is
+  // being written), and learn who else has it open, so two agents never
+  // answer the same customer without knowing.
+  const writingRef = useRef(writing);
+  useEffect(() => {
+    writingRef.current = writing;
+  }, [writing]);
+  useEffect(() => {
+    let cancelled = false;
+    const beat = () => {
+      void supportPresenceAction(ticket.id, writingRef.current ? "replying" : "viewing").then((result) => {
+        if (!cancelled && result.ok) setOthers(result.data.others);
+      });
+    };
+    const first = setTimeout(beat, 0);
+    const timer = setInterval(beat, PRESENCE_HEARTBEAT_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(first);
+      clearInterval(timer);
+      void leaveSupportPresenceAction(ticket.id);
+    };
+  }, [ticket.id]);
+  // Starting or clearing a draft is announced straight away, not on the next beat.
+  useEffect(() => {
+    let cancelled = false;
+    void supportPresenceAction(ticket.id, writing ? "replying" : "viewing").then((result) => {
+      if (!cancelled && result.ok) setOthers(result.data.others);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ticket.id, writing]);
+
 
   const terminal = ticket.status === "resolved" || ticket.status === "closed";
   const assignedToMe = ticket.assigneeUserId === currentUserId;
@@ -236,6 +285,15 @@ export default function SupportTicketWorkspace({
   };
 
   const send = () => {
+    if (mode === "reply" && replyingOthers.length > 0 && body.trim()) {
+      setConfirmSend(true);
+      return;
+    }
+    sendNow();
+  };
+
+  const sendNow = () => {
+    setConfirmSend(false);
     const text = body.trim();
     if (!text) {
       toast.error(mode === "reply" ? "Write a reply first." : "Write a note first.");
@@ -312,6 +370,7 @@ export default function SupportTicketWorkspace({
             <Badge className={statusClass(ticket.status)}>{statusLabel(ticket.status)}</Badge>
             <Badge className={priorityClass(ticket.priority)}>{priorityLabel(ticket.priority)}</Badge>
             <Badge className="border-slate-200 bg-slate-50 text-slate-600">{categoryLabel(ticket.category)}</Badge>
+            <ResponseDueBadge dueAt={ticket.responseDueAt} />
           </div>
           <p className="mt-1 text-xs text-slate-500">
             Opened <SupportDateTime value={ticket.createdAt} />
@@ -382,6 +441,29 @@ export default function SupportTicketWorkspace({
         </ul>
 
         <footer className="shrink-0 border-t border-slate-100 px-4 py-3 sm:px-5 dark:border-[#203541]">
+          {others.length > 0 && (
+            <div
+              role="status"
+              className={`mb-2 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${
+                replyingOthers.length
+                  ? "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+                  : "bg-slate-50 text-slate-600 dark:bg-[#0f2230] dark:text-slate-300"
+              }`}
+            >
+              {replyingOthers.length ? (
+                <PenLine className="h-3.5 w-3.5 shrink-0 animate-pulse" aria-hidden="true" />
+              ) : (
+                <Eye className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              )}
+              <span>
+                {replyingOthers.length > 0 &&
+                  `${joinNames(replyingOthers.map((other) => other.name))} ${replyingOthers.length === 1 ? "is" : "are"} writing a reply.`}
+                {replyingOthers.length > 0 && viewingOthers.length > 0 && " "}
+                {viewingOthers.length > 0 &&
+                  `${joinNames(viewingOthers.map((other) => other.name))} ${viewingOthers.length === 1 ? "is" : "are"} viewing this ticket.`}
+              </span>
+            </div>
+          )}
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div role="tablist" aria-label="Composer mode" className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 text-xs font-bold dark:border-[#253746] dark:bg-[#0f2230]">
               <button
@@ -497,6 +579,14 @@ export default function SupportTicketWorkspace({
             <span className="hidden text-[11px] text-slate-400 sm:inline">⌘/Ctrl + Enter to send</span>
           </div>
         </footer>
+        <ConfirmDialog
+          open={confirmSend}
+          title="Someone else is replying"
+          message={`${joinNames(replyingOthers.map((other) => other.name)) || "Another agent"} is also writing a reply to this customer. Send yours anyway?`}
+          confirmLabel="Send anyway"
+          onConfirm={sendNow}
+          onCancel={() => setConfirmSend(false)}
+        />
       </section>
 
       <aside className="space-y-4">
