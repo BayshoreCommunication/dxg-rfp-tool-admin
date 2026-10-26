@@ -9,6 +9,7 @@ import {
   type SupportCannedReply,
 } from "@/app/actions/supportDesk";
 import { toast } from "@/components/ui/Toast";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 const inputClass =
   "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 outline-none transition focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100";
@@ -20,6 +21,7 @@ export default function CannedRepliesManager({ initialReplies }: { initialReplie
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editBody, setEditBody] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<SupportCannedReply | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const create = () => {
@@ -61,9 +63,9 @@ export default function CannedRepliesManager({ initialReplies }: { initialReplie
   };
 
   const remove = (reply: SupportCannedReply) => {
-    if (!window.confirm(`Delete "${reply.title}"? Agents will no longer be able to insert it.`)) return;
     startTransition(async () => {
       const result = await deleteCannedReplyAction(reply.id);
+      setPendingDelete(null);
       if (!result.ok) {
         toast.error(result.error);
         return;
@@ -126,7 +128,7 @@ export default function CannedRepliesManager({ initialReplies }: { initialReplie
                       <button type="button" onClick={() => startEdit(reply)} aria-label={`Edit ${reply.title}`} className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-[#007f86]">
                         <Pencil className="h-4 w-4" aria-hidden="true" />
                       </button>
-                      <button type="button" onClick={() => remove(reply)} aria-label={`Delete ${reply.title}`} className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600">
+                      <button type="button" onClick={() => setPendingDelete(reply)} aria-label={`Delete ${reply.title}`} className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600">
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </button>
                     </div>
@@ -137,6 +139,14 @@ export default function CannedRepliesManager({ initialReplies }: { initialReplie
           </ul>
         )}
       </section>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={`Delete "${pendingDelete?.title ?? ""}"?`}
+        message="Agents will no longer be able to insert this canned reply."
+        busy={isPending}
+        onConfirm={() => pendingDelete && remove(pendingDelete)}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
