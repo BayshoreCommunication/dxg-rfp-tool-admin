@@ -1,8 +1,8 @@
 "use client";
 
-import { FileText, LoaderCircle, Lock, Send, StickyNote, UserRound } from "lucide-react";
+import { ArrowUp, FileText, LoaderCircle, Lock, Send, StickyNote, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import {
   addSupportNoteAction,
   replySupportTicketAction,
@@ -17,6 +17,7 @@ import {
 } from "@/app/actions/supportDesk";
 import { toast } from "@/components/ui/Toast";
 import { formatBytes, supportAttachmentHref, uploadSupportAttachments } from "@/lib/support/attachments";
+import { buildThreadItems, initials, isAutomaticReply, isDxgSide, timeLabel } from "@/lib/support/thread";
 import AttachmentPicker from "./AttachmentPicker";
 import {
   CATEGORY_OPTIONS,
@@ -47,87 +48,135 @@ const Badge = ({ className, children }: { className: string; children: React.Rea
   </span>
 );
 
-const Bubble = ({ message, ticketId }: { message: SupportMessage; ticketId: string }) => {
-  if (message.kind === "system") {
+const COMPOSER_MAX_HEIGHT_PX = 220;
+
+const subscribe = () => () => undefined;
+const useHydrated = () => useSyncExternalStore(subscribe, () => true, () => false);
+
+const Attachments = ({ message, ticketId }: { message: SupportMessage; ticketId: string }) => (
+  <ul className="mt-2 flex flex-wrap gap-2 text-[11px]" aria-label="Attachments">
+    {message.attachments.map((attachment) => {
+      const href = supportAttachmentHref(ticketId, attachment.id);
+      const isImage = attachment.mimeType.startsWith("image/");
+      return (
+        <li key={attachment.id}>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`${attachment.fileName} · ${formatBytes(attachment.sizeBytes)}`}
+            className="block overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-[#253746] dark:bg-[#0f2230]"
+          >
+            {isImage ? (
+              <span className="block h-40 w-[220px] bg-slate-200/40 dark:bg-slate-700/40">
+                {/* eslint-disable-next-line @next/next/no-img-element -- signed, short-lived URL from our own proxy */}
+                <img src={href} alt={attachment.fileName} className="block h-full w-full object-cover" loading="lazy" />
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-semibold text-slate-600 dark:text-slate-200">
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                {attachment.fileName}
+                <span className="text-slate-400">{formatBytes(attachment.sizeBytes)}</span>
+              </span>
+            )}
+            {isImage && (
+              <span className="block truncate px-2 py-1 text-[10px] font-semibold text-slate-500 dark:text-slate-300">
+                {attachment.fileName}
+              </span>
+            )}
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+);
+
+const Avatar = ({ message, requesterName }: { message: SupportMessage; requesterName: string | null }) => {
+  if (message.kind === "internal_note") {
     return (
-      <li className="flex justify-center">
-        <p className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-500 dark:bg-[#142a37] dark:text-slate-300">
-          {message.body} · <SupportDateTime value={message.createdAt} />
-        </p>
-      </li>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200">
+        <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+      </span>
     );
   }
-  const internal = message.kind === "internal_note";
-  const internalActivity = internal && message.authorRole === "system";
-  const agent = message.authorRole === "agent";
-  // The automatic acknowledgement on a new ticket is a customer-visible
-  // message authored by the system, not by the customer.
-  const automatic = !internal && message.authorRole === "system";
-  // Agent replies, automatic replies, notes, and internal triage activity all
-  // sit on the DXG side.
-  const dxgSide = agent || automatic || internal;
+  if (isAutomaticReply(message)) {
+    return (
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-600 dark:bg-[#1c3442] dark:text-slate-300">
+        DXG
+      </span>
+    );
+  }
+  const customer = message.authorRole === "customer";
   return (
-    <li className={`flex ${dxgSide ? "justify-end" : "justify-start"}`}>
-      <article
-        className={`max-w-[80%] rounded-2xl border px-4 py-3 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.03)] ${
-          internal
-            ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
-            : agent || automatic
-              ? "border-[#c9efea] bg-[#eaf9f8] text-[#10303a] dark:border-cyan-800/60 dark:bg-cyan-950/50 dark:text-cyan-50"
-              : "border-slate-200 bg-white text-slate-800 dark:border-[#253746] dark:bg-[#142a37] dark:text-slate-100"
-        }`}
-      >
-        <header className="mb-1 flex flex-wrap items-center gap-2 text-[11px] font-bold">
-          {internal && <Lock className="h-3 w-3" aria-hidden="true" />}
-          <span>
-            {automatic ? "Automatic reply" : message.author?.name ?? (agent ? "DXG support" : "Customer")}
-          </span>
-          {internal && (
-            <span className="rounded-full bg-amber-200/70 px-2 py-0.5 text-[10px] uppercase tracking-wide">
-              {internalActivity ? "Internal activity" : "Internal note"}
-            </span>
-          )}
-          <SupportDateTime value={message.createdAt} className="font-medium text-slate-400 dark:text-slate-400" />
-        </header>
-        <p className="whitespace-pre-wrap break-words leading-6">{message.body}</p>
-        {message.attachments.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-2 text-[11px]" aria-label="Attachments">
-            {message.attachments.map((attachment) => {
-              const href = supportAttachmentHref(ticketId, attachment.id);
-              const isImage = attachment.mimeType.startsWith("image/");
-              return (
-                <li key={attachment.id}>
-                  <a
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`${attachment.fileName} · ${formatBytes(attachment.sizeBytes)}`}
-                    className="block overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-[#253746] dark:bg-[#0f2230]"
-                  >
-                    {isImage ? (
-                      <span className="block h-40 w-[220px] bg-slate-200/40 dark:bg-slate-700/40">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- signed, short-lived URL from our own proxy */}
-                        <img src={href} alt={attachment.fileName} className="block h-full w-full object-cover" loading="lazy" />
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-semibold text-slate-600 dark:text-slate-200">
-                        <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                        {attachment.fileName}
-                        <span className="text-slate-400">{formatBytes(attachment.sizeBytes)}</span>
-                      </span>
-                    )}
-                    {isImage && (
-                      <span className="block truncate px-2 py-1 text-[10px] font-semibold text-slate-500 dark:text-slate-300">
-                        {attachment.fileName}
-                      </span>
-                    )}
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
+    <span
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${
+        customer
+          ? "bg-slate-200 text-slate-700 dark:bg-[#1c3442] dark:text-slate-200"
+          : "bg-[#00a3aa] text-white"
+      }`}
+    >
+      {initials(customer ? message.author?.name ?? requesterName : message.author?.name ?? "DXG")}
+    </span>
+  );
+};
+
+const MessageRow = ({
+  message,
+  startsGroup,
+  endsGroup,
+  ticketId,
+  requesterName,
+  hydrated,
+  pending = false,
+}: {
+  message: SupportMessage;
+  startsGroup: boolean;
+  endsGroup: boolean;
+  ticketId: string;
+  requesterName: string | null;
+  hydrated: boolean;
+  pending?: boolean;
+}) => {
+  const dxg = isDxgSide(message);
+  const note = message.kind === "internal_note";
+  const automatic = isAutomaticReply(message);
+  const name = automatic
+    ? "Automatic reply"
+    : message.author?.name ?? (message.authorRole === "customer" ? requesterName ?? "Customer" : "DXG support");
+  const corner = endsGroup ? (dxg ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md") : "rounded-2xl";
+
+  return (
+    <li className={`flex items-end gap-2.5 ${dxg ? "flex-row-reverse" : ""} ${startsGroup ? "mt-4 first:mt-0" : "mt-1"}`}>
+      {endsGroup ? <Avatar message={message} requesterName={requesterName} /> : <span className="w-8 shrink-0" aria-hidden="true" />}
+      <div className={`flex max-w-[78%] flex-col ${dxg ? "items-end" : "items-start"}`}>
+        {startsGroup && (
+          <p className="mb-1 flex items-center gap-1.5 px-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+            {name}
+            {note && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-200/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-800 dark:bg-amber-800/60 dark:text-amber-100">
+                <Lock className="h-2.5 w-2.5" aria-hidden="true" /> Internal note
+              </span>
+            )}
+          </p>
         )}
-      </article>
+        <article
+          className={`border px-4 py-2.5 text-sm shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${corner} ${
+            note
+              ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100"
+              : dxg
+                ? "border-[#c9efea] bg-[#eaf9f8] text-[#10303a] dark:border-cyan-800/60 dark:bg-cyan-950/50 dark:text-cyan-50"
+                : "border-slate-200 bg-white text-slate-800 dark:border-[#253746] dark:bg-[#142a37] dark:text-slate-100"
+          } ${pending ? "opacity-70" : ""}`}
+        >
+          <p className="whitespace-pre-wrap break-words leading-6">{message.body}</p>
+          {message.attachments.length > 0 && <Attachments message={message} ticketId={ticketId} />}
+        </article>
+        {endsGroup && (
+          <p className="mt-1 px-1 text-[10.5px] font-medium text-slate-400">
+            {pending ? "Sending…" : <time dateTime={message.createdAt}>{hydrated ? timeLabel(message.createdAt) : ""}</time>}
+          </p>
+        )}
+      </div>
     </li>
   );
 };
@@ -149,6 +198,9 @@ export default function SupportTicketWorkspace({
   const [cannedId, setCannedId] = useState("");
   const [isPending, startTransition] = useTransition();
   const [controlPending, setControlPending] = useState<string | null>(null);
+  const [sending, setSending] = useState<SupportMessage | null>(null);
+  const hydrated = useHydrated();
+  const composer = useRef<HTMLTextAreaElement>(null);
 
   const terminal = ticket.status === "resolved" || ticket.status === "closed";
   const assignedToMe = ticket.assigneeUserId === currentUserId;
@@ -157,7 +209,18 @@ export default function SupportTicketWorkspace({
   // Keep the newest message in view, like a chat, instead of scrolling the page.
   useEffect(() => {
     endOfThread.current?.scrollIntoView?.({ block: "end" });
-  }, [messages.length, ticket.status]);
+  }, [messages.length, ticket.status, sending]);
+
+  // Day separators depend on the viewer's clock, so they appear after hydration.
+  const items = useMemo(() => buildThreadItems(messages, hydrated ? new Date() : null), [messages, hydrated]);
+
+  // Grow the composer with its content, up to a cap.
+  useEffect(() => {
+    const element = composer.current;
+    if (!element) return;
+    element.style.height = "auto";
+    element.style.height = `${Math.min(element.scrollHeight, COMPOSER_MAX_HEIGHT_PX)}px`;
+  }, [body]);
 
   const sortedCanned = useMemo(
     () => [...cannedReplies].sort((a, b) => a.title.localeCompare(b.title)),
@@ -178,12 +241,34 @@ export default function SupportTicketWorkspace({
       toast.error(mode === "reply" ? "Write a reply first." : "Write a note first.");
       return;
     }
+    // Shown straight away and replaced by the real message on refresh. The
+    // composer clears like a chat; a failed send puts the draft back.
+    const draftFiles = files;
+    setSending({
+      id: "pending",
+      ticketId: ticket.id,
+      authorUserId: currentUserId,
+      authorRole: "agent",
+      kind: mode === "reply" ? "message" : "internal_note",
+      body: text,
+      attachments: [],
+      createdAt: new Date().toISOString(),
+      author: agents.find((agent) => agent.id === currentUserId) ?? null,
+    });
+    setBody("");
+    setFiles([]);
+    const restore = (message: string) => {
+      setSending(null);
+      setBody(text);
+      setFiles(draftFiles);
+      toast.error(message);
+    };
     startTransition(async () => {
       let attachments: string[] = [];
-      if (mode === "reply" && files.length > 0) {
-        const uploaded = await uploadSupportAttachments(files);
+      if (mode === "reply" && draftFiles.length > 0) {
+        const uploaded = await uploadSupportAttachments(draftFiles);
         if (!uploaded.ok) {
-          toast.error(uploaded.message);
+          restore(uploaded.message);
           return;
         }
         attachments = uploaded.attachments.map((attachment) => attachment.id);
@@ -193,13 +278,11 @@ export default function SupportTicketWorkspace({
           ? await replySupportTicketAction(ticket.id, { body: text, status: replyStatus, attachments })
           : await addSupportNoteAction(ticket.id, text);
       if (!result.ok) {
-        toast.error(result.error);
+        restore(result.error);
         return;
       }
-      setBody("");
-      setFiles([]);
+      setSending(null);
       setCannedId("");
-      toast.success(mode === "reply" ? "Reply sent to the customer." : "Internal note added.");
       router.refresh();
     });
   };
@@ -221,7 +304,7 @@ export default function SupportTicketWorkspace({
 
   return (
     <div className="grid gap-6 xl:h-[calc(100dvh-7.5rem)] xl:grid-cols-[minmax(0,1fr)_320px]">
-      <section className="flex h-[70vh] min-h-0 flex-col overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] xl:h-full">
+      <section className="flex h-[calc(100dvh-9rem)] min-h-[520px] flex-col overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] xl:h-full">
         <header className="border-b border-slate-100 px-5 py-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold text-slate-400">#{ticket.ticketNumber}</span>
@@ -243,15 +326,63 @@ export default function SupportTicketWorkspace({
           </p>
         </header>
 
-        <ul className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-[#fafcfc] px-5 py-5 dark:bg-[#0b1a24]" aria-label="Conversation">
-          {messages.map((message) => (
-            <Bubble key={message.id} message={message} ticketId={ticket.id} />
-          ))}
+        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#fafcfc] px-4 py-5 sm:px-6 dark:bg-[#0b1a24]" aria-label="Conversation">
+          {items.map((item) => {
+            if (item.type === "day") {
+              return (
+                <li key={item.key} className="my-4 flex items-center gap-3 first:mt-0" aria-label={item.label}>
+                  <span className="h-px flex-1 bg-slate-200 dark:bg-[#253746]" />
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-slate-400">{item.label}</span>
+                  <span className="h-px flex-1 bg-slate-200 dark:bg-[#253746]" />
+                </li>
+              );
+            }
+            if (item.type === "event") {
+              const internalActivity = item.message.kind === "internal_note";
+              return (
+                <li key={item.key} className="my-3 flex justify-center">
+                  <p
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold ${
+                      internalActivity
+                        ? "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+                        : "bg-slate-100 text-slate-500 dark:bg-[#142a37] dark:text-slate-300"
+                    }`}
+                  >
+                    {internalActivity && <Lock className="h-3 w-3" aria-hidden="true" />}
+                    {item.message.body}
+                    {hydrated && <span className="font-medium text-slate-400"> · {timeLabel(item.message.createdAt)}</span>}
+                  </p>
+                </li>
+              );
+            }
+            return (
+              <MessageRow
+                key={item.key}
+                message={item.message}
+                startsGroup={item.startsGroup}
+                endsGroup={item.endsGroup}
+                ticketId={ticket.id}
+                requesterName={requester?.name ?? null}
+                hydrated={hydrated}
+              />
+            );
+          })}
+          {sending && (
+            <MessageRow
+              message={sending}
+              startsGroup
+              endsGroup
+              ticketId={ticket.id}
+              requesterName={requester?.name ?? null}
+              hydrated={hydrated}
+              pending
+            />
+          )}
           <li ref={endOfThread} aria-hidden="true" className="h-px" />
         </ul>
 
-        <footer className="shrink-0 border-t border-slate-100 px-5 py-3">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
+        <footer className="shrink-0 border-t border-slate-100 px-4 py-3 sm:px-5 dark:border-[#203541]">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div role="tablist" aria-label="Composer mode" className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 text-xs font-bold dark:border-[#253746] dark:bg-[#0f2230]">
               <button
                 type="button"
@@ -275,7 +406,7 @@ export default function SupportTicketWorkspace({
             </div>
             {mode === "reply" && sortedCanned.length > 0 && (
               <SupportSelect
-                wrapperClassName="w-full sm:w-64"
+                wrapperClassName="w-full sm:w-56"
                 aria-label="Insert canned reply"
                 value={cannedId}
                 onChange={(event) => insertCanned(event.target.value)}
@@ -289,40 +420,66 @@ export default function SupportTicketWorkspace({
               </SupportSelect>
             )}
           </div>
-          <textarea
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-                event.preventDefault();
-                send();
-              }
-            }}
-            rows={3}
-            maxLength={5000}
-            aria-label={mode === "reply" ? "Reply to customer" : "Internal note"}
-            placeholder={
-              mode === "reply"
-                ? "Write a reply the customer will see…"
-                : "Write a note only DXG agents can see…"
-            }
-            className={`w-full resize-y rounded-xl border px-3.5 py-3 text-sm leading-6 outline-none transition focus:ring-2 ${
+
+          <div
+            className={`flex flex-wrap items-end gap-1.5 rounded-2xl border p-1.5 transition focus-within:ring-2 ${
               mode === "note"
-                ? "border-amber-200 bg-amber-50/60 text-slate-900 focus:border-amber-400 focus:ring-amber-200 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-50"
-                : "border-slate-200 bg-white text-slate-900 focus:border-[#00aeb5] focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100"
+                ? "border-amber-200 bg-amber-50/60 focus-within:border-amber-400 focus-within:ring-amber-200 dark:border-amber-700/60 dark:bg-amber-950/30"
+                : "border-slate-200 bg-white focus-within:border-[#00aeb5] focus-within:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230]"
             }`}
-          />
-          {mode === "reply" && (
-            <div className="mt-3">
-              <AttachmentPicker files={files} onChange={setFiles} disabled={isPending} compact />
-            </div>
-          )}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          >
+            {mode === "reply" && (
+              <AttachmentPicker files={files} onChange={setFiles} disabled={isPending} iconOnly />
+            )}
+            <textarea
+              ref={composer}
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              onKeyDown={(event) => {
+                // Agents send with Cmd/Ctrl+Enter so a half-written reply never
+                // reaches a customer by an accidental Enter.
+                if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                  event.preventDefault();
+                  send();
+                }
+              }}
+              rows={2}
+              maxLength={5000}
+              aria-label={mode === "reply" ? "Reply to customer" : "Internal note"}
+              placeholder={
+                mode === "reply"
+                  ? "Write a reply the customer will see…"
+                  : "Write a note only DXG agents can see…"
+              }
+              className="order-2 min-h-14 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
+            />
+            <button
+              type="button"
+              onClick={send}
+              disabled={isPending}
+              aria-label={mode === "reply" ? "Send reply" : "Add note"}
+              title={mode === "reply" ? "Send reply (⌘/Ctrl + Enter)" : "Add note (⌘/Ctrl + Enter)"}
+              className={`order-3 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-white shadow-sm transition disabled:opacity-60 ${
+                mode === "reply" ? "bg-[#00a3aa] hover:bg-[#008f95]" : "bg-amber-600 hover:bg-amber-700"
+              }`}
+            >
+              {isPending ? (
+                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : mode === "reply" ? (
+                <ArrowUp className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <StickyNote className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="hidden sm:inline">{mode === "reply" ? "Send" : "Add note"}</span>
+            </button>
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
             {mode === "reply" ? (
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                After sending, set status to
+                Then set status to
                 <SupportSelect
-                  wrapperClassName="w-full sm:w-56"
+                  wrapperClassName="w-48"
                   aria-label="Status after reply"
                   value={replyStatus}
                   onChange={(event) => setReplyStatus(event.target.value as SupportTicketStatus)}
@@ -335,19 +492,9 @@ export default function SupportTicketWorkspace({
                 </SupportSelect>
               </label>
             ) : (
-              <span className="text-xs font-semibold text-amber-700">Private to DXG agents — the customer never sees internal notes. Use it for context, hand-offs, or findings.</span>
+              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Private to DXG agents — the customer never sees internal notes.</span>
             )}
-            <button
-              type="button"
-              onClick={send}
-              disabled={isPending}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-white shadow-sm transition disabled:opacity-60 ${
-                mode === "reply" ? "bg-[#00a3aa] hover:bg-[#008f95]" : "bg-amber-600 hover:bg-amber-700"
-              }`}
-            >
-              {isPending ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : mode === "reply" ? <Send className="h-4 w-4" aria-hidden="true" /> : <StickyNote className="h-4 w-4" aria-hidden="true" />}
-              {mode === "reply" ? "Send reply" : "Add note"}
-            </button>
+            <span className="hidden text-[11px] text-slate-400 sm:inline">⌘/Ctrl + Enter to send</span>
           </div>
         </footer>
       </section>
