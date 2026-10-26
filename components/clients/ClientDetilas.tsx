@@ -47,7 +47,7 @@ const getAvatarTone = (name?: string) => {
 const getInitial = (name?: string) =>
   name?.trim().charAt(0).toUpperCase() || "U";
 
-const buildPageList = (current: number, total: number): (number | "...")[] => {
+export const buildPageList = (current: number, total: number): (number | "...")[] => {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const pages: (number | "...")[] = [1];
   if (current > 3) pages.push("...");
@@ -309,7 +309,17 @@ export default async function ClientDetails({
                         </span>
                       </td>
                       <td className="px-3 py-3.5 text-center text-sm font-semibold tabular-nums text-[#34445f]">
-                        {client.totalProposals ?? 0}
+                        {client.totalProposals ? (
+                          <Link
+                            href={`/proposals?search=${encodeURIComponent(client.email)}`}
+                            className="rounded-md px-1.5 py-0.5 text-[#008f96] transition hover:bg-[#eaf9f8]"
+                            title="View this client's proposals"
+                          >
+                            {client.totalProposals}
+                          </Link>
+                        ) : (
+                          0
+                        )}
                       </td>
                       <td className="px-3 py-3.5 text-center text-sm font-semibold tabular-nums text-[#34445f]">
                         {client.totalEmailSent ?? 0}

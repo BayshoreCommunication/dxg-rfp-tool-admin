@@ -1,4 +1,4 @@
-import { BrainCircuit, House, LifeBuoy, Settings, UserRound, Users } from "lucide-react";
+import { FileText, House, LifeBuoy, Settings, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -23,6 +23,13 @@ export const navigationConfig: NavItem[] = [
   },
 
   {
+    id: "proposals",
+    title: "Proposals",
+    href: "/proposals",
+    icon: <FileText size={22} />,
+  },
+
+  {
     id: "users",
     title: "Users",
     href: "/users",
@@ -34,13 +41,6 @@ export const navigationConfig: NavItem[] = [
     title: "Support",
     href: "/support",
     icon: <LifeBuoy size={22} />,
-  },
-
-  {
-    id: "ai-operations",
-    title: "AI",
-    href: "/ai-operations",
-    icon: <BrainCircuit size={22} />,
   },
 
   {
