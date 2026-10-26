@@ -129,3 +129,15 @@ export const responseDueClass = (tone: "overdue" | "soon" | "ok"): string =>
     : tone === "soon"
       ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200"
       : "border-slate-200 bg-slate-50 text-slate-600 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-300";
+
+/** Matches the backend: a resolved ticket closes for good this long after resolving. */
+export const RESOLVED_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
+
+/** "Closes in 2d 4h" while a resolved ticket is in its reopen window. */
+export const closesIn = (resolvedAtIso: string | null | undefined, now: number): string | null => {
+  if (!resolvedAtIso) return null;
+  const resolvedAt = Date.parse(resolvedAtIso);
+  if (!Number.isFinite(resolvedAt)) return null;
+  const remaining = resolvedAt + RESOLVED_GRACE_MS - now;
+  return remaining > 0 ? `Closes in ${compactDuration(remaining)}` : "Closing soon";
+};

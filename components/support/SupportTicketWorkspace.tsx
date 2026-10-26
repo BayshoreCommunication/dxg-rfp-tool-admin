@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, ChevronDown, Eye, FileText, LoaderCircle, Lock, PenLine, Send, StickyNote } from "lucide-react";
+import { ChevronDown, Eye, FileText, LoaderCircle, Lock, PenLine, Send, StickyNote } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import {
@@ -23,6 +23,8 @@ import { toast } from "@/components/ui/Toast";
 import { formatBytes, supportAttachmentHref, uploadSupportAttachments } from "@/lib/support/attachments";
 import { buildThreadItems, initials, isAutomaticReply, isDxgSide, timeLabel } from "@/lib/support/thread";
 import AttachmentPicker from "./AttachmentPicker";
+import CannedReplyPicker from "./CannedReplyPicker";
+import SendReplyButton from "./SendReplyButton";
 import {
   CATEGORY_OPTIONS,
   PRIORITY_OPTIONS,
@@ -194,7 +196,7 @@ export default function SupportTicketWorkspace({
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [replyStatus, setReplyStatus] = useState<SupportTicketStatus>("waiting_on_customer");
-  const [cannedId, setCannedId] = useState("");
+  const [cannedOpen, setCannedOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [controlPending, setControlPending] = useState<string | null>(null);
   const [sending, setSending] = useState<SupportMessage | null>(null);
@@ -262,28 +264,24 @@ export default function SupportTicketWorkspace({
     element.style.height = `${Math.min(element.scrollHeight, COMPOSER_MAX_HEIGHT_PX)}px`;
   }, [body]);
 
-  const sortedCanned = useMemo(
-    () => [...cannedReplies].sort((a, b) => a.title.localeCompare(b.title)),
-    [cannedReplies],
-  );
-
-  const insertCanned = (id: string) => {
-    setCannedId(id);
-    const reply = sortedCanned.find((item) => item.id === id);
-    if (!reply) return;
-    setBody((current) => (current.trim() ? `${current.trimEnd()}\n\n${reply.body}` : reply.body));
+  const insertCanned = (text: string) => {
+    setBody((current) => (current.trim() ? `${current.trimEnd()}\n\n${text}` : text));
     setMode("reply");
+    setTimeout(() => composer.current?.focus(), 0);
   };
 
-  const send = () => {
+  // Replies either wait for the customer ("Send") or resolve the ticket
+  // ("Send & resolve", which closes it 3 days later unless the customer replies).
+  const send = (status: SupportTicketStatus = "waiting_on_customer") => {
+    setReplyStatus(status);
     if (mode === "reply" && replyingOthers.length > 0 && body.trim()) {
       setConfirmSend(true);
       return;
     }
-    sendNow();
+    sendNow(status);
   };
 
-  const sendNow = () => {
+  const sendNow = (status: SupportTicketStatus = replyStatus) => {
     setConfirmSend(false);
     const text = body.trim();
     if (!text) {
@@ -324,14 +322,13 @@ export default function SupportTicketWorkspace({
       }
       const result =
         mode === "reply"
-          ? await replySupportTicketAction(ticket.id, { body: text, status: replyStatus, attachments })
+          ? await replySupportTicketAction(ticket.id, { body: text, status, attachments })
           : await addSupportNoteAction(ticket.id, text);
       if (!result.ok) {
         restore(result.error);
         return;
       }
       setSending(null);
-      setCannedId("");
       router.refresh();
     });
   };
@@ -358,7 +355,7 @@ export default function SupportTicketWorkspace({
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-bold text-slate-400">#{ticket.ticketNumber}</span>
             <h1 className="text-lg font-extrabold tracking-[-0.02em] text-[#10203a] dark:text-slate-50">{ticket.subject}</h1>
-            <ResponseDueBadge dueAt={ticket.responseDueAt} />
+            <ResponseDueBadge dueAt={ticket.responseDueAt} resolvedAt={ticket.status === "resolved" ? ticket.resolvedAt : null} />
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
@@ -585,20 +582,14 @@ export default function SupportTicketWorkspace({
                 <StickyNote className="h-3.5 w-3.5" aria-hidden="true" /> Internal note
               </button>
             </div>
-            {mode === "reply" && sortedCanned.length > 0 && (
-              <SupportSelect
-                wrapperClassName="w-full sm:w-56"
-                aria-label="Insert canned reply"
-                value={cannedId}
-                onChange={(event) => insertCanned(event.target.value)}
-              >
-                <option value="">Insert canned reply…</option>
-                {sortedCanned.map((reply) => (
-                  <option key={reply.id} value={reply.id}>
-                    {reply.title}
-                  </option>
-                ))}
-              </SupportSelect>
+            {mode === "reply" && (
+              <CannedReplyPicker
+                replies={cannedReplies}
+                context={{ customerName: requester?.name ?? null, ticketNumber: ticket.ticketNumber }}
+                open={cannedOpen}
+                onOpenChange={setCannedOpen}
+                onInsert={insertCanned}
+              />
             )}
           </div>
 
@@ -617,6 +608,12 @@ export default function SupportTicketWorkspace({
               value={body}
               onChange={(event) => setBody(event.target.value)}
               onKeyDown={(event) => {
+                // "/" in an empty reply opens the canned replies, like Slack.
+                if (event.key === "/" && mode === "reply" && !body) {
+                  event.preventDefault();
+                  setCannedOpen(true);
+                  return;
+                }
                 // Agents send with Cmd/Ctrl+Enter so a half-written reply never
                 // reaches a customer by an accidental Enter.
                 if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -629,49 +626,37 @@ export default function SupportTicketWorkspace({
               aria-label={mode === "reply" ? "Reply to customer" : "Internal note"}
               placeholder={
                 mode === "reply"
-                  ? "Write a reply the customer will see…"
+                  ? "Write a reply the customer will see… (type / for canned replies)"
                   : "Write a note only DXG agents can see…"
               }
               className="order-2 min-h-14 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
             />
-            <button
-              type="button"
-              onClick={send}
-              disabled={isPending}
-              aria-label={mode === "reply" ? "Send reply" : "Add note"}
-              title={mode === "reply" ? "Send reply (⌘/Ctrl + Enter)" : "Add note (⌘/Ctrl + Enter)"}
-              className={`order-3 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-3 text-sm font-bold text-white shadow-sm transition disabled:opacity-60 ${
-                mode === "reply" ? "bg-[#00a3aa] hover:bg-[#008f95]" : "bg-amber-600 hover:bg-amber-700"
-              }`}
-            >
-              {isPending ? (
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : mode === "reply" ? (
-                <ArrowUp className="h-4 w-4" aria-hidden="true" />
-              ) : (
-                <StickyNote className="h-4 w-4" aria-hidden="true" />
-              )}
-              <span className="hidden sm:inline">{mode === "reply" ? "Send" : "Add note"}</span>
-            </button>
+            {mode === "reply" ? (
+              <SendReplyButton pending={isPending} onSend={() => send()} onSendAndResolve={() => send("resolved")} />
+            ) : (
+              <button
+                type="button"
+                onClick={() => send()}
+                disabled={isPending}
+                aria-label="Add note"
+                title="Add note (⌘/Ctrl + Enter)"
+                className="order-4 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-amber-600 px-3 text-sm font-bold text-white shadow-sm transition hover:bg-amber-700 disabled:opacity-60"
+              >
+                {isPending ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <StickyNote className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span className="hidden sm:inline">Add note</span>
+              </button>
+            )}
           </div>
 
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
             {mode === "reply" ? (
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                Then set status to
-                <SupportSelect
-                  wrapperClassName="w-48"
-                  aria-label="Status after reply"
-                  value={replyStatus}
-                  onChange={(event) => setReplyStatus(event.target.value as SupportTicketStatus)}
-                >
-                  {STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </SupportSelect>
-              </label>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                Send waits for the customer. To resolve, use the ▾ next to Send.
+              </span>
             ) : (
               <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Private to DXG agents — the customer never sees internal notes.</span>
             )}
@@ -683,7 +668,7 @@ export default function SupportTicketWorkspace({
           title="Someone else is replying"
           message={`${joinNames(replyingOthers.map((other) => other.name)) || "Another agent"} is also writing a reply to this customer. Send yours anyway?`}
           confirmLabel="Send anyway"
-          onConfirm={sendNow}
+          onConfirm={() => sendNow()}
           onCancel={() => setConfirmSend(false)}
         />
       </section>

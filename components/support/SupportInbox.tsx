@@ -56,7 +56,7 @@ const TicketRow = ({ ticket }: { ticket: SupportTicket }) => {
             </span>
             <Badge className={statusClass(ticket.status)}>{statusLabel(ticket.status)}</Badge>
             <Badge className={priorityClass(ticket.priority)}>{priorityLabel(ticket.priority)}</Badge>
-            <ResponseDueBadge dueAt={ticket.responseDueAt} />
+            <ResponseDueBadge dueAt={ticket.responseDueAt} resolvedAt={ticket.status === "resolved" ? ticket.resolvedAt : null} />
           </div>
           <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
             {ticket.requester?.name ?? "Unknown requester"}

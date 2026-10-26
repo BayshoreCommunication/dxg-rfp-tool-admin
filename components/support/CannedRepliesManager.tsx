@@ -85,7 +85,11 @@ export default function CannedRepliesManager({ initialReplies }: { initialReplie
         </label>
         <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
           Body
-          <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={6} maxLength={5000} className={`mt-1 ${inputClass}`} placeholder="Hi — to reset your password, open the sign-in page and choose Forgot password…" />
+          <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={6} maxLength={5000} className={`mt-1 ${inputClass}`} placeholder="Hi {{first_name}} — to reset your password, open the sign-in page and choose Forgot password…" />
+          <span className="mt-1 block font-normal text-slate-500 dark:text-slate-400">
+            Placeholders filled in when inserted: <code>{"{{first_name}}"}</code>, <code>{"{{name}}"}</code>,{" "}
+            <code>{"{{ticket_number}}"}</code>, <code>{"{{agent_name}}"}</code> (always “DXG support”).
+          </span>
         </label>
         <button
           type="button"
