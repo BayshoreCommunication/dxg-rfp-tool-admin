@@ -17,7 +17,7 @@ export const isAutomaticReply = (message: SupportMessage) =>
 export const isEvent = (message: SupportMessage) =>
   message.kind === "system" || (message.kind === "internal_note" && message.authorRole === "system");
 
-/** Agents, automatic replies and notes are DXG's side of the conversation. */
+/** Agents, automatic replies and notes are RFPilot's side of the conversation. */
 export const isDxgSide = (message: SupportMessage) =>
   message.authorRole !== "customer" || message.kind === "internal_note";
 

@@ -21,7 +21,7 @@ export default function AuthShell({
   title,
   description,
   children,
-  sideTitle = "The operational workspace for DXG proposals.",
+  sideTitle = "The operational workspace for RFPilot proposals.",
   sideDescription = "One secure admin surface for client activity, pricing knowledge, and governed AI readiness.",
 }: AuthShellProps) {
   return (
@@ -32,18 +32,18 @@ export default function AuthShell({
           <div>
             <span className="theme-logo-well inline-flex rounded-2xl bg-white p-3">
               <Image
-                src="/assets/logo/logo.svg"
-                alt="DXG Digital"
-                width={68}
-                height={54}
-                className="h-auto w-[68px]"
+                src="/assets/logo/Logomark- White Background.png"
+                alt="RFPilot"
+                width={56}
+                height={56}
+                className="h-14 w-14"
                 priority
               />
             </span>
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-300">
-              DXG admin workspace
+              RFPilot admin workspace
             </p>
             <h2 className="mt-4 max-w-md text-4xl font-extrabold leading-tight tracking-[-0.04em]">
               {sideTitle}
@@ -73,11 +73,11 @@ export default function AuthShell({
           <div className="mx-auto w-full max-w-md">
             <div className="mb-8 flex justify-center lg:hidden">
               <Image
-                src="/assets/logo/logo.svg"
-                alt="DXG Digital"
-                width={76}
-                height={60}
-                className="h-auto w-[76px]"
+                src="/assets/logo/Logomark- White Background.png"
+                alt="RFPilot"
+                width={64}
+                height={64}
+                className="h-16 w-16"
                 priority
               />
             </div>

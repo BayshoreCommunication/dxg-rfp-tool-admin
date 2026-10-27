@@ -104,7 +104,7 @@ const Avatar = ({ message, requesterName }: { message: SupportMessage; requester
   if (isAutomaticReply(message)) {
     return (
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-600 dark:bg-[#1c3442] dark:text-slate-300">
-        DXG
+        RP
       </span>
     );
   }
@@ -117,7 +117,7 @@ const Avatar = ({ message, requesterName }: { message: SupportMessage; requester
           : "bg-[#00a3aa] text-white"
       }`}
     >
-      {initials(customer ? message.author?.name ?? requesterName : message.author?.name ?? "DXG")}
+      {initials(customer ? message.author?.name ?? requesterName : message.author?.name ?? "RFPilot support")}
     </span>
   );
 };
@@ -144,7 +144,7 @@ const MessageRow = ({
   const automatic = isAutomaticReply(message);
   const name = automatic
     ? "Automatic reply"
-    : message.author?.name ?? (message.authorRole === "customer" ? requesterName ?? "Customer" : "DXG support");
+    : message.author?.name ?? (message.authorRole === "customer" ? requesterName ?? "Customer" : "RFPilot support");
   const corner = endsGroup ? (dxg ? "rounded-2xl rounded-br-md" : "rounded-2xl rounded-bl-md") : "rounded-2xl";
 
   return (
@@ -576,7 +576,7 @@ export default function SupportTicketWorkspace({
                 role="tab"
                 aria-selected={mode === "note"}
                 onClick={() => setMode("note")}
-                title="A private note for DXG agents only — the customer never sees it"
+                title="A private note for RFPilot agents only — the customer never sees it"
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition ${mode === "note" ? "bg-white text-amber-700 shadow-sm dark:bg-[#142a37] dark:text-amber-300" : "text-slate-500 dark:text-slate-400"}`}
               >
                 <StickyNote className="h-3.5 w-3.5" aria-hidden="true" /> Internal note
@@ -627,7 +627,7 @@ export default function SupportTicketWorkspace({
               placeholder={
                 mode === "reply"
                   ? "Write a reply the customer will see… (type / for canned replies)"
-                  : "Write a note only DXG agents can see…"
+                  : "Write a note only RFPilot agents can see…"
               }
               className="order-2 min-h-14 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100"
             />
@@ -658,7 +658,7 @@ export default function SupportTicketWorkspace({
                 Send waits for the customer. To resolve, use the ▾ next to Send.
               </span>
             ) : (
-              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Private to DXG agents — the customer never sees internal notes.</span>
+              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">Private to RFPilot agents — the customer never sees internal notes.</span>
             )}
             <span className="hidden text-[11px] text-slate-400 sm:inline">⌘/Ctrl + Enter to send</span>
           </div>
