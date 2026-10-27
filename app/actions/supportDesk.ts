@@ -7,7 +7,7 @@ import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
 export type SupportTicketStatus = "open" | "waiting_on_customer" | "resolved" | "closed";
 export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
-export type SupportTicketCategory = "how_to" | "bug" | "billing" | "vendor_email" | "other";
+export type SupportTicketCategory = "how_to" | "bug" | "billing" | "feature_request" | "vendor_email" | "other";
 
 export interface SupportUserSummary {
   id: string;

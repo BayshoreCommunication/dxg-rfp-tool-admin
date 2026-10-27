@@ -53,7 +53,7 @@ describe("admin support thread layout", () => {
 
   it("omits day separators before hydration and builds initials", () => {
     expect(buildThreadItems([msg("c1", "customer", "2026-10-26T10:00:00Z")], null).map((item) => item.type)).toEqual(["message"]);
-    expect(initials("Dana DXG Smith")).toBe("DS");
+    expect(initials("Dana RFPilot Smith")).toBe("DS");
     expect(initials("Akib")).toBe("A");
     expect(initials("  ")).toBe("?");
   });

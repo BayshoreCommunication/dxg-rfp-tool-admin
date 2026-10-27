@@ -71,11 +71,15 @@ const DATE_TIME: Intl.DateTimeFormatOptions = {
   day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC",
 };
 
+// Stored answers that predate the RFPilot name; the saved value is unchanged.
+const LEGACY_ANSWERS: Record<string, string> = { "DXG Runs Rehearsal": "RFPilot Runs Rehearsal" };
+
 /** Codes and booleans as words, dates as dates; everything else as typed. */
 export const humanizeValue = (value: unknown): string => {
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") return value.toLocaleString("en-US");
   const raw = String(value ?? "").trim();
+  if (LEGACY_ANSWERS[raw]) return LEGACY_ANSWERS[raw];
   if (/^(YES|NO)$/i.test(raw)) return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   if (/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(raw) || /^[A-Z]{4,}$/.test(raw)) {
     const words = raw.toLowerCase().replace(/_/g, " ");

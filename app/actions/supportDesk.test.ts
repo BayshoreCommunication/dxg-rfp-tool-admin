@@ -68,9 +68,9 @@ describe("admin support desk actions", () => {
   });
 
   it("does not revalidate after a failed mutation", async () => {
-    mockedFetch.mockResolvedValue(jsonResponse(403, { success: false, message: "Only DXG support agents can do that." }));
+    mockedFetch.mockResolvedValue(jsonResponse(403, { success: false, message: "Only RFPilot support agents can do that." }));
     const result = await updateSupportTicketAction("t1", { status: "closed" });
-    expect(result).toMatchObject({ ok: false, error: "Only DXG support agents can do that." });
+    expect(result).toMatchObject({ ok: false, error: "Only RFPilot support agents can do that." });
     expect(mockedRevalidate).not.toHaveBeenCalled();
   });
 });

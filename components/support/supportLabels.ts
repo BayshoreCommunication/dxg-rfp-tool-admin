@@ -22,6 +22,7 @@ export const CATEGORY_OPTIONS: ReadonlyArray<{ value: SupportTicketCategory; lab
   { value: "how_to", label: "How-to" },
   { value: "bug", label: "Bug" },
   { value: "billing", label: "Account & sign-in" },
+  { value: "feature_request", label: "Feature request" },
   { value: "vendor_email", label: "Vendor / email" },
   { value: "other", label: "Other" },
 ];

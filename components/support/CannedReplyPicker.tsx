@@ -13,7 +13,7 @@ export type CannedReplyContext = {
 /**
  * Fills the placeholders a canned reply may use:
  * {{first_name}}, {{name}}, {{ticket_number}}, {{agent_name}}. Customers
- * only ever see one "DXG support" name, so {{agent_name}} is always that.
+ * only ever see one "RFPilot support" name, so {{agent_name}} is always that.
  * Unknown placeholders are left as written so nothing is silently lost.
  */
 export const fillCannedReply = (body: string, context: CannedReplyContext): string => {
@@ -22,7 +22,7 @@ export const fillCannedReply = (body: string, context: CannedReplyContext): stri
     first_name: fullName.split(/\s+/)[0] || "there",
     name: fullName || "there",
     ticket_number: `#${context.ticketNumber}`,
-    agent_name: "DXG support",
+    agent_name: "RFPilot support",
   };
   return body.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (match, key: string) => values[key.toLowerCase()] ?? match);
 };

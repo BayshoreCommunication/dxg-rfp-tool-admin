@@ -55,7 +55,7 @@ describe("support desk scaling surfaces", () => {
   it("fills canned reply placeholders and searches titles and bodies", () => {
     const context = { customerName: "Pat  Planner", ticketNumber: 42 };
     expect(fillCannedReply("Hi {{first_name}}, about {{ ticket_number }} — {{agent_name}}", context)).toBe(
-      "Hi Pat, about #42 — DXG support",
+      "Hi Pat, about #42 — RFPilot support",
     );
     expect(fillCannedReply("Hi {{name}} {{unknown}}", { customerName: null, ticketNumber: 1 })).toBe("Hi there {{unknown}}");
     const reply = { id: "r1", title: "Password reset", body: "Open the sign-in page" } as Parameters<typeof matchesCannedReply>[0];

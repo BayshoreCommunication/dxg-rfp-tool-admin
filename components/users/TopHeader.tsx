@@ -6,7 +6,7 @@ export default function TopHeader() {
     <AdminPageHeader
       eyebrow="Access management"
       title="Admin users"
-      description="Create and maintain the admin accounts that can operate the DXG workspace."
+      description="Create and maintain the admin accounts that can operate the RFPilot workspace."
       icon={UsersRound}
     />
   );
