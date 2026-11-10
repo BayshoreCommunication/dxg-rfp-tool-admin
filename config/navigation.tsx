@@ -1,8 +1,10 @@
-import { FileText, House, LifeBuoy, Settings, UserRound, Users } from "lucide-react";
+import { Building2, FileText, House, LifeBuoy, Settings, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
   title: string;
+  /** Label for the phone tab bar when the title is too long for a seventh of the screen. */
+  shortTitle?: string;
   href: string;
   icon: React.ReactNode;
   badge?: number;
@@ -20,6 +22,14 @@ export const navigationConfig: NavItem[] = [
     title: "Clients",
     href: "/clients",
     icon: <UserRound size={22} />,
+  },
+
+  {
+    id: "organizations",
+    title: "Organizations",
+    shortTitle: "Orgs",
+    href: "/organizations",
+    icon: <Building2 size={22} />,
   },
 
   {
