@@ -150,8 +150,10 @@ export default async function OrganizationsDirectory({ search = "", page = 1 }: 
   const plans = response.ok ? response.data.plans : [];
   const pagination = response.ok ? response.data.pagination : null;
   const total = pagination?.total ?? 0;
-  const rangeStart = total === 0 || !pagination ? 0 : (pagination.page - 1) * pagination.perPage + 1;
-  const rangeEnd = total === 0 ? 0 : Math.min(rangeStart + organizations.length - 1, total);
+  // A stale or hand-edited page number past the end: say so and offer the last page.
+  const pastLastPage = Boolean(pagination && organizations.length === 0 && total > 0 && pagination.page > pagination.totalPages);
+  const rangeStart = organizations.length === 0 || !pagination ? 0 : (pagination.page - 1) * pagination.perPage + 1;
+  const rangeEnd = organizations.length === 0 ? 0 : Math.min(rangeStart + organizations.length - 1, total);
 
   const withPage = (targetPage: number) => {
     const query = new URLSearchParams();
@@ -204,10 +206,21 @@ export default async function OrganizationsDirectory({ search = "", page = 1 }: 
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
             <Building2 className="h-6 w-6" aria-hidden="true" />
           </span>
-          <p className="mt-4 text-sm font-bold text-slate-600">No organizations found</p>
-          <p className="mt-1 text-sm text-slate-400">
-            {search.trim() ? "Try a different organization name." : "Organizations appear here once customers sign up."}
+          <p className="mt-4 text-sm font-bold text-slate-600">
+            {pastLastPage ? "There are no organizations on this page" : "No organizations found"}
           </p>
+          {pastLastPage && pagination ? (
+            <Link
+              href={withPage(pagination.totalPages)}
+              className="mt-2 text-sm font-bold text-[#008f96] underline-offset-2 hover:underline"
+            >
+              Go to page {pagination.totalPages}
+            </Link>
+          ) : (
+            <p className="mt-1 text-sm text-slate-400">
+              {search.trim() ? "Try a different organization name." : "Organizations appear here once customers sign up."}
+            </p>
+          )}
         </div>
       ) : (
         <>
@@ -273,7 +286,7 @@ export default async function OrganizationsDirectory({ search = "", page = 1 }: 
         </>
       )}
 
-      {pagination ? (
+      {pagination && !pastLastPage ? (
         <div className="flex shrink-0 flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="text-xs font-semibold text-slate-500" aria-live="polite">
             Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {total.toLocaleString()} organizations

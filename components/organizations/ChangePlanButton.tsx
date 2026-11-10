@@ -38,18 +38,23 @@ const formatDateTime = (iso: string) => {
   });
 };
 
-export default function ChangePlanButton({ organization, plans }: Props) {
+export default function ChangePlanButton({ organization: listed, plans }: Props) {
   const router = useRouter();
   const titleId = useId();
   const noteId = useId();
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(organization.plan);
+  // The list row can be stale; once the dialog has loaded the organization, that copy is used.
+  const [fresh, setFresh] = useState<OrganizationPlanItem | null>(null);
+  const organization = fresh ?? listed;
+  const [selected, setSelected] = useState(listed.plan);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [history, setHistory] = useState<PlanChange[] | null>(null);
   const [historyError, setHistoryError] = useState("");
   const closeRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const savingRef = useRef(false);
 
   useEffect(() => {
@@ -61,23 +66,58 @@ export default function ChangePlanButton({ organization, plans }: Props) {
     if (!open) return;
     let cancelled = false;
     closeRef.current?.focus();
-    getOrganizationPlanAction(organization.id).then((result) => {
-      if (cancelled) return;
-      if (result.ok) setHistory(result.data.history);
-      else setHistoryError(result.error);
-    });
+    const trigger = triggerRef.current;
+    getOrganizationPlanAction(listed.id)
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          setHistoryError(result.error);
+          return;
+        }
+        setHistory(result.data.history);
+        setFresh(result.data.organization);
+        // Follow the current plan unless staff already picked another one.
+        setSelected((current) => (current === listed.plan ? result.data.organization.plan : current));
+      })
+      .catch(() => {
+        if (!cancelled) setHistoryError("The plan history couldn't be loaded.");
+      });
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !savingRef.current) setOpen(false);
+      if (event.key === "Escape" && !savingRef.current) {
+        setOpen(false);
+        return;
+      }
+      // Keep Tab inside the dialog so the page behind it can't be operated.
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled]), textarea:not([disabled])"),
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!panelRef.current.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {
       cancelled = true;
       window.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
     };
-  }, [open, organization.id]);
+  }, [open, listed.id, listed.plan]);
 
   const openDialog = () => {
-    setSelected(organization.plan);
+    setFresh(null);
+    setSelected(listed.plan);
     setNote("");
     setError("");
     setHistory(null);
@@ -92,20 +132,33 @@ export default function ChangePlanButton({ organization, plans }: Props) {
     if (!target || !isChange || saving) return;
     setSaving(true);
     setError("");
-    const result = await changeOrganizationPlanAction(organization.id, target.id, note);
-    setSaving(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await changeOrganizationPlanAction(organization.id, target.id, note);
+      if (!result.ok) {
+        setError(result.error);
+        // Someone else changed it: show the list as it now is behind the dialog.
+        if (result.code === "PLAN_CHANGE_CONFLICT") router.refresh();
+        return;
+      }
+      const label = planLabel(result.data.organization.plan);
+      if (result.data.changed === false) {
+        toast.alert(`${organization.name} was already on ${label}. Nothing was changed.`);
+      } else {
+        toast.success(`${organization.name} is now on ${label}.`);
+      }
+      setOpen(false);
+      router.refresh();
+    } catch {
+      setError("The plan change couldn't be confirmed. Reload the page to see the current plan.");
+    } finally {
+      setSaving(false);
     }
-    toast.success(`${organization.name} is now on ${planLabel(result.data.organization.plan)}.`);
-    setOpen(false);
-    router.refresh();
   };
 
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={openDialog}
         className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#34445f] transition-colors hover:border-[#00aeb5] hover:text-[#008f96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5]"
@@ -126,7 +179,7 @@ export default function ChangePlanButton({ organization, plans }: Props) {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={saving ? undefined : () => setOpen(false)}
           />
-          <div className="relative z-10 flex max-h-[calc(100dvh-32px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
+          <div ref={panelRef} className="relative z-10 flex max-h-[calc(100dvh-32px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_24px_70px_rgba(15,23,42,0.24)]">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
               <div className="min-w-0">
                 <h2 id={titleId} className="break-words text-lg font-bold text-[#12213a]">
