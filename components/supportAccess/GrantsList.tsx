@@ -16,7 +16,7 @@ import Link from "next/link";
 const Scope = ({ grant }: { grant: GrantedAccess }) => {
   const Icon = grant.scope === "organization" ? Building2 : FileText;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-bold text-slate-600">
       <Icon className="h-3 w-3" aria-hidden="true" />
       {grantScopeLabel(grant.scope)}
     </span>
@@ -41,7 +41,7 @@ const OpenLink = ({ grant }: { grant: GrantedAccess }) => (
     href={grantedAccessPath(grant)}
     // Opening an organization or an RFP is an audited read: never fetch it ahead of the click.
     prefetch={false}
-    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[#008f96] transition hover:border-[#00aeb5] hover:bg-[#eaf9f8]"
+    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[#008f96] transition hover:border-[#00aeb5] hover:text-[#009ca4]"
   >
     {grant.scope === "organization" ? "View RFPs" : "Open RFP"}
     <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
@@ -112,9 +112,9 @@ export default async function GrantsList({ notice }: { notice?: AccessNotice }) 
                 <table className="w-full min-w-[820px] table-fixed border-collapse text-left">
                   <thead>
                     <tr className="border-b border-slate-100 bg-[#f8fafc]">
-                      <th className="w-[26%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Organization</th>
-                      <th className="w-[16%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Scope</th>
-                      <th className="w-[24%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Reason given</th>
+                      <th className="w-[24%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Organization</th>
+                      <th className="w-[20%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Scope</th>
+                      <th className="w-[22%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Reason given</th>
                       <th className="w-[20%] px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">Expiry</th>
                       <th className="w-[14%] px-4 py-3 text-right text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
                         <span className="sr-only">Open</span>
