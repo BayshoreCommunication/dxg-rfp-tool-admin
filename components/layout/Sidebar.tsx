@@ -190,6 +190,7 @@ const Sidebar = () => {
             <Link
               key={item.id}
               href={item.href}
+              aria-label={item.shortTitle ? item.title : undefined}
               className={cn(
                 "relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[8.5px] font-bold transition min-[380px]:text-[9px]",
                 isActive ? "text-primary" : "text-slate-400 hover:text-slate-600",
@@ -214,7 +215,7 @@ const Sidebar = () => {
                   </span>
                 ) : null}
               </span>
-              <span>{item.title}</span>
+              <span>{item.shortTitle ?? item.title}</span>
             </Link>
           );
         })}
