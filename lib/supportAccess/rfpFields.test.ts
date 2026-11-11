@@ -1,21 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { eventDates, humanizeKey, humanizeValue, isProposalView, proposalFields, publishedState, sectionFields } from "./proposalLabels";
+import { eventDates, humanizeKey, humanizeValue, publishedState, rfpFields, sectionFields, stageLabel } from "./rfpFields";
 
-const read = (relative: string) => readFileSync(join(process.cwd(), relative), "utf8");
-
-describe("admin proposals", () => {
-  it("replaces the AI tab with Proposals in the sidebar", () => {
-    const navigation = read("config/navigation.tsx");
-    expect(navigation).toMatch(/href: "\/proposals"/);
-    expect(navigation).not.toMatch(/ai-operations/);
-  });
-
-  it("only accepts known status views", () => {
-    expect(isProposalView("published")).toBe(true);
-    expect(isProposalView("archived")).toBe(true);
-    expect(isProposalView("everything")).toBe(false);
-    expect(isProposalView(undefined)).toBe(false);
+describe("granted RFP wording", () => {
+  it("names the lifecycle stage the planner sees", () => {
+    expect(stageLabel({ stage: "receiving_responses" })).toBe("Receiving responses");
+    expect(stageLabel({ stage: "under_review" })).toBe("Under review");
+    expect(stageLabel({ stage: null, isDraft: true })).toBe("Draft");
+    expect(stageLabel({ stage: null, isDraft: false, isArchived: true })).toBe("Archived");
+    expect(stageLabel({ stage: "on_hold" })).toBe("On hold");
   });
 
   it("formats event dates from the planner's free text", () => {
@@ -24,15 +15,10 @@ describe("admin proposals", () => {
     expect(eventDates({ startDate: null, endDate: null })).toBe("Not set");
   });
 
-  it("shows published proposals as Live or Offline, never the legacy Rejected status", () => {
+  it("shows published RFPs as Live or Offline, never the legacy Rejected status", () => {
     expect(publishedState({ isActive: true, status: "submitted" })).toBe("Live");
     expect(publishedState({ isActive: false, status: "submitted" })).toBe("Offline");
     expect(publishedState({ isActive: true, status: "rejected" })).toBe("Offline");
-    expect(read("components/proposals/ProposalsDirectory.tsx")).not.toMatch(/Rejected/);
-  });
-
-  it("links a client's proposal count to their proposals", () => {
-    expect(read("components/clients/ClientDetilas.tsx")).toMatch(/\/proposals\?search=\$\{encodeURIComponent\(client\.email\)\}/);
   });
 
   it("turns stored form data into readable rows and skips blanks", () => {
@@ -41,7 +27,7 @@ describe("admin proposals", () => {
     expect(humanizeValue("NO")).toBe("No");
     expect(humanizeValue("2026-09-15T14:00:00.000Z")).toBe("Sep 15, 2026, 2:00 PM UTC");
     expect(humanizeValue("USD 180,000")).toBe("USD 180,000");
-    const rows = proposalFields({
+    const rows = rfpFields({
       venueName: "Lakeside Grand",
       venueAddress: "",
       unionJurisdictions: [],

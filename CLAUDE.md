@@ -1,7 +1,7 @@
 # CLAUDE.md — dxg-rfp-tool-admin
 
-Back-office app for RFPilot: clients, users, read-only proposals, support desk and
-AI operations (Next.js 16 App Router, React 19, NextAuth v5, Tailwind CSS 4).
+Back-office app for RFPilot: clients, users, support access (customer RFPs, read-only and
+only under an organization's grant), support desk and AI operations (Next.js 16 App Router, React 19, NextAuth v5, Tailwind CSS 4).
 Knowledge and pricing screens were removed on 2026-10-25. This repo is one of
 three (with `dxg-rfp-tool-backend` and `dxg-rfp-tool-dashboard`). The backend owns
 the API and the shared project docs.
@@ -26,6 +26,9 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
 - `app/` route groups `(auth)` and `(page)`, server actions in `app/actions/`, and server
   helpers in `lib/server/`.
 - Unlike the dashboard, admin has no generated `contracts/` directory.
+- Customer RFP data is read only through `app/actions/supportAccess.ts` (the grant-gated
+  `/api/v1/admin/support-access/*` routes) and shown inside `GrantWorkspace`. Every such read is
+  audited in the customer's organization: no caching, and `prefetch={false}` on links into it.
 - Config comes from `BACKEND_URL`, `NEXTAUTH_URL`, `AUTH_SECRET` and `BFF_SHARED_SECRET`
   (see `.env.example`). The build needs none of them.
 
