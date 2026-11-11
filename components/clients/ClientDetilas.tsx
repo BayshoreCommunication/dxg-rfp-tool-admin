@@ -255,7 +255,7 @@ export default async function ClientDetails({
                       Company
                     </th>
                     <th className="w-[9%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
-                      Proposals
+                      RFPs
                     </th>
                     <th className="w-[10%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
                       Emails
@@ -309,17 +309,7 @@ export default async function ClientDetails({
                         </span>
                       </td>
                       <td className="px-3 py-3.5 text-center text-sm font-semibold tabular-nums text-[#34445f]">
-                        {client.totalProposals ? (
-                          <Link
-                            href={`/proposals?search=${encodeURIComponent(client.email)}`}
-                            className="rounded-md px-1.5 py-0.5 text-[#008f96] transition hover:bg-[#eaf9f8]"
-                            title="View this client's proposals"
-                          >
-                            {client.totalProposals}
-                          </Link>
-                        ) : (
-                          0
-                        )}
+                        {client.totalProposals ?? 0}
                       </td>
                       <td className="px-3 py-3.5 text-center text-sm font-semibold tabular-nums text-[#34445f]">
                         {client.totalEmailSent ?? 0}
@@ -384,7 +374,7 @@ export default async function ClientDetails({
                     </div>
                     <div className="mt-3 flex gap-2">
                       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                        {client.totalProposals ?? 0} proposals
+                        {client.totalProposals ?? 0} RFPs
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">
                         {client.totalEmailSent ?? 0} emails

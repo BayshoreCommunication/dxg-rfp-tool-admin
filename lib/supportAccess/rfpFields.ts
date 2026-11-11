@@ -1,23 +1,30 @@
-import type { AdminProposalItem, AdminProposalView } from "@/app/actions/adminProposals";
-
-export const PROPOSAL_VIEWS: { id: AdminProposalView; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "published", label: "Published" },
-  { id: "draft", label: "Drafts" },
-  { id: "archived", label: "Archived" },
-];
-
-export const isProposalView = (value: unknown): value is AdminProposalView =>
-  PROPOSAL_VIEWS.some((view) => view.id === value);
+// How a granted RFP is put into words for RFPilot Support (ORG-406). Pure helpers, moved from
+// the old all-organization "Proposals" screens, which no longer exist.
 
 /**
- * Mirrors the planner's own list: a published proposal is Live unless it was
- * switched off. "rejected" is a status left by an early version of the planner
- * app (its control was removed in April 2026); the planner app shows those as
- * offline too, so it is never shown as "Rejected" here.
+ * A published RFP is Live unless it was switched off. "rejected" is a status left by an
+ * early version of the planner app (its control was removed in April 2026); the planner app
+ * shows those as offline too, so it is never shown as "Rejected" here.
  */
-export const publishedState = (proposal: Pick<AdminProposalItem, "isActive" | "status">) =>
-  proposal.isActive === false || proposal.status === "rejected" ? "Offline" : "Live";
+export const publishedState = (rfp: { isActive?: boolean; status?: string }) =>
+  rfp.isActive === false || rfp.status === "rejected" ? "Offline" : "Live";
+
+const STAGE_LABELS: Record<string, string> = {
+  draft: "Draft",
+  sent: "Sent",
+  receiving_responses: "Receiving responses",
+  under_review: "Under review",
+  awarded: "Awarded",
+  archived: "Archived",
+};
+
+/** The RFP's lifecycle stage as the planner sees it; an unknown stage is shown in plain words. */
+export const stageLabel = (rfp: { stage?: string | null; isDraft?: boolean; isArchived?: boolean }): string => {
+  const stage = String(rfp.stage ?? "").trim().toLowerCase();
+  if (stage) return STAGE_LABELS[stage] ?? humanizeValue(stage.toUpperCase());
+  if (rfp.isArchived) return "Archived";
+  return rfp.isDraft ? "Draft" : "Sent";
+};
 
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
 
@@ -36,19 +43,19 @@ export const formatDate = (value?: string | null) => {
 };
 
 /** "Nov 12 – 14, 2026" style range from the planner's free-text event dates. */
-export const eventDates = (proposal: Pick<AdminProposalItem, "startDate" | "endDate">) => {
-  const start = formatDate(proposal.startDate);
-  const end = formatDate(proposal.endDate);
+export const eventDates = (rfp: { startDate?: string | null; endDate?: string | null }) => {
+  const start = formatDate(rfp.startDate);
+  const end = formatDate(rfp.endDate);
   if (start && end && start !== end) return `${start} – ${end}`;
   return start ?? end ?? "Not set";
 };
 
-// ---- Proposal detail: turning stored form data into readable rows ----
+// ---- RFP detail: turning stored form data into readable rows ----
 
-export type ProposalField =
+export type RfpField =
   | { kind: "text"; label: string; value: string }
   | { kind: "link"; label: string; value: string }
-  | { kind: "group"; label: string; items: { title: string; fields: ProposalField[] }[] };
+  | { kind: "group"; label: string; items: { title: string; fields: RfpField[] }[] };
 
 const ACRONYMS: Record<string, string> = {
   av: "AV", coi: "COI", dei: "DEI", nda: "NDA", qa: "Q&A", url: "URL", urls: "URLs",
@@ -112,9 +119,9 @@ const itemTitle = (item: Record<string, unknown>, fallback: string) => {
  * blank. Nested answers ("podiumMic": {"podiumMic", "podiumMicQty"}) become
  * their own rows; lists of objects (rooms, sessions, files) become groups.
  */
-export const proposalFields = (data: unknown, parent?: string): ProposalField[] => {
+export const rfpFields = (data: unknown, parent?: string): RfpField[] => {
   if (!data || typeof data !== "object" || Array.isArray(data)) return [];
-  const fields: ProposalField[] = [];
+  const fields: RfpField[] = [];
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     if (isBlank(value)) continue;
     const label =
@@ -131,13 +138,13 @@ export const proposalFields = (data: unknown, parent?: string): ProposalField[] 
           label,
           items: present.map((item, index) =>
             typeof item === "object" && item
-              ? { title: itemTitle(item as Record<string, unknown>, `${humanizeKey(key)} ${index + 1}`), fields: proposalFields(item) }
+              ? { title: itemTitle(item as Record<string, unknown>, `${humanizeKey(key)} ${index + 1}`), fields: rfpFields(item) }
               : { title: humanizeValue(item), fields: [] },
           ),
         });
       }
     } else if (typeof value === "object") {
-      fields.push(...proposalFields(value, key));
+      fields.push(...rfpFields(value, key));
     } else {
       const text = String(value).trim();
       fields.push(/^https?:\/\//i.test(text) ? { kind: "link", label, value: text } : { kind: "text", label, value: humanizeValue(value) });
@@ -147,7 +154,7 @@ export const proposalFields = (data: unknown, parent?: string): ProposalField[] 
 };
 
 /** The planner's form sections, in the order they fill them in. */
-export const PROPOSAL_SECTIONS: { key: string; title: string }[] = [
+export const RFP_SECTIONS: { key: string; title: string }[] = [
   { key: "event", title: "Event overview" },
   { key: "contact", title: "Contact" },
   { key: "venueSchedule", title: "Venue & schedule" },
@@ -162,5 +169,5 @@ export const PROPOSAL_SECTIONS: { key: string; title: string }[] = [
 ];
 
 /** A section's rows; a list section (rooms) is wrapped so it renders as cards. */
-export const sectionFields = (key: string, value: unknown): ProposalField[] =>
-  Array.isArray(value) ? proposalFields({ [key]: value }) : proposalFields(value);
+export const sectionFields = (key: string, value: unknown): RfpField[] =>
+  Array.isArray(value) ? rfpFields({ [key]: value }) : rfpFields(value);

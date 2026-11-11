@@ -1,4 +1,4 @@
-import { Building2, FileText, House, LifeBuoy, Settings, UserRound, Users } from "lucide-react";
+import { Building2, House, LifeBuoy, Settings, ShieldCheck, UserRound, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
@@ -33,10 +33,11 @@ export const navigationConfig: NavItem[] = [
   },
 
   {
-    id: "proposals",
-    title: "Proposals",
-    href: "/proposals",
-    icon: <FileText size={22} />,
+    id: "support-access",
+    title: "Support access",
+    shortTitle: "Access",
+    href: "/support-access",
+    icon: <ShieldCheck size={22} />,
   },
 
   {
