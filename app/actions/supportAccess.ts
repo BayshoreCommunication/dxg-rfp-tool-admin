@@ -24,7 +24,8 @@ import {
 const API = `${BACKEND_URL}/api/v1/admin/support-access`;
 
 export type SupportAccessResult<T> =
-  | { ok: true; data: T }
+  /** `readAt`: when the backend answered, so an open screen can tell how old its content is. */
+  | { ok: true; data: T; readAt: number }
   | { ok: false; failure: SupportAccessFailure; error: string };
 
 const MESSAGES: Record<SupportAccessFailure, string> = {
@@ -51,7 +52,7 @@ const read = async <T>(path: string, parse: (data: unknown) => T | null): Promis
       return refused(supportAccessFailure(response.status, typeof body?.code === "string" ? body.code : null));
     }
     const data = parse(body?.data);
-    return data === null ? refused("error") : { ok: true, data };
+    return data === null ? refused("error") : { ok: true, data, readAt: Date.now() };
   } catch {
     return refused("error");
   }
@@ -98,15 +99,4 @@ export async function listGrantedVendorResponsesAction(
     if (!responses || (responses.grant.rfpId !== null && responses.grant.rfpId !== rfpId)) return null;
     return responses;
   });
-}
-
-/**
- * Which of an organization's grants are still active, for the open workspace to notice a
- * revocation without re-reading (and re-auditing) any RFP. `null` when that can't be told.
- */
-export async function activeGrantIdsAction(organizationId: string): Promise<string[] | null> {
-  if (!isSupportAccessId(organizationId)) return [];
-  const result = await listGrantedAccessAction();
-  if (!result.ok) return null;
-  return result.data.filter((grant) => grant.organization.id === organizationId).map((grant) => grant.id);
 }

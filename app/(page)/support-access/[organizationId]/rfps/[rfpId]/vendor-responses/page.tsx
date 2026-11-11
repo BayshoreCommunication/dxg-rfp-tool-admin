@@ -27,7 +27,7 @@ export default async function GrantedVendorResponsesPage({ params }: GrantedVend
 
   return (
     <div className="mx-auto w-full max-w-[1240px] space-y-6 pb-10">
-      <GrantWorkspace organizationId={organizationId} organizationName={organizationName} grants={[response.data.grant]}>
+      <GrantWorkspace organizationId={organizationId} organizationName={organizationName} grants={[response.data.grant]} readAt={response.readAt}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <BackToRfps organizationId={organizationId} scope={response.data.grant.scope} />
           <RfpViewTabs organizationId={organizationId} rfpId={rfpId} active="vendor-responses" />

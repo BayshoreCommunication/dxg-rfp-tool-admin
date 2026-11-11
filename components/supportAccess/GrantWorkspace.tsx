@@ -1,6 +1,5 @@
 "use client";
 
-import { activeGrantIdsAction } from "@/app/actions/supportAccess";
 import {
   ACCESS_NOTICES,
   SUPPORT_ACCESS_PATH,
@@ -11,18 +10,27 @@ import {
   organizationLabel,
   type GrantBannerInfo,
 } from "@/lib/supportAccess/grants";
-import { Clock, ShieldAlert, ShieldCheck } from "lucide-react";
+import {
+  RECHECK_MS,
+  REVOCATION_CHECK_MS,
+  checkGrants,
+  isFreshRender,
+  screenState,
+  secondsRemainingAt,
+  type GrantCheck,
+} from "@/lib/supportAccess/grantSession";
+import { Clock, LoaderCircle, ShieldAlert, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-
-const REVOCATION_CHECK_MS = 30_000;
 
 type GrantWorkspaceProps = {
   organizationId: string;
   organizationName: string | null;
   /** The grants this screen was read under: one for an RFP, one or more for an RFP list. */
   grants: GrantBannerInfo[];
+  /** When the server read them (epoch ms). */
+  readAt: number;
   children: ReactNode;
 };
 
@@ -31,71 +39,102 @@ const scopeText = (grants: GrantBannerInfo[]) => {
   return grants.length === 1 ? "One RFP" : `${grants.length} RFPs, each granted separately`;
 };
 
+/** The organization's active grant ids, or null when that can't be told. Reads no RFP. */
+const fetchActiveGrantIds = async (organizationId: string): Promise<string[] | null> => {
+  try {
+    const response = await fetch(`/api/support-access/active?organizationId=${organizationId}`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { active?: unknown };
+    return Array.isArray(body.active) && body.active.every((id) => typeof id === "string") ? (body.active as string[]) : null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Wraps every screen that shows a customer organization's RFP data. It states the grant the
- * agent is working under and how long is left, and it takes the content off the screen the
- * moment the grant runs out or is revoked, sending the agent back to "Granted to me".
+ * agent is working under and how long is left. The content is on screen only while that grant
+ * is confirmed active: a screen restored from cache is checked before anything is shown, and
+ * the content comes off the moment the grant runs out or is revoked. When the organization
+ * has no grant left the agent goes back to "Granted to me"; when another grant may still
+ * cover the screen, the server reads it again and decides.
  */
-export default function GrantWorkspace({ organizationId, organizationName, grants, children }: GrantWorkspaceProps) {
+export default function GrantWorkspace({ organizationId, organizationName, grants, readAt, children }: GrantWorkspaceProps) {
   const router = useRouter();
-  const signature = grants.map((grant) => `${grant.id}:${grant.expiresAt}:${grant.secondsRemaining}`).join("|");
-  const [clock, setClock] = useState({ signature, elapsed: 0 });
-  const [revoked, setRevoked] = useState<string | null>(null);
-  const refreshedFor = useRef<string | null>(null);
+  const signature = `${readAt}|${grants.map((grant) => `${grant.id}@${grant.expiresAt}@${grant.secondsRemaining}`).join("|")}`;
+  const [now, setNow] = useState(() => Date.now());
+  const [checked, setChecked] = useState<{ signature: string; result: GrantCheck }>({ signature: "", result: "unknown" });
+  const rereadFor = useRef<string | null>(null);
 
-  // Time left counts down from what the server reported when it read the grant.
   useEffect(() => {
-    const startedAt = Date.now();
-    const tick = () => setClock({ signature, elapsed: Math.floor((Date.now() - startedAt) / 1000) });
-    const timer = window.setInterval(tick, 1000);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [signature]);
+  }, []);
 
-  const elapsed = clock.signature === signature ? clock.elapsed : 0;
-  const remaining = grants.map((grant) => Math.max(0, grant.secondsRemaining - elapsed));
-  const longest = remaining.length ? Math.max(...remaining) : 0;
+  const remaining = secondsRemainingAt(grants, readAt, now);
   const soonest = remaining.length ? Math.min(...remaining) : 0;
-  const ended = longest <= 0 || revoked === signature;
-  const partlyEnded = !ended && soonest <= 0;
+  const expired = soonest <= 0;
+  // A screen the server rendered just now was read under a live grant. One that came back
+  // from the router or browser cache has to be confirmed first.
+  const lastCheck: GrantCheck | "pending" =
+    checked.signature === signature ? checked.result : isFreshRender(readAt, now) ? "active" : "pending";
+  const state = screenState({ remaining, lastCheck });
+  const urgent = state === "checking";
 
-  // Revocation: ask which grants are still active (grant details only, so no RFP is re-read).
   useEffect(() => {
     let cancelled = false;
-    const shown = signature.split("|").map((entry) => entry.split(":")[0]);
+    const shown = grants.map((grant) => grant.id);
     const check = async () => {
-      if (document.visibilityState !== "visible") return;
-      const active = await activeGrantIdsAction(organizationId).catch(() => null);
-      if (cancelled || active === null) return;
-      if (active.length === 0) {
-        setRevoked(signature);
-      } else if (shown.some((id) => !active.includes(id)) && refreshedFor.current !== signature) {
-        // Another grant may still cover this screen: let the server decide.
-        refreshedFor.current = signature;
-        router.refresh();
-      }
+      if (!urgent && document.visibilityState !== "visible") return;
+      const active = await fetchActiveGrantIds(organizationId);
+      if (!cancelled) setChecked({ signature, result: checkGrants(shown, active) });
     };
-    const timer = window.setInterval(check, REVOCATION_CHECK_MS);
+    const first = urgent ? window.setTimeout(check, 0) : undefined;
+    const timer = window.setInterval(check, urgent ? RECHECK_MS : REVOCATION_CHECK_MS);
     const onVisible = () => void check();
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pageshow", onVisible);
     return () => {
       cancelled = true;
+      window.clearTimeout(first);
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pageshow", onVisible);
     };
-  }, [organizationId, router, signature]);
+    // `grants` is covered by `signature`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organizationId, signature, urgent]);
 
+  // Other grants remain (or this one only ran out here): the server reads again and decides.
+  const reread = lastCheck === "reread" || (expired && lastCheck === "active");
   useEffect(() => {
-    if (ended) {
+    if (state === "ended") {
       router.replace(accessEndedPath());
-    } else if (partlyEnded && refreshedFor.current !== signature) {
-      refreshedFor.current = signature;
+    } else if (reread && rereadFor.current !== signature) {
+      rereadFor.current = signature;
       router.refresh();
     }
-  }, [ended, partlyEnded, router, signature]);
+  }, [reread, router, signature, state]);
 
-  if (ended) {
+  if (state === "checking") {
+    return (
+      <div className="mx-auto flex min-h-[40vh] max-w-md flex-col items-center justify-center text-center" role="status">
+        <LoaderCircle className="h-6 w-6 animate-spin text-[#008f96]" aria-hidden="true" />
+        <p className="mt-4 text-sm font-bold text-[#12213a]">Checking support access</p>
+        <p className="mt-1 text-sm text-slate-500">
+          This organization&apos;s RFPs stay hidden until its grant to RFPilot Support is confirmed as still active.
+        </p>
+        <Link href={SUPPORT_ACCESS_PATH} className="mt-4 text-sm font-semibold text-[#008f96] hover:underline">
+          Back to Granted to me
+        </Link>
+      </div>
+    );
+  }
+
+  if (state === "ended") {
     return (
       <div className="mx-auto flex min-h-[50vh] max-w-md flex-col items-center justify-center text-center" role="alert">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-300">
@@ -138,7 +177,7 @@ export default function GrantWorkspace({ organizationId, organizationName, grant
           </div>
         </div>
         <div className="shrink-0 sm:text-right">
-          <p className={`inline-flex items-center gap-1.5 text-sm font-bold tabular-nums ${endingSoon ? "text-amber-700 dark:text-amber-300" : "text-[#12213a]"}`}>
+          <p suppressHydrationWarning className={`inline-flex items-center gap-1.5 text-sm font-bold tabular-nums ${endingSoon ? "text-amber-700 dark:text-amber-300" : "text-[#12213a]"}`}>
             <Clock className="h-4 w-4" aria-hidden="true" />
             {grants.length > 1 ? "First grant ends in " : "Time left: "}
             {formatTimeLeft(soonest)}

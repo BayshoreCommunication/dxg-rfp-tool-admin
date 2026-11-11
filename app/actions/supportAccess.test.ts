@@ -7,8 +7,8 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
+import { GET as activeGrants } from "@/app/api/support-access/active/route";
 import {
-  activeGrantIdsAction,
   getGrantedRfpAction,
   listGrantedAccessAction,
   listGrantedRfpsAction,
@@ -64,6 +64,12 @@ describe("support access actions (ORG-406)", () => {
     }
   });
 
+  it("keeps RFP wording off refusals that aren't about an RFP", async () => {
+    mockedFetch.mockResolvedValue(jsonResponse(404, { message: "Cannot GET" }));
+    expect(await listGrantedAccessAction()).toMatchObject({ ok: false, failure: "error" });
+    expect(await listGrantedRfpsAction(ORG)).toMatchObject({ ok: false, failure: "error" });
+  });
+
   it("reports an RFP the grants don't cover as not found, with no detail about it", async () => {
     mockedFetch.mockResolvedValue(jsonResponse(404, { success: false, code: "PROPOSAL_NOT_FOUND", message: "RFP not found." }));
     expect(await getGrantedRfpAction(ORG, RFP)).toEqual({ ok: false, failure: "not_found", error: "RFP not found." });
@@ -75,7 +81,7 @@ describe("support access actions (ORG-406)", () => {
     expect(await getGrantedRfpAction(ORG.toUpperCase(), RFP)).toMatchObject({ ok: false, failure: "grant_required" });
     expect(await getGrantedRfpAction(ORG, "abc")).toMatchObject({ ok: false, failure: "not_found" });
     expect(await listGrantedVendorResponsesAction(ORG, `${RFP}?x=1`)).toMatchObject({ ok: false, failure: "not_found" });
-    expect(await activeGrantIdsAction("nope")).toEqual([]);
+    expect(await (await activeGrants(new Request("http://admin.test/api/support-access/active?organizationId=nope"))).json()).toEqual({ active: [] });
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 
@@ -109,11 +115,14 @@ describe("support access actions (ORG-406)", () => {
         },
       }),
     );
-    expect(await activeGrantIdsAction(ORG)).toEqual([GRANT]);
+    const check = () => activeGrants(new Request(`http://admin.test/api/support-access/active?organizationId=${ORG}`));
+    const response = await check();
+    expect(await response.json()).toEqual({ active: [GRANT] });
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(mockedFetch).toHaveBeenCalledTimes(1);
     expect(urlOf(0)).toMatch(/\/support-access\/grants$/);
     mockedFetch.mockResolvedValue(jsonResponse(503, {}));
-    expect(await activeGrantIdsAction(ORG)).toBeNull();
+    expect((await check()).status).toBe(503);
   });
 });
 

@@ -26,7 +26,7 @@ export default async function GrantedRfpPage({ params }: GrantedRfpPageProps) {
 
   return (
     <div className="mx-auto w-full max-w-[1240px] space-y-6 pb-10">
-      <GrantWorkspace organizationId={organizationId} organizationName={organizationName} grants={[response.data.grant]}>
+      <GrantWorkspace organizationId={organizationId} organizationName={organizationName} grants={[response.data.grant]} readAt={response.readAt}>
         <GrantedRfpDetail organizationId={organizationId} data={response.data} />
       </GrantWorkspace>
     </div>

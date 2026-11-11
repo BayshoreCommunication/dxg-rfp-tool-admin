@@ -210,7 +210,8 @@ export type SupportAccessFailure =
 
 export const supportAccessFailure = (status: number, code?: string | null): SupportAccessFailure => {
   if (code === "SUPPORT_GRANT_REQUIRED") return "grant_required";
-  if (status === 404 || code === "PROPOSAL_NOT_FOUND") return "not_found";
+  // Only the backend's own "RFP not found": any other 404 (a missing route, a proxy) is an error.
+  if (status === 404 && code === "PROPOSAL_NOT_FOUND") return "not_found";
   return "error";
 };
 

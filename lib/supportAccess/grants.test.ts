@@ -136,7 +136,8 @@ describe("support access grants (ORG-406)", () => {
   it("turns refusals into screen states: no grant goes back to the list, an uncovered RFP is not found", () => {
     expect(supportAccessFailure(403, "SUPPORT_GRANT_REQUIRED")).toBe("grant_required");
     expect(supportAccessFailure(404, "PROPOSAL_NOT_FOUND")).toBe("not_found");
-    expect(supportAccessFailure(404, null)).toBe("not_found");
+    expect(supportAccessFailure(404, null)).toBe("error");
+    expect(supportAccessFailure(404, "SUPPORT_TICKET_NOT_FOUND")).toBe("error");
     expect(supportAccessFailure(403, "SUPPORT_ACCESS_FORBIDDEN")).toBe("error");
     expect(supportAccessFailure(500, "SUPPORT_ACCESS_INTERNAL_ERROR")).toBe("error");
     expect(accessEndedPath()).toBe("/support-access?notice=ended");

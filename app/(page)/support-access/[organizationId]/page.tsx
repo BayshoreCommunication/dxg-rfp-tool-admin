@@ -38,7 +38,7 @@ export default async function GrantedOrganizationPage({ params, searchParams }: 
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Granted to me
       </Link>
       {response.ok ? (
-        <GrantWorkspace organizationId={organizationId} organizationName={organizationName} grants={response.data.grants}>
+        <GrantWorkspace organizationId={organizationId} organizationName={organizationName} grants={response.data.grants} readAt={response.readAt}>
           <GrantedRfpList organizationId={organizationId} search={search} page={response.data} />
         </GrantWorkspace>
       ) : (
