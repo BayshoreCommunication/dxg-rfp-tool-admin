@@ -57,6 +57,7 @@ const TicketRow = ({ ticket }: { ticket: SupportTicket }) => {
             {organization && (
               <span className="inline-flex max-w-[16rem] items-center gap-1 truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-[#1c3442] dark:text-slate-200">
                 <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className="sr-only">Organization: </span>
                 <span className="truncate">{organization}</span>
               </span>
             )}
@@ -114,6 +115,9 @@ export default async function SupportInbox({
   const tickets = listResult.ok ? listResult.data.tickets : [];
   const pagination = listResult.ok ? listResult.data.pagination : null;
   // The name of the organization the inbox is narrowed to, when a listed ticket carries it.
+  // A backend from before 2026-11-12 ignores the organization filter and sends no `scope`:
+  // the list is then not narrowed, and the banner must not claim it is.
+  const organizationFilterApplied = listResult.ok && listResult.data.scope !== undefined;
   const narrowedTo = filters.organization
     ? organizationName(tickets.find((ticket) => ticket.organization?.id === filters.organization)?.organization)
     : null;
@@ -155,9 +159,13 @@ export default async function SupportInbox({
       {filters.organization && (
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-[#f7fcfc] px-5 py-2.5 text-xs text-slate-600 dark:bg-cyan-950/20 dark:text-slate-300">
           <Building2 className="h-3.5 w-3.5 text-[#007f86]" aria-hidden="true" />
-          <span>
-            Showing tickets from <span className="font-bold text-[#10203a] dark:text-slate-50">{narrowedTo ?? "one organization"}</span> only.
-          </span>
+          {organizationFilterApplied ? (
+            <span>
+              Showing tickets from <span className="font-bold text-[#10203a] dark:text-slate-50">{narrowedTo ?? "one organization"}</span> only.
+            </span>
+          ) : (
+            <span>The organization filter is not available yet, so this list is not narrowed.</span>
+          )}
           <Link href={withoutOrganization()} className="inline-flex items-center gap-1 font-semibold text-[#007f86] hover:underline">
             <X className="h-3.5 w-3.5" aria-hidden="true" /> Show every organization
           </Link>

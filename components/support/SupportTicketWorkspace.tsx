@@ -370,11 +370,13 @@ export default function SupportTicketWorkspace({
                   className="inline-flex max-w-[18rem] items-center gap-1 truncate rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 transition hover:bg-[#e6f7f8] hover:text-[#007f86] dark:bg-[#1c3442] dark:text-slate-200"
                 >
                   <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="sr-only">Organization: </span>
                   <span className="truncate">{customerOrganization}</span>
                 </Link>
               ) : (
                 <span className="inline-flex max-w-[18rem] items-center gap-1 truncate rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 dark:bg-[#1c3442] dark:text-slate-200">
                   <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="sr-only">Organization: </span>
                   <span className="truncate">{customerOrganization}</span>
                 </span>
               ))}

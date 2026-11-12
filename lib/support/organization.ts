@@ -15,9 +15,9 @@ const OBJECT_ID = /^[0-9a-f]{24}$/i;
 /** The inbox narrowed to one organization, or null when the ticket's organization is not known. */
 export const organizationInboxHref = (organization: OrganizationLike): string | null => {
   const id = typeof organization?.id === "string" ? organization.id.trim() : "";
-  return OBJECT_ID.test(id) ? `/support?status=all&organization=${id}` : null;
+  return OBJECT_ID.test(id) ? `/support?status=all&organization=${id.toLowerCase()}` : null;
 };
 
 /** Only a well-formed organization id is sent to the backend as a filter. */
 export const organizationFilter = (value: string | null | undefined): string =>
-  typeof value === "string" && OBJECT_ID.test(value.trim()) ? value.trim() : "";
+  typeof value === "string" && OBJECT_ID.test(value.trim()) ? value.trim().toLowerCase() : "";

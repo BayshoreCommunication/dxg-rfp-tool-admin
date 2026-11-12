@@ -20,6 +20,7 @@ describe("ticket organization labels", () => {
   it("drops a malformed organization filter instead of sending it", () => {
     expect(organizationFilter(BAYSHORE)).toBe(BAYSHORE);
     expect(organizationFilter(` ${BAYSHORE} `)).toBe(BAYSHORE);
+    expect(organizationFilter(BAYSHORE.toUpperCase())).toBe(BAYSHORE);
     expect(organizationFilter("bayshore")).toBe("");
     expect(organizationFilter(undefined)).toBe("");
   });

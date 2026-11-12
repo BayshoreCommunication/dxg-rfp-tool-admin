@@ -38,6 +38,9 @@ describe("support desk surfaces", () => {
     expect(inbox).toMatch(/organizationName\(ticket\.organization\)/);
     expect(inbox).toMatch(/organization: filters\.organization \|\| undefined/);
     expect(inbox).toMatch(/Show every organization/);
+    // Against a backend that ignores the filter (no `scope` in the response) the banner says so.
+    expect(inbox).toMatch(/organizationFilterApplied = listResult\.ok && listResult\.data\.scope !== undefined/);
+    expect(inbox).toMatch(/The organization filter is not available yet/);
     const workspace = read("components/support/SupportTicketWorkspace.tsx");
     expect(workspace).toMatch(/organizationName\(organization \?\? ticket\.organization\)/);
     expect(workspace).toMatch(/organizationInboxHref\(organization \?\? ticket\.organization\)/);
