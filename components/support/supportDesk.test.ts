@@ -33,6 +33,22 @@ describe("support desk surfaces", () => {
     expect(upload).toMatch(/\/api\/v1\/admin\/support\/attachments/);
   });
 
+  it("shows the customer organization beside the ticket number, in the inbox and on the ticket", () => {
+    const inbox = read("components/support/SupportInbox.tsx");
+    expect(inbox).toMatch(/organizationName\(ticket\.organization\)/);
+    expect(inbox).toMatch(/organization: filters\.organization \|\| undefined/);
+    expect(inbox).toMatch(/Show every organization/);
+    // Against a backend that ignores the filter (no `scope` in the response) the banner says so.
+    expect(inbox).toMatch(/organizationFilterApplied = listResult\.ok && listResult\.data\.scope !== undefined/);
+    expect(inbox).toMatch(/The organization filter is not available yet/);
+    const workspace = read("components/support/SupportTicketWorkspace.tsx");
+    expect(workspace).toMatch(/organizationName\(organization \?\? ticket\.organization\)/);
+    expect(workspace).toMatch(/organizationInboxHref\(organization \?\? ticket\.organization\)/);
+    const page = read("app/(page)/support/page.tsx");
+    expect(page).toMatch(/organization: organizationFilter\(single\(params\.organization\)\)/);
+    expect(read("components/support/SupportInboxFilters.tsx")).toMatch(/#number, organization, name, or email/);
+  });
+
   it("renders customer-authored text as text, never as HTML", () => {
     for (const file of [
       "components/support/SupportTicketWorkspace.tsx",

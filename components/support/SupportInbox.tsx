@@ -1,4 +1,4 @@
-import { AlertCircle, Inbox } from "lucide-react";
+import { AlertCircle, Building2, Inbox, X } from "lucide-react";
 import Link from "next/link";
 import {
   listSupportAgentsAction,
@@ -15,6 +15,7 @@ import {
 } from "./supportLabels";
 import ResponseDueBadge from "./ResponseDueBadge";
 import SupportDateTime from "./SupportDateTime";
+import { organizationName } from "@/lib/support/organization";
 
 type Filters = {
   status: string;
@@ -22,6 +23,7 @@ type Filters = {
   priority: string;
   category: string;
   search: string;
+  organization: string;
   sort: string;
   page: number;
 };
@@ -36,6 +38,8 @@ const Badge = ({ className, children }: { className: string; children: React.Rea
 
 const TicketRow = ({ ticket }: { ticket: SupportTicket }) => {
   const unread = ticket.unreadForAgents > 0;
+  // Ticket numbers are per organization, so the organization is shown beside the number.
+  const organization = organizationName(ticket.organization);
   return (
     <li>
       <Link
@@ -50,6 +54,13 @@ const TicketRow = ({ ticket }: { ticket: SupportTicket }) => {
         />
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
+            {organization && (
+              <span className="inline-flex max-w-[16rem] items-center gap-1 truncate rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600 dark:bg-[#1c3442] dark:text-slate-200">
+                <Building2 className="h-3 w-3 shrink-0" aria-hidden="true" />
+                <span className="sr-only">Organization: </span>
+                <span className="truncate">{organization}</span>
+              </span>
+            )}
             <span className="text-xs font-bold text-slate-400">#{ticket.ticketNumber}</span>
             <span className={`truncate text-sm ${unread ? "font-extrabold text-[#10203a] dark:text-slate-50" : "font-semibold text-[#263650] dark:text-slate-200"}`}>
               {ticket.subject}
@@ -93,6 +104,7 @@ export default async function SupportInbox({
       priority: filters.priority || undefined,
       category: filters.category || undefined,
       search: filters.search || undefined,
+      organization: filters.organization || undefined,
       sort: filters.sort === "recent" ? "recent" : "urgency",
       page: filters.page,
       perPage: 20,
@@ -102,10 +114,26 @@ export default async function SupportInbox({
   const agents = agentsResult.ok ? agentsResult.data : [];
   const tickets = listResult.ok ? listResult.data.tickets : [];
   const pagination = listResult.ok ? listResult.data.pagination : null;
+  // The name of the organization the inbox is narrowed to, when a listed ticket carries it.
+  // A backend from before 2026-11-12 ignores the organization filter and sends no `scope`:
+  // the list is then not narrowed, and the banner must not claim it is.
+  const organizationFilterApplied = listResult.ok && listResult.data.scope !== undefined;
+  const narrowedTo = filters.organization
+    ? organizationName(tickets.find((ticket) => ticket.organization?.id === filters.organization)?.organization)
+    : null;
+
+  const withoutOrganization = () => {
+    const query = new URLSearchParams();
+    for (const key of ["status", "assignee", "priority", "category", "search", "sort"] as const) {
+      if (filters[key]) query.set(key, filters[key]);
+    }
+    const suffix = query.toString();
+    return suffix ? `/support?${suffix}` : "/support";
+  };
 
   const withPage = (target: number) => {
     const query = new URLSearchParams();
-    for (const key of ["status", "assignee", "priority", "category", "search", "sort"] as const) {
+    for (const key of ["status", "assignee", "priority", "category", "search", "organization", "sort"] as const) {
       if (filters[key]) query.set(key, filters[key]);
     }
     query.set("page", String(target));
@@ -128,6 +156,21 @@ export default async function SupportInbox({
           }}
         />
       </div>
+      {filters.organization && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 bg-[#f7fcfc] px-5 py-2.5 text-xs text-slate-600 dark:bg-cyan-950/20 dark:text-slate-300">
+          <Building2 className="h-3.5 w-3.5 text-[#007f86]" aria-hidden="true" />
+          {organizationFilterApplied ? (
+            <span>
+              Showing tickets from <span className="font-bold text-[#10203a] dark:text-slate-50">{narrowedTo ?? "one organization"}</span> only.
+            </span>
+          ) : (
+            <span>The organization filter is not available yet, so this list is not narrowed.</span>
+          )}
+          <Link href={withoutOrganization()} className="inline-flex items-center gap-1 font-semibold text-[#007f86] hover:underline">
+            <X className="h-3.5 w-3.5" aria-hidden="true" /> Show every organization
+          </Link>
+        </div>
+      )}
       {!listResult.ok ? (
         <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-500">
@@ -142,7 +185,7 @@ export default async function SupportInbox({
             <Inbox className="h-6 w-6" aria-hidden="true" />
           </span>
           <p className="mt-4 text-sm font-bold text-slate-600">No tickets match these filters</p>
-          <p className="mt-1 text-sm text-slate-400">New questions from planners will appear here.</p>
+          <p className="mt-1 text-sm text-slate-400">New questions from customers will appear here.</p>
         </div>
       ) : (
         <>

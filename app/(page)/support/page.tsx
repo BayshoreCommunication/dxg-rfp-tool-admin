@@ -5,6 +5,7 @@ import SupportInbox from "@/components/support/SupportInbox";
 import SupportMetricsCards from "@/components/support/SupportMetricsCards";
 import SupportAutoRefresh from "@/components/support/SupportAutoRefresh";
 import { auth } from "@/auth";
+import { organizationFilter } from "@/lib/support/organization";
 
 export const metadata = { title: "Support inbox" };
 
@@ -25,6 +26,7 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
     priority: single(params.priority),
     category: single(params.category),
     search: single(params.search),
+    organization: organizationFilter(single(params.organization)),
     sort: single(params.sort),
     page: Number.isNaN(page) || page < 1 ? 1 : page,
   };
@@ -35,7 +37,7 @@ export default async function SupportPage({ searchParams }: SupportPageProps) {
       <AdminPageHeader
         eyebrow="Helpdesk"
         title="Support inbox"
-        description="Every question planners send from RFPilot, triaged, assigned, and answered from one place."
+        description="Every question customers send from RFPilot, from every organization, triaged, assigned, and answered from one place."
         icon={LifeBuoy}
         actions={
           <Link

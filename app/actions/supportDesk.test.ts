@@ -36,6 +36,17 @@ describe("admin support desk actions", () => {
     expect(init).toMatchObject({ cache: "no-store" });
   });
 
+  it("narrows the inbox to one customer organization and passes the organization on each ticket through", async () => {
+    const ticket = { id: "t1", ticketNumber: 3, organization: { id: "6af570293393d07387d6e684", name: "Bayshore Communication" } };
+    mockedFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, data: { scope: "all_organizations", tickets: [ticket], pagination: { page: 1, perPage: 20, total: 1, totalPages: 1 } } }),
+    );
+    const result = await listSupportTicketsAction({ search: "#3", organization: "6af570293393d07387d6e684" });
+    expect(String(mockedFetch.mock.calls[0][0])).toMatch(/\/tickets\?search=%233&organization=6af570293393d07387d6e684$/);
+    expect(result.ok && result.data.scope).toBe("all_organizations");
+    expect(result.ok && result.data.tickets[0].organization).toEqual({ id: "6af570293393d07387d6e684", name: "Bayshore Communication" });
+  });
+
   it("surfaces the backend problem message and code without throwing", async () => {
     mockedFetch.mockResolvedValue(
       jsonResponse(404, { success: false, code: "SUPPORT_TICKET_NOT_FOUND", message: "The support ticket was not found." }),

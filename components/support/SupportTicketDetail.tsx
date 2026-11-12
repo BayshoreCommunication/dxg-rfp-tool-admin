@@ -53,6 +53,7 @@ export default async function SupportTicketDetail({
       </div>
       <SupportTicketWorkspace
         ticket={detail.data.ticket}
+        organization={detail.data.organization ?? null}
         requester={detail.data.requester}
         assignee={detail.data.assignee}
         messages={detail.data.messages}
