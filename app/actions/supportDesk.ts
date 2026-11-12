@@ -17,9 +17,18 @@ export interface SupportUserSummary {
   role: string;
 }
 
+/** The customer organization a ticket belongs to. Absent from backends older than 2026-11-12. */
+export interface SupportOrganizationSummary {
+  id: string;
+  name: string | null;
+}
+
 export interface SupportTicket {
   id: string;
+  /** Per organization: unique only together with the ticket's organization. */
   ticketNumber: number;
+  organizationId?: string;
+  organization?: SupportOrganizationSummary | null;
   requesterUserId: string;
   assigneeUserId: string | null;
   subject: string;
@@ -79,6 +88,8 @@ export interface SupportInboxFilters {
   priority?: string;
   category?: string;
   search?: string;
+  /** One customer organization's tickets (an organization id). */
+  organization?: string;
   sort?: "urgency" | "recent";
   page?: number;
   perPage?: number;
@@ -149,7 +160,14 @@ const revalidateSupport = (ticketId?: string) => {
 
 export async function listSupportTicketsAction(
   filters: SupportInboxFilters = {},
-): Promise<SupportActionResult<{ tickets: SupportTicket[]; pagination: SupportPagination }>> {
+): Promise<
+  SupportActionResult<{
+    /** "all_organizations" when the inbox spans every customer organization. */
+    scope?: "all_organizations" | "organization";
+    tickets: SupportTicket[];
+    pagination: SupportPagination;
+  }>
+> {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null || value === "") continue;
@@ -164,6 +182,7 @@ export async function getSupportTicketAction(
 ): Promise<
   SupportActionResult<{
     ticket: SupportTicket;
+    organization?: SupportOrganizationSummary | null;
     requester: SupportUserSummary | null;
     assignee: SupportUserSummary | null;
     messages: SupportMessage[];

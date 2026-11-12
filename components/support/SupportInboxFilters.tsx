@@ -47,7 +47,7 @@ export default function SupportInboxFilters({ agents, values }: Props) {
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search subject, #number, name, or email"
+          placeholder="Search subject, #number, organization, name, or email"
           aria-label="Search tickets"
           className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#00aeb5] focus:ring-2 focus:ring-[#00aeb5]/20 dark:border-[#253746] dark:bg-[#0f2230] dark:text-slate-100"
         />

@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, Eye, FileText, LoaderCircle, Lock, PenLine, Send, StickyNote } from "lucide-react";
+import { Building2, ChevronDown, Eye, FileText, LoaderCircle, Lock, PenLine, Send, StickyNote } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import {
@@ -12,6 +13,7 @@ import {
   type SupportPresenceOther,
   type SupportCannedReply,
   type SupportMessage,
+  type SupportOrganizationSummary,
   type SupportTicket,
   type SupportTicketCategory,
   type SupportTicketPriority,
@@ -21,6 +23,7 @@ import {
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { toast } from "@/components/ui/Toast";
 import { formatBytes, supportAttachmentHref, uploadSupportAttachments } from "@/lib/support/attachments";
+import { organizationInboxHref, organizationName } from "@/lib/support/organization";
 import { buildThreadItems, initials, isAutomaticReply, isDxgSide, timeLabel } from "@/lib/support/thread";
 import AttachmentPicker from "./AttachmentPicker";
 import CannedReplyPicker from "./CannedReplyPicker";
@@ -38,6 +41,8 @@ import ResponseDueBadge from "./ResponseDueBadge";
 
 type Props = {
   ticket: SupportTicket;
+  /** The customer organization the ticket belongs to; absent from an older backend. */
+  organization?: SupportOrganizationSummary | null;
   requester: SupportUserSummary | null;
   assignee: SupportUserSummary | null;
   messages: SupportMessage[];
@@ -185,6 +190,7 @@ const MessageRow = ({
 
 export default function SupportTicketWorkspace({
   ticket,
+  organization,
   requester,
   messages,
   agents,
@@ -192,6 +198,9 @@ export default function SupportTicketWorkspace({
   currentUserId,
 }: Props) {
   const router = useRouter();
+  // Ticket numbers are per organization, so the header names the organization beside the number.
+  const customerOrganization = organizationName(organization ?? ticket.organization);
+  const organizationHref = organizationInboxHref(organization ?? ticket.organization);
   const [mode, setMode] = useState<"reply" | "note">("reply");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -353,6 +362,22 @@ export default function SupportTicketWorkspace({
       <section className="flex h-[calc(100dvh-7.5rem)] min-h-[520px] flex-col overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
         <header className="space-y-3 border-b border-slate-100 px-5 py-3.5 dark:border-[#203541]">
           <div className="flex flex-wrap items-center gap-2">
+            {customerOrganization &&
+              (organizationHref ? (
+                <Link
+                  href={organizationHref}
+                  title="Show every ticket from this organization"
+                  className="inline-flex max-w-[18rem] items-center gap-1 truncate rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 transition hover:bg-[#e6f7f8] hover:text-[#007f86] dark:bg-[#1c3442] dark:text-slate-200"
+                >
+                  <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{customerOrganization}</span>
+                </Link>
+              ) : (
+                <span className="inline-flex max-w-[18rem] items-center gap-1 truncate rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 dark:bg-[#1c3442] dark:text-slate-200">
+                  <Building2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{customerOrganization}</span>
+                </span>
+              ))}
             <span className="text-sm font-bold text-slate-400">#{ticket.ticketNumber}</span>
             <h1 className="text-lg font-extrabold tracking-[-0.02em] text-[#10203a] dark:text-slate-50">{ticket.subject}</h1>
             <ResponseDueBadge dueAt={ticket.responseDueAt} resolvedAt={ticket.status === "resolved" ? ticket.resolvedAt : null} />
