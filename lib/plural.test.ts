@@ -9,4 +9,9 @@ describe("countLabel", () => {
     expect(countLabel(1, "reply", "replies")).toBe("1 reply");
     expect(countLabel(3, "reply", "replies")).toBe("3 replies");
   });
+
+  it("reads a numeric string from untyped backend JSON as its number", () => {
+    expect(countLabel("1" as unknown as number, "proposal")).toBe("1 proposal");
+    expect(countLabel("12" as unknown as number, "proposal")).toBe("12 proposals");
+  });
 });
