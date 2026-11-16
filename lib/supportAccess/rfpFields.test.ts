@@ -25,6 +25,9 @@ describe("granted RFP wording", () => {
     expect(humanizeKey("venueAvContactName")).toBe("Venue AV contact name");
     expect(humanizeKey("rfpTimeline")).toBe("Proposal timeline");
     expect(humanizeKey("vendorRfpNotes")).toBe("Vendor proposal notes");
+    expect(humanizeKey("relatedRfps")).toBe("Related proposals");
+    expect(humanizeValue("RFP_SENT")).toBe("Proposal sent");
+    expect(stageLabel({ stage: "rfp_issued" })).toBe("Proposal issued");
     expect(humanizeValue("CONTRACT_SIGNED")).toBe("Contract signed");
     expect(humanizeValue("NO")).toBe("No");
     expect(humanizeValue("2026-09-15T14:00:00.000Z")).toBe("Sep 15, 2026, 2:00 PM UTC");

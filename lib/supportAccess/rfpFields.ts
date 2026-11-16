@@ -59,7 +59,7 @@ export type RfpField =
 
 const ACRONYMS: Record<string, string> = {
   av: "AV", coi: "COI", dei: "DEI", nda: "NDA", qa: "Q&A", url: "URL", urls: "URLs",
-  rfp: "proposal", led: "LED", imag: "IMAG", ppl: "people", qty: "qty", ext: "ext.", id: "ID",
+  rfp: "proposal", rfps: "proposals", led: "LED", imag: "IMAG", ppl: "people", qty: "qty", ext: "ext.", id: "ID",
 };
 
 /** "venueAvContactName" → "Venue AV contact name". */
@@ -89,7 +89,7 @@ export const humanizeValue = (value: unknown): string => {
   if (LEGACY_ANSWERS[raw]) return LEGACY_ANSWERS[raw];
   if (/^(YES|NO)$/i.test(raw)) return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   if (/^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$/.test(raw) || /^[A-Z]{4,}$/.test(raw)) {
-    const words = raw.toLowerCase().replace(/_/g, " ");
+    const words = raw.toLowerCase().split("_").map((word) => ACRONYMS[word] ?? word).join(" ");
     return words.charAt(0).toUpperCase() + words.slice(1);
   }
   if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) {
