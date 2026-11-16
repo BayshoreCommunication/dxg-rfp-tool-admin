@@ -59,7 +59,7 @@ export type RfpField =
 
 const ACRONYMS: Record<string, string> = {
   av: "AV", coi: "COI", dei: "DEI", nda: "NDA", qa: "Q&A", url: "URL", urls: "URLs",
-  rfp: "RFP", led: "LED", imag: "IMAG", ppl: "people", qty: "qty", ext: "ext.", id: "ID",
+  rfp: "proposal", led: "LED", imag: "IMAG", ppl: "people", qty: "qty", ext: "ext.", id: "ID",
 };
 
 /** "venueAvContactName" → "Venue AV contact name". */

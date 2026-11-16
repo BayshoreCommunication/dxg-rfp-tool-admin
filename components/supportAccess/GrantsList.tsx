@@ -43,7 +43,7 @@ const OpenLink = ({ grant }: { grant: GrantedAccess }) => (
     prefetch={false}
     className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-[#008f96] transition hover:border-[#00aeb5] hover:text-[#009ca4]"
   >
-    {grant.scope === "organization" ? "View RFPs" : "Open RFP"}
+    {grant.scope === "organization" ? "View proposals" : "Open proposal"}
     <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
     <span className="sr-only"> for {organizationLabel(grant.organization.name)}</span>
   </Link>
@@ -81,7 +81,7 @@ export default async function GrantsList({ notice }: { notice?: AccessNotice }) 
               ) : null}
             </div>
             <p className="mt-0.5 text-sm text-slate-500">
-              Active grants to RFPilot Support, soonest to end first. An organization&apos;s RFPs can be opened only from here.
+              Active grants to RFPilot Support, soonest to end first. An organization&apos;s proposals can be opened only from here.
             </p>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default async function GrantsList({ notice }: { notice?: AccessNotice }) 
             <p className="mt-4 text-sm font-bold text-slate-600">No active grants</p>
             <p className="mt-1 max-w-md text-sm text-slate-400">
               No organization has granted RFPilot Support access right now. An Owner or Admin grants it from their organization
-              settings, for one RFP or the whole organization, for up to 30 days.
+              settings, for one proposal or the whole organization, for up to 30 days.
             </p>
           </div>
         ) : (

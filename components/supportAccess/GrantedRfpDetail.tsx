@@ -78,10 +78,10 @@ export const RfpViewTabs = ({
   rfpId: string;
   active: "rfp" | "vendor-responses";
 }) => (
-  <nav aria-label="RFP views" className="flex flex-wrap gap-2">
+  <nav aria-label="Proposal views" className="flex flex-wrap gap-2">
     {(
       [
-        { id: "rfp", label: "RFP", href: grantedRfpPath(organizationId, rfpId) },
+        { id: "rfp", label: "Proposal", href: grantedRfpPath(organizationId, rfpId) },
         { id: "vendor-responses", label: "Vendor responses", href: grantedVendorResponsesPath(organizationId, rfpId) },
       ] as const
     ).map((tab) => (
@@ -108,7 +108,7 @@ export const BackToRfps = ({ organizationId, scope }: { organizationId: string; 
     prefetch={false}
     className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition hover:text-[#008f96]"
   >
-    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {scope === "organization" ? "All RFPs in this organization" : "Granted RFPs"}
+    <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {scope === "organization" ? "All proposals in this organization" : "Granted proposals"}
   </Link>
 );
 
@@ -211,7 +211,7 @@ export default function GrantedRfpDetail({ organizationId, data }: { organizatio
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
-        <nav aria-label="RFP sections" className="hidden lg:block">
+        <nav aria-label="Proposal sections" className="hidden lg:block">
           <ul className="sticky top-6 space-y-1 text-sm">
             {filled.map((section) => (
               <li key={section.key}>

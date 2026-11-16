@@ -7,7 +7,7 @@ import { RfpNotFound, SupportAccessError } from "@/components/supportAccess/Supp
 import { grantedOrganizationName } from "@/lib/supportAccess/grantedOrganization";
 import { accessEndedPath, organizationRfpsPath } from "@/lib/supportAccess/grants";
 
-export const metadata = { title: "RFP" };
+export const metadata = { title: "Proposal" };
 export const dynamic = "force-dynamic";
 
 type GrantedRfpPageProps = {
@@ -20,7 +20,7 @@ export default async function GrantedRfpPage({ params }: GrantedRfpPageProps) {
   const response = await getGrantedRfpAction(organizationId, rfpId);
   if (!response.ok) {
     if (response.failure === "grant_required") redirect(accessEndedPath());
-    const back = { backHref: organizationRfpsPath(organizationId), backLabel: "Back to this organization's granted RFPs" };
+    const back = { backHref: organizationRfpsPath(organizationId), backLabel: "Back to this organization's granted proposals" };
     return response.failure === "not_found" ? <RfpNotFound {...back} /> : <SupportAccessError message={response.error} {...back} />;
   }
 

@@ -18,7 +18,7 @@ export default function GrantedVendorResponses({ responses }: { responses: Grant
             <Inbox className="h-6 w-6" aria-hidden="true" />
           </span>
           <p className="mt-4 text-sm font-bold text-slate-600">No vendor responses yet</p>
-          <p className="mt-1 text-sm text-slate-400">No vendor has responded to this RFP.</p>
+          <p className="mt-1 text-sm text-slate-400">No vendor has responded to this proposal.</p>
         </div>
       ) : (
         <ul className="divide-y divide-slate-100">

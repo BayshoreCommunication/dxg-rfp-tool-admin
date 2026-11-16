@@ -1,6 +1,8 @@
 // Plan management (ORG-603): shapes of /api/v1/admin/organization-plans and the wording the
 // Organizations page shows. The backend owns the plan table; nothing here decides a limit.
 
+import { countLabel } from "@/lib/plural";
+
 export type PlanFeatures = {
   vendorResponses: boolean;
   proposalIntelligence: boolean;
@@ -8,7 +10,7 @@ export type PlanFeatures = {
 
 export type PlanOption = {
   id: string;
-  /** RFPs an organization may create on this plan; null is no limit. */
+  /** Proposals an organization may create on this plan; null is no limit. */
   proposalLimit: number | null;
   features: PlanFeatures;
 };
@@ -75,12 +77,12 @@ export const planLabel = (plan: string | null | undefined): string => {
   return words ? words.charAt(0).toUpperCase() + words.slice(1) : "Unknown plan";
 };
 
-const rfps = (count: number) => `${count.toLocaleString("en-US")} ${count === 1 ? "RFP" : "RFPs"}`;
+const proposals = (count: number) => countLabel(count, "proposal");
 
 export const usageLabel = (usage: PlanUsage): string =>
   usage.limit === null
-    ? `${rfps(usage.created)} created · no limit`
-    : `${usage.created.toLocaleString("en-US")} of ${rfps(usage.limit)} created`;
+    ? `${proposals(usage.created)} created · no limit`
+    : `${usage.created.toLocaleString("en-US")} of ${proposals(usage.limit)} created`;
 
 /** Share of the limit used, 0 to 100; null when the plan has no limit. */
 export const usagePercent = (usage: PlanUsage): number | null => {
@@ -90,13 +92,13 @@ export const usagePercent = (usage: PlanUsage): number | null => {
 };
 
 export const planLimitLabel = (plan: PlanOption): string =>
-  plan.proposalLimit === null ? "No limit on RFPs" : `Up to ${rfps(plan.proposalLimit)}`;
+  plan.proposalLimit === null ? "No limit on proposals" : `Up to ${proposals(plan.proposalLimit)}`;
 
 export const planFeaturesLabel = (features: PlanFeatures): string => {
-  if (features.vendorResponses && features.proposalIntelligence) return "Vendor responses and RFP intelligence included";
-  if (features.vendorResponses) return "Vendor responses included, RFP intelligence locked";
-  if (features.proposalIntelligence) return "RFP intelligence included, vendor responses locked";
-  return "Vendor responses and RFP intelligence locked";
+  if (features.vendorResponses && features.proposalIntelligence) return "Vendor responses and proposal intelligence included";
+  if (features.vendorResponses) return "Vendor responses included, proposal intelligence locked";
+  if (features.proposalIntelligence) return "Proposal intelligence included, vendor responses locked";
+  return "Vendor responses and proposal intelligence locked";
 };
 
 /* What staff are told before they confirm a change: the effect on this organization, in the
@@ -105,17 +107,17 @@ export const planChangeEffects = (organization: OrganizationPlanItem, target: Pl
   const effects: string[] = [];
   const { created } = organization.proposals;
   if (target.proposalLimit === null) {
-    effects.push("No limit on the number of RFPs.");
+    effects.push("No limit on the number of proposals.");
   } else if (created >= target.proposalLimit) {
     effects.push(
-      `Limited to ${rfps(target.proposalLimit)}. This organization has created ${created.toLocaleString("en-US")}, so it can't create more.`,
+      `Limited to ${proposals(target.proposalLimit)}. This organization has created ${created.toLocaleString("en-US")}, so it can't create more.`,
     );
   } else {
-    effects.push(`Limited to ${rfps(target.proposalLimit)} (${created.toLocaleString("en-US")} created so far).`);
+    effects.push(`Limited to ${proposals(target.proposalLimit)} (${created.toLocaleString("en-US")} created so far).`);
   }
   const features: Array<[keyof PlanFeatures, string]> = [
     ["vendorResponses", "Vendor responses"],
-    ["proposalIntelligence", "RFP intelligence"],
+    ["proposalIntelligence", "Proposal intelligence"],
   ];
   let losesAccess = false;
   for (const [key, label] of features) {
@@ -129,7 +131,7 @@ export const planChangeEffects = (organization: OrganizationPlanItem, target: Pl
     );
   }
   if (losesAccess) {
-    effects.push("Existing RFPs and vendor responses already received are kept. AI jobs already in progress will finish.");
+    effects.push("Existing proposals and vendor responses already received are kept. AI jobs already in progress will finish.");
   }
   effects.push("Takes effect right away. Nobody has to sign out.");
   return effects;

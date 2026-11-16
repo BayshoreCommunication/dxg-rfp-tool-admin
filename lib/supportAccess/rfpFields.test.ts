@@ -23,6 +23,8 @@ describe("granted RFP wording", () => {
 
   it("turns stored form data into readable rows and skips blanks", () => {
     expect(humanizeKey("venueAvContactName")).toBe("Venue AV contact name");
+    expect(humanizeKey("rfpTimeline")).toBe("Proposal timeline");
+    expect(humanizeKey("vendorRfpNotes")).toBe("Vendor proposal notes");
     expect(humanizeValue("CONTRACT_SIGNED")).toBe("Contract signed");
     expect(humanizeValue("NO")).toBe("No");
     expect(humanizeValue("2026-09-15T14:00:00.000Z")).toBe("Sep 15, 2026, 2:00 PM UTC");

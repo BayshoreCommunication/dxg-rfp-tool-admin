@@ -30,7 +30,7 @@ export type SupportAccessResult<T> =
 
 const MESSAGES: Record<SupportAccessFailure, string> = {
   grant_required: "This organization hasn't granted RFPilot Support access, or the access has ended.",
-  not_found: "RFP not found.",
+  not_found: "Proposal not found.",
   error: "Support access could not be loaded. Please try again in a moment.",
 };
 
