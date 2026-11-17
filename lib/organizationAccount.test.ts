@@ -1,5 +1,6 @@
 import {
   ORGANIZATION_ACCOUNT_FAILURES,
+  accountPlanItem,
   accountPlanLabel,
   autoApproveLabel,
   companySsoLabel,
@@ -174,6 +175,22 @@ describe("organization account wording", () => {
     expect(accountPlanLabel({ plan: "full_access", exempt: true })).toBe("Exempt from plans");
   });
 
+  it("hands the plan components a name even when the organization has none", () => {
+    const named = parseOrganizationAccount(response())!;
+    expect(accountPlanItem(named)).toEqual({
+      id: ORG,
+      name: "Acme Events",
+      slug: "acme-events",
+      status: "active",
+      createdAt: "2026-03-04T10:00:00.000Z",
+      plan: "free_trial",
+      proposals: { created: 2, limit: 2, remaining: 0, canCreate: false },
+      features: { vendorResponses: false, proposalIntelligence: false },
+    });
+    const unnamed = parseOrganizationAccount({ ...response(), organization: { ...response().organization, name: "  " } })!;
+    expect(accountPlanItem(unnamed).name).toBe("Unnamed organization");
+  });
+
   it("lists role counts with the role names staff know, and Other only when used", () => {
     const byRole = { owner: 1, organization_admin: 2, team_manager: 0, planner: 1234, viewer: 1, other: 0 };
     expect(roleCountRows(byRole).map((row) => [row.label, row.count])).toEqual([
@@ -239,7 +256,8 @@ describe("organization account wording", () => {
   });
 
   it("gives dates and times in UTC, and says when there is none", () => {
-    expect(formatAccountDate("2026-03-04T23:30:00.000Z")).toBe("Mar 4, 2026");
+    expect(formatAccountDate("2026-03-04T23:30:00.000Z")).toBe("Mar 4, 2026 UTC");
+    expect(formatAccountDate("2026-03-04T00:30:00.000Z")).toBe("Mar 4, 2026 UTC");
     expect(formatAccountDate(null)).toBe("Not recorded");
     expect(formatAccountDate("nonsense")).toBe("Not recorded");
     expect(lastSignInLabel("2026-11-16T08:05:00.000Z")).toBe("Nov 16, 2026, 8:05 AM UTC");

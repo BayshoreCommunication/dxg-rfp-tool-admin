@@ -30,7 +30,8 @@ const formatDate = (isoDate?: string | null) => {
   if (!isoDate) return "—";
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  // UTC, like the organization detail page, so the two can never differ by a day.
+  return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 };
 
 const headerCell = "px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500";
@@ -98,12 +99,13 @@ export const Features = ({ features }: { features: PlanFeatures }) => (
 
 const OrganizationName = ({ organization }: { organization: OrganizationPlanItem }) => (
   <div className="min-w-0">
-    <p className="truncate text-[13px] font-bold text-[#20304b]" title={organization.name}>
+    <p className="text-[13px] font-bold text-[#20304b]" title={organization.name}>
       {/* The detail page is an audited read: never fetch it ahead of the click. */}
       <Link
         href={organizationAccountPath(organization.id)}
         prefetch={false}
-        className="rounded-sm underline-offset-2 hover:text-[#007f86] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5] dark:hover:text-cyan-300"
+        // The link itself truncates, and its focus ring is drawn inside it so nothing clips it.
+        className="block truncate rounded-sm underline-offset-2 hover:text-[#007f86] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00aeb5] dark:hover:text-cyan-300"
       >
         {organization.name || "Unnamed organization"}
       </Link>

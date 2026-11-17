@@ -209,10 +209,13 @@ export const parseOrganizationAccount = (data: unknown): OrganizationAccount | n
   };
 };
 
-/** The organization as the plan components (usage bar, "Change plan") take it. */
+export const organizationName = (name: string): string => name.trim() || "Unnamed organization";
+
+/** The organization as the plan components (usage bar, "Change plan") take it. They put the
+    name in labels ("Change plan for …"), so an unnamed organization still gets one. */
 export const accountPlanItem = (account: OrganizationAccount): OrganizationPlanItem => ({
   id: account.organization.id,
-  name: account.organization.name,
+  name: organizationName(account.organization.name),
   slug: account.organization.slug,
   status: account.organization.status,
   createdAt: account.organization.createdAt,
@@ -220,8 +223,6 @@ export const accountPlanItem = (account: OrganizationAccount): OrganizationPlanI
   proposals: account.plan.proposals,
   features: account.plan.features,
 });
-
-export const organizationName = (name: string): string => name.trim() || "Unnamed organization";
 
 /* ---------- when the page can't show an organization ---------- */
 
@@ -387,7 +388,7 @@ export const countryLabel = (code: string | null): string => {
 export const formatAccountDate = (iso: string | null): string => {
   const date = iso ? new Date(iso) : null;
   if (!date || Number.isNaN(date.getTime())) return "Not recorded";
-  return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return `${date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })} UTC`;
 };
 
 export const formatAccountDateTime = (iso: string | null): string | null => {
