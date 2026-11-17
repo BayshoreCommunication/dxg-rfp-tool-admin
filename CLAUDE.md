@@ -33,7 +33,10 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
   `lib/organizationAccount.ts`) shows account-level information without a grant: counts, settings
   and the Owner as account contact, never a member list or customer content (owner decision,
   2026-11-17). Each view is audited in the staff organization: no caching, and `prefetch={false}`
-  on links into it. A 404 without `ORGANIZATION_NOT_FOUND` means the API does not have the route yet.
+  on links into it. A plan change from the detail page writes up to two further read events (the
+  action's revalidation and `ChangePlanButton`'s `router.refresh()` can each re-render the page).
+  The page's backend reads are decided in `loadOrganizationPage`. A 404 without
+  `ORGANIZATION_NOT_FOUND` means the API does not have the route yet.
 - Config comes from `BACKEND_URL`, `NEXTAUTH_URL`, `AUTH_SECRET` and `BFF_SHARED_SECRET`
   (see `.env.example`). The build needs none of them.
 
