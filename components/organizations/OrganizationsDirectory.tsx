@@ -1,6 +1,7 @@
 import { listOrganizationPlansAction } from "@/app/actions/organizationPlans";
 import { buildPageList } from "@/components/clients/ClientDetilas";
 import ClientSearchForm from "@/components/clients/ClientSearchForm";
+import { organizationAccountPath } from "@/lib/organizationAccount";
 import { countLabel } from "@/lib/plural";
 import {
   planLabel,
@@ -29,12 +30,13 @@ const formatDate = (isoDate?: string | null) => {
   if (!isoDate) return "—";
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" });
+  // UTC, like the organization detail page, so the two can never differ by a day.
+  return date.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 };
 
 const headerCell = "px-4 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500";
 
-const PlanBadge = ({ plan }: { plan: string }) => (
+export const PlanBadge = ({ plan }: { plan: string }) => (
   <span
     className={`inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold ${
       plan === "free_trial" ? "bg-amber-50 text-amber-700 dark:text-amber-300" : "bg-emerald-50 text-emerald-700"
@@ -44,7 +46,7 @@ const PlanBadge = ({ plan }: { plan: string }) => (
   </span>
 );
 
-const Usage = ({ organization }: { organization: OrganizationPlanItem }) => {
+export const Usage = ({ organization }: { organization: OrganizationPlanItem }) => {
   const percent = usagePercent(organization.proposals);
   const atLimit = !organization.proposals.canCreate;
   return (
@@ -88,7 +90,7 @@ const Feature = ({ label, unlocked }: { label: string; unlocked: boolean }) => (
   </span>
 );
 
-const Features = ({ features }: { features: PlanFeatures }) => (
+export const Features = ({ features }: { features: PlanFeatures }) => (
   <div className="flex flex-col gap-1">
     <Feature label="Vendor responses" unlocked={features.vendorResponses} />
     <Feature label="Proposal intelligence" unlocked={features.proposalIntelligence} />
@@ -97,8 +99,16 @@ const Features = ({ features }: { features: PlanFeatures }) => (
 
 const OrganizationName = ({ organization }: { organization: OrganizationPlanItem }) => (
   <div className="min-w-0">
-    <p className="truncate text-[13px] font-bold text-[#20304b]" title={organization.name}>
-      {organization.name || "Unnamed organization"}
+    <p className="text-[13px] font-bold text-[#20304b]" title={organization.name}>
+      {/* The detail page is an audited read: never fetch it ahead of the click. */}
+      <Link
+        href={organizationAccountPath(organization.id)}
+        prefetch={false}
+        // The link itself truncates, and its focus ring is drawn inside it so nothing clips it.
+        className="block truncate rounded-sm underline-offset-2 hover:text-[#007f86] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#00aeb5] dark:hover:text-cyan-300"
+      >
+        {organization.name || "Unnamed organization"}
+      </Link>
     </p>
     <p className="mt-0.5 truncate text-xs text-slate-400" title={organization.slug}>
       {organization.slug}

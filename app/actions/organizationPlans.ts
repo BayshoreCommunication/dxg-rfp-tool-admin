@@ -3,6 +3,14 @@
 import { revalidatePath } from "next/cache";
 
 import { BACKEND_URL } from "@/lib/config";
+import {
+  ORGANIZATION_ACCOUNT_FAILURES,
+  isOrganizationId,
+  organizationAccountFailure,
+  parseOrganizationAccount,
+  type OrganizationAccountFailure,
+  type OrganizationAccountResult,
+} from "@/lib/organizationAccount";
 import type { OrganizationPlanDetail, OrganizationPlansPage } from "@/lib/organizationPlans";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
@@ -78,4 +86,37 @@ export async function changeOrganizationPlanAction(
   );
   if (result.ok) revalidatePath("/organizations");
   return result;
+}
+
+/* Organization account detail (owner decision, 2026-11-17): account-level facts about one
+   organization, with no support grant, no member list and no customer content. The backend
+   records each successful read in the staff organization's audit trail, so nothing here is
+   cached and the page is never fetched ahead of being opened. */
+
+const ACCOUNT_BASE = `${BACKEND_URL}/api/v1/admin/organizations`;
+
+const accountRefused = (failure: OrganizationAccountFailure): OrganizationAccountResult => ({
+  ok: false,
+  failure,
+  error: ORGANIZATION_ACCOUNT_FAILURES[failure].message,
+});
+
+export async function getOrganizationAccountAction(organizationId: string): Promise<OrganizationAccountResult> {
+  // The backend answers the same for a malformed id; this saves the request.
+  if (!isOrganizationId(organizationId)) return accountRefused("invalid_id");
+  try {
+    const response = await authenticatedBackendFetch(`${ACCOUNT_BASE}/${encodeURIComponent(organizationId)}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    const body = (await response.json().catch(() => null)) as { code?: unknown; data?: unknown } | null;
+    if (!response.ok) {
+      return accountRefused(organizationAccountFailure(response.status, typeof body?.code === "string" ? body.code : null));
+    }
+    const data = parseOrganizationAccount(body?.data);
+    return data ? { ok: true, data } : accountRefused("unavailable");
+  } catch {
+    return accountRefused("unavailable");
+  }
 }
