@@ -5,7 +5,7 @@
 // allowlist; the parser here keeps only the fields the page shows, so a field added to the
 // response later does not reach the screen by accident.
 
-import { planLabel, type PlanFeatures, type PlanUsage } from "@/lib/organizationPlans";
+import { planLabel, type OrganizationPlanItem, type PlanFeatures, type PlanUsage } from "@/lib/organizationPlans";
 import { countLabel } from "@/lib/plural";
 
 export type OrganizationStanding = "awaiting_placement" | "platform" | "active" | "inactive";
@@ -209,6 +209,20 @@ export const parseOrganizationAccount = (data: unknown): OrganizationAccount | n
     supportAccess: { active: record(root.supportAccess)?.active === true },
   };
 };
+
+/** The organization as the plan components (usage bar, "Change plan") take it. */
+export const accountPlanItem = (account: OrganizationAccount): OrganizationPlanItem => ({
+  id: account.organization.id,
+  name: account.organization.name,
+  slug: account.organization.slug,
+  status: account.organization.status,
+  createdAt: account.organization.createdAt,
+  plan: account.plan.plan,
+  proposals: account.plan.proposals,
+  features: account.plan.features,
+});
+
+export const organizationName = (name: string): string => name.trim() || "Unnamed organization";
 
 /* ---------- when the page can't show an organization ---------- */
 

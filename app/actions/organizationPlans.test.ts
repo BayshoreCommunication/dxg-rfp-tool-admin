@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 jest.mock("server-only", () => ({}));
@@ -203,5 +203,53 @@ describe("organization account action", () => {
 
     mockedFetch.mockResolvedValue(jsonResponse(200, { success: true }));
     await expect(getOrganizationAccountAction(ORG)).resolves.toMatchObject({ ok: false, failure: "unavailable" });
+  });
+});
+
+// No component harness in this repo (Jest runs in node), so these read the source, the same way
+// the support-access tests check their links.
+describe("organization detail page wiring", () => {
+  const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
+  const page = "app/(page)/organizations/[organizationId]/page.tsx";
+
+  it("links each organization in the list to its detail page", () => {
+    const directory = read("components/organizations/OrganizationsDirectory.tsx");
+    expect(directory).toMatch(/<Link\s+href=\{organizationAccountPath\(organization\.id\)\}\s+prefetch=\{false\}/);
+    // "Change plan" stays on the list, in the table and in the phone layout.
+    expect(directory.match(/<ChangePlanButton organization=\{organization\} plans=\{plans\} \/>/g)).toHaveLength(2);
+  });
+
+  it("never prefetches the audited read: every link into a detail page opts out", () => {
+    const files = [
+      ...readdirSync(join(process.cwd(), "components/organizations")).map((name) => `components/organizations/${name}`),
+      page,
+      "app/(page)/organizations/[organizationId]/loading.tsx",
+    ];
+    let found = 0;
+    for (const file of files) {
+      for (const link of read(file).match(/<Link\b[^>]*>/g) ?? []) {
+        if (!/organizationAccountPath\(/.test(link)) continue;
+        found += 1;
+        expect({ file, link, optsOut: /prefetch=\{false\}/.test(link) }).toMatchObject({ optsOut: true });
+      }
+    }
+    expect(found).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders the page for every request and reads only the account and the plan table", () => {
+    const source = read(page);
+    expect(source).toMatch(/export const dynamic = "force-dynamic"/);
+    expect(source).not.toMatch(/revalidate|unstable_cache|"use cache"/);
+    const actions = source.match(/\b\w+Action\b/g) ?? [];
+    expect([...new Set(actions)].sort()).toEqual(["getOrganizationAccountAction", "getOrganizationPlanAction"]);
+    expect(source).not.toMatch(/supportAccess|allClients|adminUser/);
+  });
+
+  it("says what staff do not see on the page and points to Support access", () => {
+    const source = read("components/organizations/OrganizationAccount.tsx");
+    expect(source).toMatch(/Members, proposals and other customer content are not shown here\./);
+    expect(source).toMatch(/need a support access grant from the organization/);
+    expect(source).toMatch(/href=\{SUPPORT_ACCESS_PATH\}/);
+    expect(source).toMatch(/Sign-in methods offered/);
   });
 });
