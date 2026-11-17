@@ -102,7 +102,6 @@ const account = {
     openSupportTickets: 0,
   },
   security: {
-    signInMethods: ["password", "google", "microsoft"],
     requireTwoFactor: false,
     companySso: { configured: false, enabled: false, required: false, type: null },
     domains: [],
@@ -130,11 +129,17 @@ describe("organization account action", () => {
 
   it("returns only the fields the page shows", async () => {
     mockedFetch.mockResolvedValue(
-      jsonResponse(200, { success: true, data: { ...account, members: [{ email: "someone@acme.example" }], supportAccess: { active: true, reason: "Ticket 4411" } } }),
+      jsonResponse(200, { success: true, data: {
+          ...account,
+          members: [{ email: "someone@acme.example" }],
+          supportAccess: { active: true, reason: "Ticket 4411" },
+          security: { ...account.security, signInMethods: ["password", "google", "microsoft"] },
+        },
+      }),
     );
     const result = await getOrganizationAccountAction(ORG);
     expect(result).toEqual({ ok: true, data: { ...account, supportAccess: { active: true } } });
-    expect(JSON.stringify(result)).not.toMatch(/someone@acme\.example|Ticket 4411/);
+    expect(JSON.stringify(result)).not.toMatch(/someone@acme\.example|Ticket 4411|microsoft/);
   });
 
   it("never caches the read: every one is recorded in the staff audit trail", async () => {
@@ -250,6 +255,7 @@ describe("organization detail page wiring", () => {
     expect(source).toMatch(/Members, proposals and other customer content are not shown here\./);
     expect(source).toMatch(/need a support access grant from the organization/);
     expect(source).toMatch(/href=\{SUPPORT_ACCESS_PATH\}/);
-    expect(source).toMatch(/Sign-in methods offered/);
+    // The platform-wide sign-in list says nothing about one organization, so it is not shown.
+    expect(source).not.toMatch(/sign-in methods|signInMethod|Microsoft|Google/i);
   });
 });

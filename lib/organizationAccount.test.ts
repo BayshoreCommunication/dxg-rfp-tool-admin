@@ -19,7 +19,6 @@ import {
   parseOrganizationAccount,
   proposalsStoredLabel,
   roleCountRows,
-  signInMethodLabels,
   standingBadge,
   standingLabel,
   supportAccessLabel,
@@ -62,7 +61,6 @@ const response = () => ({
     openSupportTickets: 1,
   },
   security: {
-    signInMethods: ["password", "google", "microsoft", "company_sso"],
     requireTwoFactor: true,
     companySso: { configured: true, enabled: true, required: false, type: "oidc" },
     domains: [
@@ -88,10 +86,12 @@ describe("reading the organization account response", () => {
       owner: { name: "Dana Whitfield", email: "dana@acme.example", id: "c".repeat(24), phone: "555-0100" },
       plan: { ...response().plan, lastChange: { ...response().plan.lastChange, note: "Paid by invoice" } },
       supportAccess: { active: true, reason: "Ticket 4411", expiresAt: "2026-12-01T00:00:00.000Z" },
+      // The same platform-wide list for every organization: not a fact about this one.
+      security: { ...response().security, signInMethods: ["password", "google", "microsoft", "company_sso"] },
     };
     const parsed = parseOrganizationAccount(withExtras);
     expect(parsed).toEqual(response());
-    expect(JSON.stringify(parsed)).not.toMatch(/Someone Else|555-0100|Paid by invoice|Ticket 4411/);
+    expect(JSON.stringify(parsed)).not.toMatch(/Someone Else|555-0100|Paid by invoice|Ticket 4411|signInMethods|microsoft/i);
   });
 
   it("refuses a response that is not an organization", () => {
@@ -113,7 +113,7 @@ describe("reading the organization account response", () => {
         proposals: { total: 0 },
         openSupportTickets: 0,
       },
-      security: { signInMethods: [], requireTwoFactor: false, domains: [], companySso: { configured: false, enabled: false, required: false, type: null } },
+      security: { requireTwoFactor: false, domains: [], companySso: { configured: false, enabled: false, required: false, type: null } },
       activity: { lastSignInAt: null },
       supportAccess: { active: false },
     });
@@ -209,25 +209,15 @@ describe("organization account wording", () => {
     expect(domainStatusBadge("")).toEqual({ label: "Unknown status", tone: "neutral" });
   });
 
-  it("names the sign-in methods offered without claiming one is in use", () => {
-    expect(signInMethodLabels(["password", "google", "microsoft", "company_sso"])).toEqual([
-      "Email and password",
-      "Google",
-      "Microsoft",
-      "Company single sign-on",
-    ]);
-    expect(signInMethodLabels(["google", "google", "magic_link"])).toEqual(["Google", "Magic link"]);
-    expect(signInMethodLabels([])).toEqual([]);
-    expect(signInMethodLabels(["microsoft"]).join(" ")).not.toMatch(/uses|configured|connected|enabled/i);
-  });
-
   it("describes company single sign-on in each state", () => {
     expect(companySsoLabel({ configured: false, enabled: false, required: false, type: null })).toBe("Not set up");
     expect(companySsoLabel({ configured: false, enabled: false, required: true, type: null })).toBe("Not set up (marked as required)");
     expect(companySsoLabel({ configured: true, enabled: false, required: false, type: "oidc" })).toBe("Set up, turned off");
-    expect(companySsoLabel({ configured: true, enabled: true, required: false, type: "oidc" })).toBe("On, optional");
+    expect(companySsoLabel({ configured: true, enabled: true, required: false, type: "oidc" })).toBe(
+      "On. Members may sign in with company single sign-on.",
+    );
     expect(companySsoLabel({ configured: true, enabled: true, required: true, type: "oidc" })).toBe(
-      "On, required for members on the organization's domains",
+      "On. Members on the organization's domains must sign in with company single sign-on.",
     );
   });
 

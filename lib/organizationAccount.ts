@@ -33,6 +33,9 @@ export type AccountPlanChange = {
   changedBy: { id: string; name: string | null } | null;
 };
 
+/* `security.signInMethods` is deliberately not kept: the backend sends the same platform-wide
+   list for every organization without checking a provider is set up (Microsoft is not), so it
+   says nothing about this organization. The card shows organization-specific facts only. */
 export type OrganizationAccount = {
   organization: {
     id: string;
@@ -60,7 +63,6 @@ export type OrganizationAccount = {
     openSupportTickets: number;
   };
   security: {
-    signInMethods: string[];
     requireTwoFactor: boolean;
     companySso: CompanySso;
     domains: Array<{ domain: string; status: string }>;
@@ -186,9 +188,6 @@ export const parseOrganizationAccount = (data: unknown): OrganizationAccount | n
       openSupportTickets: count(counts?.openSupportTickets),
     },
     security: {
-      signInMethods: Array.isArray(security?.signInMethods)
-        ? security.signInMethods.filter((method): method is string => typeof method === "string" && method.trim() !== "")
-        : [],
       requireTwoFactor: security?.requireTwoFactor === true,
       companySso: {
         configured: sso?.configured === true,
@@ -345,24 +344,12 @@ export const domainStatusBadge = (status: string): { label: string; tone: BadgeT
 
 export const domainsLabel = (total: number): string => (total === 0 ? "No domains added" : countLabel(total, "domain"));
 
-const SIGN_IN_METHODS: Record<string, string> = {
-  password: "Email and password",
-  google: "Google",
-  microsoft: "Microsoft",
-  company_sso: "Company single sign-on",
-};
-
-/* What members are offered at sign-in. Google and Microsoft are offered to every organization
-   and the list does not say a provider is set up or that anyone signs in with it, so the page
-   titles this "Sign-in methods offered" and never says an organization "uses" one. */
-export const signInMethodLabels = (methods: string[]): string[] => [
-  ...new Set(methods.map((method) => SIGN_IN_METHODS[method] ?? readable(method)).filter(Boolean)),
-];
-
 export const companySsoLabel = (sso: CompanySso): string => {
   if (!sso.configured) return sso.required ? "Not set up (marked as required)" : "Not set up";
   if (!sso.enabled) return "Set up, turned off";
-  return sso.required ? "On, required for members on the organization's domains" : "On, optional";
+  return sso.required
+    ? "On. Members on the organization's domains must sign in with company single sign-on."
+    : "On. Members may sign in with company single sign-on.";
 };
 
 export const twoFactorLabel = (required: boolean): string => (required ? "Required" : "Not required");

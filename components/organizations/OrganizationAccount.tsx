@@ -17,7 +17,6 @@ import {
   plainCount,
   proposalsStoredLabel,
   roleCountRows,
-  signInMethodLabels,
   standingBadge,
   supportAccessLabel,
   teamCountLabels,
@@ -86,7 +85,6 @@ export default function OrganizationAccount({ account, plans }: Props) {
   const teams = teamCountLabels(counts.teams);
   const planItem = accountPlanItem(account);
   const lastChange = lastPlanChangeLabel(plan.lastChange);
-  const methods = signInMethodLabels(security.signInMethods);
 
   return (
     <div className="space-y-6">
@@ -208,12 +206,6 @@ export default function OrganizationAccount({ account, plans }: Props) {
         <Card title="Sign-in and security">
           <Row label="Two-factor authentication">{twoFactorLabel(security.requireTwoFactor)}</Row>
           <Row label="Company single sign-on">{companySsoLabel(security.companySso)}</Row>
-          <Row
-            label="Sign-in methods offered"
-            hint="What members are offered when they sign in. It doesn't show which ones they sign in with."
-          >
-            {methods.length > 0 ? methods.join(", ") : "Not reported"}
-          </Row>
           <Row label="Domains">
             {security.domains.length === 0 ? (
               domainsLabel(0)
