@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 jest.mock("server-only", () => ({}));
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
 jest.mock("@/lib/server/backendClient", () => ({
@@ -8,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 import {
   changeOrganizationPlanAction,
+  getOrganizationAccountAction,
   getOrganizationPlanAction,
   listOrganizationPlansAction,
 } from "./organizationPlans";
@@ -78,5 +82,126 @@ describe("organization plan actions", () => {
     const failed = await changeOrganizationPlanAction(ORG, "full_access");
     expect(failed).toEqual({ ok: false, error: "The server couldn't be reached. Check your connection and try again." });
     expect(JSON.stringify(failed)).not.toContain("10.0.0.5");
+  });
+});
+
+const account = {
+  organization: { id: ORG, name: "Acme Events", slug: "acme-events", createdAt: "2026-03-04T10:00:00.000Z", country: "US", status: "active", kind: "customer", standing: "active" },
+  owner: { name: "Dana Whitfield", email: "dana@acme.example" },
+  plan: {
+    plan: "full_access",
+    exempt: false,
+    proposals: { created: 4, limit: null, remaining: null, canCreate: true },
+    features: { vendorResponses: true, proposalIntelligence: true },
+    lastChange: null,
+  },
+  counts: {
+    members: { active: 3, deactivated: 0, byRole: { owner: 1, organization_admin: 1, team_manager: 0, planner: 1, viewer: 0, other: 0 } },
+    teams: { active: 1, archived: 0 },
+    proposals: { total: 4 },
+    openSupportTickets: 0,
+  },
+  security: {
+    signInMethods: ["password", "google", "microsoft"],
+    requireTwoFactor: false,
+    companySso: { configured: false, enabled: false, required: false, type: null },
+    domains: [],
+    autoApproveDomain: false,
+    allowManagerInvites: true,
+  },
+  activity: { lastSignInAt: null },
+  supportAccess: { active: false },
+};
+
+describe("organization account action", () => {
+  beforeEach(() => {
+    mockedFetch.mockReset();
+    mockedRevalidate.mockReset();
+  });
+
+  it("reads one organization's account through the signed-in admin's session", async () => {
+    mockedFetch.mockResolvedValue(jsonResponse(200, { success: true, data: account }));
+    await expect(getOrganizationAccountAction(ORG)).resolves.toEqual({ ok: true, data: account });
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockedFetch.mock.calls[0];
+    expect(String(url)).toMatch(new RegExp(`/api/v1/admin/organizations/${ORG}$`));
+    expect(init).toMatchObject({ method: "GET" });
+  });
+
+  it("returns only the fields the page shows", async () => {
+    mockedFetch.mockResolvedValue(
+      jsonResponse(200, { success: true, data: { ...account, members: [{ email: "someone@acme.example" }], supportAccess: { active: true, reason: "Ticket 4411" } } }),
+    );
+    const result = await getOrganizationAccountAction(ORG);
+    expect(result).toEqual({ ok: true, data: { ...account, supportAccess: { active: true } } });
+    expect(JSON.stringify(result)).not.toMatch(/someone@acme\.example|Ticket 4411/);
+  });
+
+  it("never caches the read: every one is recorded in the staff audit trail", async () => {
+    mockedFetch.mockResolvedValue(jsonResponse(200, { success: true, data: account }));
+    await getOrganizationAccountAction(ORG);
+    const init = mockedFetch.mock.calls[0][1] as RequestInit & { next?: unknown };
+    expect(init.cache).toBe("no-store");
+    expect(init.next).toBeUndefined();
+    expect(mockedRevalidate).not.toHaveBeenCalled();
+    const source = readFileSync(join(process.cwd(), "app/actions/organizationPlans.ts"), "utf8");
+    expect(source).not.toMatch(/unstable_cache|force-cache|revalidate:|"use cache"/);
+  });
+
+  it("refuses a malformed id without asking the backend", async () => {
+    for (const id of ["", "abc", "../support/tickets?x=1", `${ORG}0`]) {
+      await expect(getOrganizationAccountAction(id)).resolves.toEqual({
+        ok: false,
+        failure: "invalid_id",
+        error: "The address is incomplete or mistyped. Open the organization from the Organizations list.",
+      });
+    }
+    expect(mockedFetch).not.toHaveBeenCalled();
+  });
+
+  it("turns each backend refusal into its own plain message", async () => {
+    const cases: Array<[number, unknown, string, string]> = [
+      [400, { success: false, code: "INVALID_ORGANIZATION_ID", message: "That is not an organization id." }, "invalid_id", "The address is incomplete or mistyped. Open the organization from the Organizations list."],
+      [404, { success: false, code: "ORGANIZATION_NOT_FOUND", message: "Organization not found." }, "not_found", "This organization doesn't exist, or it has been removed."],
+      [401, { success: false, message: "Authentication required." }, "session_ended", "Sign in again to view this organization."],
+      [403, { success: false, code: "PLAN_MANAGEMENT_FORBIDDEN", message: "Only RFPilot staff can do that." }, "forbidden", "Only RFPilot staff can view organization details."],
+      [403, { success: false, message: "Forbidden" }, "forbidden", "Only RFPilot staff can view organization details."],
+      [429, { success: false, message: "Too many requests. Please try again later." }, "rate_limited", "Wait a few minutes, then open the organization again."],
+      [500, { success: false, code: "PLAN_MANAGEMENT_INTERNAL_ERROR", message: "The plan request could not be completed." }, "unavailable", "The server couldn't be reached or didn't answer as expected. Try again in a moment."],
+    ];
+    for (const [status, body, failure, error] of cases) {
+      mockedFetch.mockResolvedValue(jsonResponse(status, body));
+      const result = await getOrganizationAccountAction(ORG);
+      expect({ status, result }).toEqual({ status, result: { ok: false, failure, error } });
+      expect(JSON.stringify(result)).not.toMatch(/[A-Z]{2,}_[A-Z_]+/);
+    }
+  });
+
+  it("says the details are not available yet when the API has no such route", async () => {
+    // What the backend's catch-all answers before the release that adds the route.
+    mockedFetch.mockResolvedValue(jsonResponse(404, { success: false, message: "Route not found" }));
+    const result = await getOrganizationAccountAction(ORG);
+    expect(result).toEqual({
+      ok: false,
+      failure: "not_available",
+      error: "They will appear here after the next RFPilot update. Plans and usage are on the Organizations list in the meantime.",
+    });
+
+    // A proxy's HTML 404 is the same case.
+    mockedFetch.mockResolvedValue({ ok: false, status: 404, json: async () => { throw new Error("not json"); } } as unknown as Response);
+    await expect(getOrganizationAccountAction(ORG)).resolves.toMatchObject({ ok: false, failure: "not_available" });
+  });
+
+  it("reports the backend as unavailable when it can't be reached or answers nonsense", async () => {
+    mockedFetch.mockRejectedValue(new Error("connect ECONNREFUSED 10.0.0.5:8000"));
+    const failed = await getOrganizationAccountAction(ORG);
+    expect(failed).toMatchObject({ ok: false, failure: "unavailable" });
+    expect(JSON.stringify(failed)).not.toContain("10.0.0.5");
+
+    mockedFetch.mockResolvedValue(jsonResponse(200, { success: true, data: { organization: { id: "nope" } } }));
+    await expect(getOrganizationAccountAction(ORG)).resolves.toMatchObject({ ok: false, failure: "unavailable" });
+
+    mockedFetch.mockResolvedValue(jsonResponse(200, { success: true }));
+    await expect(getOrganizationAccountAction(ORG)).resolves.toMatchObject({ ok: false, failure: "unavailable" });
   });
 });
