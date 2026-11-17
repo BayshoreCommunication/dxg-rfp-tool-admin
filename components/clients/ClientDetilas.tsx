@@ -1,5 +1,6 @@
 import { getAllClientsAction, type AllClientItem } from "@/app/actions/allClients";
 import { auth } from "@/auth";
+import { countLabel } from "@/lib/plural";
 import {
   AlertCircle,
   Building2,
@@ -255,7 +256,7 @@ export default async function ClientDetails({
                       Company
                     </th>
                     <th className="w-[9%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
-                      RFPs
+                      Proposals
                     </th>
                     <th className="w-[10%] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
                       Emails
@@ -374,10 +375,10 @@ export default async function ClientDetails({
                     </div>
                     <div className="mt-3 flex gap-2">
                       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                        {client.totalProposals ?? 0} RFPs
+                        {countLabel(client.totalProposals ?? 0, "proposal")}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">
-                        {client.totalEmailSent ?? 0} emails
+                        {countLabel(client.totalEmailSent ?? 0, "email")}
                       </span>
                     </div>
                   </div>
@@ -393,7 +394,7 @@ export default async function ClientDetails({
           <div>
             <p className="text-xs font-semibold text-slate-500" aria-live="polite">
               Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of{" "}
-              {totalClients.toLocaleString()} clients
+              {countLabel(totalClients, "client")}
             </p>
           </div>
           <nav aria-label="Client pagination" className="flex items-center gap-1">

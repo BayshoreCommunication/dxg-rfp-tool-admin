@@ -4,9 +4,9 @@ import { ShieldCheck } from "lucide-react";
 export default function SupportAccessHeader() {
   return (
     <AdminPageHeader
-      eyebrow="Customer RFPs"
+      eyebrow="Customer proposals"
       title="Support access"
-      description="Customer organizations whose Owner or Admin has granted RFPilot Support time-limited, read-only access to their RFPs."
+      description="Customer organizations whose Owner or Admin has granted RFPilot Support time-limited, read-only access to their proposals."
       icon={ShieldCheck}
     />
   );

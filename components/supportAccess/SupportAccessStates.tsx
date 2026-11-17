@@ -10,9 +10,9 @@ export const RfpNotFound = ({ backHref = SUPPORT_ACCESS_PATH, backLabel = "Back 
     <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
       <FileQuestion className="h-6 w-6" aria-hidden="true" />
     </span>
-    <p className="mt-4 text-sm font-bold text-[#12213a]">RFP not found</p>
+    <p className="mt-4 text-sm font-bold text-[#12213a]">Proposal not found</p>
     <p className="mt-1 text-sm text-slate-500">
-      Support access doesn&apos;t cover this RFP, or it no longer exists. You can open only the RFPs an organization has granted.
+      Support access doesn&apos;t cover this proposal, or it no longer exists. You can open only the proposals an organization has granted.
     </p>
     <Link href={backHref} prefetch={false} className="mt-4 text-sm font-semibold text-[#008f96] hover:underline">
       {backLabel}

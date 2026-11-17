@@ -9,7 +9,7 @@ import { SupportAccessError } from "@/components/supportAccess/SupportAccessStat
 import { grantedOrganizationName } from "@/lib/supportAccess/grantedOrganization";
 import { SUPPORT_ACCESS_PATH, accessEndedPath } from "@/lib/supportAccess/grants";
 
-export const metadata = { title: "Granted RFPs" };
+export const metadata = { title: "Granted proposals" };
 export const dynamic = "force-dynamic";
 
 type GrantedOrganizationPageProps = {

@@ -63,7 +63,7 @@ describe("support access grants (ORG-406)", () => {
     expect(grantedAccessPath(list[0])).toBe(`/support-access/${ORG}`);
     expect(grantedAccessPath(list[1])).toBe(`/support-access/${ORG}/rfps/${RFP}`);
     expect(grantScopeLabel("organization")).toBe("Whole organization");
-    expect(grantScopeLabel("rfp")).toBe("One RFP");
+    expect(grantScopeLabel("rfp")).toBe("One proposal");
   });
 
   it("drops unreadable rows and grants with no time left instead of guessing", () => {

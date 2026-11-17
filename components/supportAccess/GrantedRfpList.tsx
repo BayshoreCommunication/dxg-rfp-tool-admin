@@ -1,5 +1,6 @@
 import { buildPageList } from "@/components/clients/ClientDetilas";
 import ClientSearchForm from "@/components/clients/ClientSearchForm";
+import { countLabel } from "@/lib/plural";
 import { grantedRfpPath, organizationRfpsPath, type GrantedRfpListItem, type GrantedRfpPage } from "@/lib/supportAccess/grants";
 import { eventDates, formatDate, stageLabel } from "@/lib/supportAccess/rfpFields";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, FileText } from "lucide-react";
@@ -70,19 +71,19 @@ export default function GrantedRfpList({ organizationId, search, page }: Granted
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-bold tracking-[-0.02em] text-[#12213a]">{organizationWide ? "RFPs" : "Granted RFPs"}</h2>
+              <h2 className="text-xl font-bold tracking-[-0.02em] text-[#12213a]">{organizationWide ? "Proposals" : "Granted proposals"}</h2>
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
                 {pagination.total.toLocaleString()} {search.trim() ? "matching" : "total"}
               </span>
             </div>
             <p className="mt-0.5 text-sm text-slate-500">
               {organizationWide
-                ? "Every RFP in this organization, most recently updated first."
-                : "Only the RFPs this organization granted, most recently updated first."}
+                ? "Every proposal in this organization, most recently updated first."
+                : "Only the proposals this organization granted, most recently updated first."}
             </p>
           </div>
         </div>
-        <ClientSearchForm initialSearch={search} label="Search RFPs" placeholder="Search by event name" />
+        <ClientSearchForm initialSearch={search} label="Search proposals" placeholder="Search by event name" />
       </div>
 
       {rfps.length === 0 ? (
@@ -90,9 +91,9 @@ export default function GrantedRfpList({ organizationId, search, page }: Granted
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
             <FileText className="h-6 w-6" aria-hidden="true" />
           </span>
-          <p className="mt-4 text-sm font-bold text-slate-600">No RFPs found</p>
+          <p className="mt-4 text-sm font-bold text-slate-600">No proposals found</p>
           <p className="mt-1 text-sm text-slate-400">
-            {search.trim() ? "Try a different event name." : "There are no RFPs under this support access yet."}
+            {search.trim() ? "Try a different event name." : "There are no proposals under this support access yet."}
           </p>
         </div>
       ) : (
@@ -102,7 +103,7 @@ export default function GrantedRfpList({ organizationId, search, page }: Granted
               className="overflow-auto rounded-xl border border-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-[#00aeb5] focus-visible:ring-offset-2"
               tabIndex={0}
               role="region"
-              aria-label="RFPs table"
+              aria-label="Proposals table"
             >
               <table className="w-full min-w-[880px] table-fixed border-collapse text-left">
                 <thead>
@@ -174,9 +175,9 @@ export default function GrantedRfpList({ organizationId, search, page }: Granted
       {pagination.total > 0 ? (
         <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="text-xs font-semibold text-slate-500" aria-live="polite">
-            Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {pagination.total.toLocaleString()} RFPs
+            Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {countLabel(pagination.total, "proposal")}
           </p>
-          <nav aria-label="RFP pagination" className="flex items-center gap-1">
+          <nav aria-label="Proposal pagination" className="flex items-center gap-1">
             <Link
               href={hrefFor(Math.max(1, pagination.page - 1))}
               prefetch={false}

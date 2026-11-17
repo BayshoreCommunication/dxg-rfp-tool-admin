@@ -6,7 +6,7 @@ export default function TopHeader() {
     <AdminPageHeader
       eyebrow="Plans"
       title="Organizations"
-      description="See each customer organization's plan and how many RFPs it has created, and change the plan."
+      description="See each customer organization's plan and how many proposals it has created, and change the plan."
       icon={Building2}
     />
   );

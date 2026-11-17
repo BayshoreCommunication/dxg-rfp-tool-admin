@@ -217,7 +217,7 @@ export const supportAccessFailure = (status: number, code?: string | null): Supp
 
 // ---- Copy ----
 
-export const grantScopeLabel = (scope: GrantScope) => (scope === "organization" ? "Whole organization" : "One RFP");
+export const grantScopeLabel = (scope: GrantScope) => (scope === "organization" ? "Whole organization" : "One proposal");
 
 const plural = (count: number, unit: string) => `${count} ${unit}${count === 1 ? "" : "s"}`;
 
@@ -264,7 +264,7 @@ export const grantedAccessPath = (grant: Pick<GrantedAccess, "organization" | "s
 
 /** Why an agent was sent back to "Granted to me". A fixed set: nothing from the URL is echoed. */
 export const ACCESS_NOTICES = {
-  ended: "Support access to that organization has ended or was revoked, so its RFPs are closed. Ask the organization's Owner or Admin for a new grant if you still need it.",
+  ended: "Support access to that organization has ended or was revoked, so its proposals are closed. Ask the organization's Owner or Admin for a new grant if you still need it.",
 } as const;
 
 export type AccessNotice = keyof typeof ACCESS_NOTICES;

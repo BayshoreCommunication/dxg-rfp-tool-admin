@@ -1,4 +1,5 @@
 import { AdminOverviewClient } from "@/app/actions/admin";
+import { countLabel } from "@/lib/plural";
 import { Building2, CalendarDays, ChevronRight, Mail, UsersRound } from "lucide-react";
 import Link from "next/link";
 
@@ -189,10 +190,10 @@ export default function RecentClients({ clients = [], isLoading }: RecentClients
                     </div>
                     <div className="mt-3 flex gap-2">
                       <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
-                        {client.totalProposals ?? 0} proposals
+                        {countLabel(client.totalProposals ?? 0, "proposal")}
                       </span>
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">
-                        {client.totalEmailSent ?? 0} emails
+                        {countLabel(client.totalEmailSent ?? 0, "email")}
                       </span>
                     </div>
                   </div>

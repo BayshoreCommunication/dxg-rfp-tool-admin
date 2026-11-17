@@ -21,7 +21,7 @@ export default async function GrantedVendorResponsesPage({ params }: GrantedVend
   const response = await listGrantedVendorResponsesAction(organizationId, rfpId);
   if (!response.ok) {
     if (response.failure === "grant_required") redirect(accessEndedPath());
-    const back = { backHref: organizationRfpsPath(organizationId), backLabel: "Back to this organization's granted RFPs" };
+    const back = { backHref: organizationRfpsPath(organizationId), backLabel: "Back to this organization's granted proposals" };
     return response.failure === "not_found" ? <RfpNotFound {...back} /> : <SupportAccessError message={response.error} {...back} />;
   }
 

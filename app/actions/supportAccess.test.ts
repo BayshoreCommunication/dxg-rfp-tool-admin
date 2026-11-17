@@ -72,8 +72,8 @@ describe("support access actions (ORG-406)", () => {
 
   it("reports an RFP the grants don't cover as not found, with no detail about it", async () => {
     mockedFetch.mockResolvedValue(jsonResponse(404, { success: false, code: "PROPOSAL_NOT_FOUND", message: "RFP not found." }));
-    expect(await getGrantedRfpAction(ORG, RFP)).toEqual({ ok: false, failure: "not_found", error: "RFP not found." });
-    expect(await listGrantedVendorResponsesAction(ORG, RFP)).toEqual({ ok: false, failure: "not_found", error: "RFP not found." });
+    expect(await getGrantedRfpAction(ORG, RFP)).toEqual({ ok: false, failure: "not_found", error: "Proposal not found." });
+    expect(await listGrantedVendorResponsesAction(ORG, RFP)).toEqual({ ok: false, failure: "not_found", error: "Proposal not found." });
   });
 
   it("refuses malformed ids without calling the backend", async () => {
@@ -187,17 +187,6 @@ describe("customer RFPs are reachable only through a grant (ORG-406)", () => {
         if (/href=\{?(SUPPORT_ACCESS_PATH|"\/support-access")/.test(link)) continue;
         expect({ file, link, optsOut: /prefetch=\{false\}/.test(link) }).toMatchObject({ optsOut: true });
       }
-    }
-  });
-
-  it("says RFP, never proposal, on the support access screens", () => {
-    for (const file of [...sourceFiles("components/supportAccess"), ...sourceFiles("app/(page)/support-access")]) {
-      const visible = read(file)
-        .replace(/\/\/.*$/gm, "")
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/\bproposal(\.|\[|,| \}|\))/g, "")
-        .replace(/rfp: proposal/g, "");
-      expect({ file, saysProposal: /proposal/i.test(visible) }).toEqual({ file, saysProposal: false });
     }
   });
 });

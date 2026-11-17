@@ -36,7 +36,7 @@ type GrantWorkspaceProps = {
 
 const scopeText = (grants: GrantBannerInfo[]) => {
   if (grants.some((grant) => grant.scope === "organization")) return "Whole organization";
-  return grants.length === 1 ? "One RFP" : `${grants.length} RFPs, each granted separately`;
+  return grants.length === 1 ? "One proposal" : `${grants.length} proposals, each granted separately`;
 };
 
 /** The organization's active grant ids, or null when that can't be told. Reads no RFP. */
@@ -125,7 +125,7 @@ export default function GrantWorkspace({ organizationId, organizationName, grant
         <LoaderCircle className="h-6 w-6 animate-spin text-[#008f96]" aria-hidden="true" />
         <p className="mt-4 text-sm font-bold text-[#12213a]">Checking support access</p>
         <p className="mt-1 text-sm text-slate-500">
-          This organization&apos;s RFPs stay hidden until its grant to RFPilot Support is confirmed as still active.
+          This organization&apos;s proposals stay hidden until its grant to RFPilot Support is confirmed as still active.
         </p>
         <Link href={SUPPORT_ACCESS_PATH} className="mt-4 text-sm font-semibold text-[#008f96] hover:underline">
           Back to Granted to me
@@ -171,7 +171,7 @@ export default function GrantWorkspace({ organizationId, organizationName, grant
               Support access to <span className="break-words">{organizationLabel(organizationName)}</span>
             </p>
             <p className="mt-0.5 text-[13px] text-slate-600">
-              <span className="font-semibold">Scope:</span> {scopeText(grants)}. Read-only, and every RFP you open is recorded in this
+              <span className="font-semibold">Scope:</span> {scopeText(grants)}. Read-only, and every proposal you open is recorded in this
               organization&apos;s audit log.
             </p>
           </div>

@@ -1,6 +1,7 @@
 import { listOrganizationPlansAction } from "@/app/actions/organizationPlans";
 import { buildPageList } from "@/components/clients/ClientDetilas";
 import ClientSearchForm from "@/components/clients/ClientSearchForm";
+import { countLabel } from "@/lib/plural";
 import {
   planLabel,
   usageLabel,
@@ -55,7 +56,7 @@ const Usage = ({ organization }: { organization: OrganizationPlanItem }) => {
         <div
           className="mt-1.5 h-1.5 w-full max-w-[180px] overflow-hidden rounded-full bg-slate-100"
           role="progressbar"
-          aria-label={`RFPs created by ${organization.name}`}
+          aria-label={`Proposals created by ${organization.name}`}
           aria-valuemin={0}
           aria-valuemax={organization.proposals.limit ?? 0}
           aria-valuenow={Math.min(organization.proposals.created, organization.proposals.limit ?? 0)}
@@ -90,7 +91,7 @@ const Feature = ({ label, unlocked }: { label: string; unlocked: boolean }) => (
 const Features = ({ features }: { features: PlanFeatures }) => (
   <div className="flex flex-col gap-1">
     <Feature label="Vendor responses" unlocked={features.vendorResponses} />
-    <Feature label="RFP intelligence" unlocked={features.proposalIntelligence} />
+    <Feature label="Proposal intelligence" unlocked={features.proposalIntelligence} />
   </div>
 );
 
@@ -236,7 +237,7 @@ export default async function OrganizationsDirectory({ search = "", page = 1 }: 
                   <tr className="border-b border-slate-100 bg-[#f8fafc]">
                     <th className={`w-[25%] ${headerCell}`}>Organization</th>
                     <th className={`w-[12%] ${headerCell}`}>Plan</th>
-                    <th className={`w-[21%] ${headerCell}`}>RFPs created</th>
+                    <th className={`w-[21%] ${headerCell}`}>Proposals created</th>
                     <th className={`w-[17%] ${headerCell}`}>Features</th>
                     <th className={`w-[11%] ${headerCell}`}>Created</th>
                     <th className={`w-[14%] text-center ${headerCell}`}>Actions</th>
@@ -289,7 +290,7 @@ export default async function OrganizationsDirectory({ search = "", page = 1 }: 
       {pagination && !pastLastPage ? (
         <div className="flex shrink-0 flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p className="text-xs font-semibold text-slate-500" aria-live="polite">
-            Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {total.toLocaleString()} organizations
+            Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {countLabel(total, "organization")}
           </p>
           <nav aria-label="Organization pagination" className="flex items-center gap-1">
             <Link
