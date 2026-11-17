@@ -8,9 +8,11 @@ import {
   domainStatusBadge,
   domainsLabel,
   formatAccountDate,
+  canChangePlan,
   isOrganizationId,
   lastPlanChangeLabel,
   lastSignInLabel,
+  loadOrganizationPage,
   managerInvitesLabel,
   memberCountLabels,
   openTicketsLabel,
@@ -26,6 +28,7 @@ import {
   teamCountLabels,
   twoFactorLabel,
   type OrganizationAccountFailure,
+  type OrganizationAccountResult,
 } from "./organizationAccount";
 
 const ORG = "a".repeat(24);
@@ -127,6 +130,75 @@ describe("reading the organization account response", () => {
     expect(isOrganizationId(undefined)).toBe(false);
     expect(organizationAccountPath(ORG)).toBe(`/organizations/${ORG}`);
     expect(organizationAccountPath("a/b?c")).toBe("/organizations/a%2Fb%3Fc");
+  });
+});
+
+describe("which backend reads the detail page makes", () => {
+  const PLANS = [
+    { id: "free_trial", proposalLimit: 2, features: { vendorResponses: false, proposalIntelligence: false } },
+    { id: "full_access", proposalLimit: null, features: { vendorResponses: true, proposalIntelligence: true } },
+  ];
+  const accountWith = (change: (raw: ReturnType<typeof response>) => void = () => {}) => {
+    const raw = response();
+    change(raw);
+    return parseOrganizationAccount(raw)!;
+  };
+  const reads = (account: OrganizationAccountResult, table: unknown = { ok: true, data: { plans: PLANS } }) => ({
+    account: jest.fn(async () => account),
+    planTable: jest.fn(async () => table as { ok: true; data: { plans: typeof PLANS } } | { ok: false }),
+  });
+
+  it("reads the account once, then the plan table for an organization whose plan can change", async () => {
+    const account = accountWith();
+    const calls = reads({ ok: true, data: account });
+    await expect(loadOrganizationPage(ORG, calls)).resolves.toEqual({ account: { ok: true, data: account }, plans: PLANS });
+    expect(calls.account).toHaveBeenCalledTimes(1);
+    expect(calls.account).toHaveBeenCalledWith(ORG);
+    expect(calls.planTable).toHaveBeenCalledTimes(1);
+    expect(calls.planTable).toHaveBeenCalledWith(ORG);
+  });
+
+  it("skips the plan table when the organization is exempt from plans or awaiting placement", async () => {
+    const exempt = accountWith((raw) => { raw.plan.exempt = true; });
+    const awaiting = accountWith((raw) => { raw.organization.standing = "awaiting_placement"; raw.organization.kind = "legacy_holding"; });
+    expect(canChangePlan(accountWith())).toBe(true);
+    expect(canChangePlan(exempt)).toBe(false);
+    expect(canChangePlan(awaiting)).toBe(false);
+    for (const account of [exempt, awaiting]) {
+      const calls = reads({ ok: true, data: account });
+      await expect(loadOrganizationPage(ORG, calls)).resolves.toEqual({ account: { ok: true, data: account }, plans: null });
+      expect(calls.account).toHaveBeenCalledTimes(1);
+      expect(calls.planTable).not.toHaveBeenCalled();
+    }
+  });
+
+  it("still offers Change plan for an inactive organization and for RFPilot's own", async () => {
+    for (const standing of ["inactive", "platform"]) {
+      const calls = reads({ ok: true, data: accountWith((raw) => { raw.organization.standing = standing; }) });
+      await expect(loadOrganizationPage(ORG, calls)).resolves.toMatchObject({ plans: PLANS });
+    }
+  });
+
+  it("makes no second read when the account can't be shown", async () => {
+    const refused: OrganizationAccountResult = { ok: false, failure: "not_available", error: "Not yet." };
+    const calls = reads(refused);
+    await expect(loadOrganizationPage(ORG, calls)).resolves.toEqual({ account: refused, plans: null });
+    expect(calls.account).toHaveBeenCalledTimes(1);
+    expect(calls.planTable).not.toHaveBeenCalled();
+  });
+
+  it("hides Change plan, and keeps the page, when the plan table can't be loaded", async () => {
+    const account = accountWith();
+    const failed = reads({ ok: true, data: account }, { ok: false, error: "Organization not found." });
+    await expect(loadOrganizationPage(ORG, failed)).resolves.toEqual({ account: { ok: true, data: account }, plans: null });
+
+    const empty = reads({ ok: true, data: account }, { ok: true, data: { plans: [] } });
+    await expect(loadOrganizationPage(ORG, empty)).resolves.toMatchObject({ account: { ok: true }, plans: null });
+
+    const thrown = reads({ ok: true, data: account });
+    thrown.planTable.mockRejectedValue(new Error("boom"));
+    await expect(loadOrganizationPage(ORG, thrown)).resolves.toEqual({ account: { ok: true, data: account }, plans: null });
+    expect(thrown.account).toHaveBeenCalledTimes(1);
   });
 });
 

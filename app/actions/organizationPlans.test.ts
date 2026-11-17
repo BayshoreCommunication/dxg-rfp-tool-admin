@@ -224,30 +224,36 @@ describe("organization detail page wiring", () => {
     expect(directory.match(/<ChangePlanButton organization=\{organization\} plans=\{plans\} \/>/g)).toHaveLength(2);
   });
 
-  it("never prefetches the audited read: every link into a detail page opts out", () => {
-    const files = [
-      ...readdirSync(join(process.cwd(), "components/organizations")).map((name) => `components/organizations/${name}`),
-      page,
-      "app/(page)/organizations/[organizationId]/loading.tsx",
-    ];
+  it("never prefetches the audited read: every link to a detail page, anywhere in the app, opts out", () => {
+    const sources = (dir: string): string[] =>
+      readdirSync(join(process.cwd(), dir), { withFileTypes: true }).flatMap((entry) =>
+        entry.isDirectory() ? sources(`${dir}/${entry.name}`) : /\.tsx$/.test(entry.name) ? [`${dir}/${entry.name}`] : [],
+      );
+    // A link built with the path helper, or one that spells out /organizations/<something>.
+    const toDetail = /organizationAccountPath\(|["'`{]\/organizations\/|ORGANIZATIONS_PATH\}?\/|ORGANIZATIONS_PATH\s*\+/;
     let found = 0;
-    for (const file of files) {
+    for (const file of [...sources("app"), ...sources("components")]) {
       for (const link of read(file).match(/<Link\b[^>]*>/g) ?? []) {
-        if (!/organizationAccountPath\(/.test(link)) continue;
+        if (!toDetail.test(link)) continue;
         found += 1;
         expect({ file, link, optsOut: /prefetch=\{false\}/.test(link) }).toMatchObject({ optsOut: true });
       }
     }
     expect(found).toBeGreaterThanOrEqual(2);
+    // Nothing navigates there in code either, where a prefetch would not be visible to this scan.
+    for (const file of [...sources("app"), ...sources("components")]) {
+      expect({ file, prefetches: /router\.prefetch\(/.test(read(file)) && /organizationAccountPath|\/organizations\//.test(read(file)) }).toMatchObject({ prefetches: false });
+    }
   });
 
-  it("renders the page for every request and reads only the account and the plan table", () => {
+  it("renders the page for every request, through the tested loader and nothing else", () => {
     const source = read(page);
     expect(source).toMatch(/export const dynamic = "force-dynamic"/);
-    expect(source).not.toMatch(/revalidate|unstable_cache|"use cache"/);
+    expect(source).not.toMatch(/export const revalidate|unstable_cache|"use cache"/);
+    expect(source).toMatch(/loadOrganizationPage\(organizationId, \{\s*account: getOrganizationAccountAction,\s*planTable: getOrganizationPlanAction,\s*\}\)/);
     const actions = source.match(/\b\w+Action\b/g) ?? [];
     expect([...new Set(actions)].sort()).toEqual(["getOrganizationAccountAction", "getOrganizationPlanAction"]);
-    expect(source).not.toMatch(/supportAccess|allClients|adminUser/);
+    expect(source).not.toMatch(/authenticatedBackendFetch|fetch\(/);
   });
 
   it("says what staff do not see on the page and points to Support access", () => {

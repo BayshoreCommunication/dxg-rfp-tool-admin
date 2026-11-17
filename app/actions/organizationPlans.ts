@@ -8,8 +8,8 @@ import {
   isOrganizationId,
   organizationAccountFailure,
   parseOrganizationAccount,
-  type OrganizationAccount,
   type OrganizationAccountFailure,
+  type OrganizationAccountResult,
 } from "@/lib/organizationAccount";
 import type { OrganizationPlanDetail, OrganizationPlansPage } from "@/lib/organizationPlans";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
@@ -94,10 +94,6 @@ export async function changeOrganizationPlanAction(
    cached and the page is never fetched ahead of being opened. */
 
 const ACCOUNT_BASE = `${BACKEND_URL}/api/v1/admin/organizations`;
-
-export type OrganizationAccountResult =
-  | { ok: true; data: OrganizationAccount }
-  | { ok: false; failure: OrganizationAccountFailure; error: string };
 
 const accountRefused = (failure: OrganizationAccountFailure): OrganizationAccountResult => ({
   ok: false,

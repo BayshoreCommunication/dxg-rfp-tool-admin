@@ -5,7 +5,7 @@
 // allowlist; the parser here keeps only the fields the page shows, so a field added to the
 // response later does not reach the screen by accident.
 
-import { planLabel, type OrganizationPlanItem, type PlanFeatures, type PlanUsage } from "@/lib/organizationPlans";
+import { planLabel, type OrganizationPlanItem, type PlanFeatures, type PlanOption, type PlanUsage } from "@/lib/organizationPlans";
 import { countLabel } from "@/lib/plural";
 
 export type OrganizationStanding = "awaiting_placement" | "platform" | "active" | "inactive";
@@ -277,6 +277,41 @@ export const ORGANIZATION_ACCOUNT_FAILURES: Record<OrganizationAccountFailure, {
     title: "Unable to load this organization",
     message: "The server couldn't be reached or didn't answer as expected. Try again in a moment.",
   },
+};
+
+export type OrganizationAccountResult =
+  | { ok: true; data: OrganizationAccount }
+  | { ok: false; failure: OrganizationAccountFailure; error: string };
+
+/* ---------- which backend reads the page makes ---------- */
+
+/** "Change plan" is for an organization the plan table applies to: not one exempt from plans,
+    and not a legacy customer still awaiting placement (the plan routes refuse both). */
+export const canChangePlan = (account: OrganizationAccount): boolean =>
+  !account.plan.exempt && account.organization.standing !== "awaiting_placement";
+
+type PlanTableResult = { ok: true; data: { plans: PlanOption[] } } | { ok: false };
+
+export type OrganizationPageReads = {
+  /** The audited read. Asked for exactly once per page view. */
+  account(organizationId: string): Promise<OrganizationAccountResult>;
+  /** The plan table "Change plan" needs. Not audited, and not customer data. */
+  planTable(organizationId: string): Promise<PlanTableResult>;
+};
+
+export type OrganizationPageData = {
+  account: OrganizationAccountResult;
+  /** Null hides "Change plan": nothing to change, or the plan table couldn't be loaded. */
+  plans: PlanOption[] | null;
+};
+
+/* Everything the detail page asks the backend, in order: the account once, then the plan table
+   only when the organization is on screen and its plan can be changed. Nothing else is read. */
+export const loadOrganizationPage = async (organizationId: string, reads: OrganizationPageReads): Promise<OrganizationPageData> => {
+  const account = await reads.account(organizationId);
+  if (!account.ok || !canChangePlan(account.data)) return { account, plans: null };
+  const table = await reads.planTable(account.data.organization.id).catch((): PlanTableResult => ({ ok: false }));
+  return { account, plans: table.ok && table.data.plans.length > 0 ? table.data.plans : null };
 };
 
 /* ---------- wording ---------- */

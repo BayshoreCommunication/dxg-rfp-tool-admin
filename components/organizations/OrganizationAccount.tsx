@@ -34,7 +34,7 @@ import { Features, PlanBadge, Usage } from "./OrganizationsDirectory";
 
 type Props = {
   account: Account;
-  /** The plan table, when it could be loaded: "Change plan" is offered only with it. */
+  /** The plan table from loadOrganizationPage: null leaves "Change plan" out. */
   plans?: PlanOption[] | null;
 };
 
@@ -111,7 +111,7 @@ export default function OrganizationAccount({ account, plans }: Props) {
             ) : null}
           </div>
         </div>
-        {plans && plans.length > 0 && !plan.exempt ? (
+        {plans && plans.length > 0 ? (
           <div className="shrink-0">
             <ChangePlanButton organization={planItem} plans={plans} />
           </div>
