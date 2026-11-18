@@ -24,7 +24,7 @@ import {
   type PlacementResult,
   type StartedRun,
 } from "@/lib/legacyCustomers/placement";
-import { reviewLines } from "@/lib/legacyCustomers/runView";
+import { reviewIdentities, reviewLines } from "@/lib/legacyCustomers/runView";
 import { sessionRenewPath } from "@/lib/organizationContent/content";
 import { countLabel } from "@/lib/plural";
 import { Loader2 } from "lucide-react";
@@ -116,7 +116,7 @@ function Flow({ customer }: { customer: LegacyCustomer }) {
         customer={customer}
         request={checked.request}
         idempotencyKey={draft.idempotencyKey}
-        names={{ organizationName: draft.organizationName, teamName: draft.teamName }}
+        names={{ organizationName: draft.organizationName, organizationSlug: draft.organizationSlug, teamName: draft.teamName }}
         onBack={() => {
           focusAfter.current = "form";
           setDraft({ step: "form", idempotencyKey: "" });
@@ -396,11 +396,11 @@ const ExistingOrganizationFields = ({ draft, errors, edit }: FieldsProps) => {
         error={errors.organizationId}
         onChoose={(organization) => {
           forgetTeams();
-          edit({ organizationId: organization.organizationId, organizationName: organization.name, teamId: "", teamName: "" }, "organizationId");
+          edit({ organizationId: organization.organizationId, organizationName: organization.name, organizationSlug: organization.slug ?? "", teamId: "", teamName: "" }, "organizationId");
         }}
         onClear={() => {
           forgetTeams();
-          edit({ organizationId: "", organizationName: "", teamId: "", teamName: "" });
+          edit({ organizationId: "", organizationName: "", organizationSlug: "", teamId: "", teamName: "" });
         }}
       />
       <Field label="Role" hint="Owner and Viewer can't be given by a placement." error={errors.role}>
@@ -484,7 +484,7 @@ function ReviewStep({
   customer: LegacyCustomer;
   request: PlacementRequest;
   idempotencyKey: string;
-  names: { organizationName: string; teamName: string };
+  names: { organizationName: string; organizationSlug: string; teamName: string };
   onBack: () => void;
   onPlaced: () => void;
 }) {
@@ -527,6 +527,7 @@ function ReviewStep({
 
   const busy = gateState.inFlight || gateState.done;
   const lines = reviewLines(customer, request, names);
+  const identities = reviewIdentities(request, names);
 
   return (
     <form
@@ -547,6 +548,23 @@ function ReviewStep({
           </li>
         ))}
       </ul>
+      {identities.length ? (
+        <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200" aria-label="Exactly what this placement names">
+          {identities.map((identity) => (
+            <div key={identity.label} className="grid gap-0.5 px-4 py-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-4">
+              <dt className="text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 sm:pt-0.5">{identity.label}</dt>
+              <dd className="min-w-0 text-sm text-[#20304b]">
+                <span className="block break-words font-bold">{identity.name}</span>
+                {identity.details.map((detail) => (
+                  <span key={detail.label} className="block break-all text-[13px] text-slate-600">
+                    {detail.label}: <span className="font-mono">{detail.value}</span>
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
       <p className="text-sm text-slate-600">
         The placement runs as its own task, one at a time with other placements. You follow it on the next page, and it can be rolled back from there once it has finished.
       </p>

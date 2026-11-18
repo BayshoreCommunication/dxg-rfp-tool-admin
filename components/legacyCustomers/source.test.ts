@@ -154,6 +154,16 @@ describe("the Legacy customers screen", () => {
     expect(view).toMatch(/if \(outcome\.sent\) onAnswer\(outcome\.result\);/);
   });
 
+  it("shows the review what the request names: the organization's name, slug and id, the team's name and id", () => {
+    const flow = read(`${COMPONENTS}/PlaceCustomerFlow.tsx`);
+    expect(flow).toMatch(/names=\{\{ organizationName: draft\.organizationName, organizationSlug: draft\.organizationSlug, teamName: draft\.teamName \}\}/);
+    expect(flow).toMatch(/const identities = reviewIdentities\(request, names\);/);
+    expect(flow).toMatch(/\{identities\.map\(\(identity\) => \(/);
+    // The slug is saved when the organization is chosen and dropped when it is cleared.
+    expect(flow).toMatch(/organizationName: organization\.name, organizationSlug: organization\.slug \?\? "", teamId: "", teamName: ""/);
+    expect(flow).toMatch(/organizationId: "", organizationName: "", organizationSlug: "", teamId: "", teamName: ""/);
+  });
+
   it("searches organizations only through the debounced search", () => {
     const picker = read(`${COMPONENTS}/OrganizationPicker.tsx`);
     expect(picker).toMatch(/createTypeahead\(\{ search: searchPlacementTargetsAction, onChange: setState \}\)/);

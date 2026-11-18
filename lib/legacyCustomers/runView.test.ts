@@ -1,5 +1,5 @@
 import type { LegacyCustomer, PlacementFailure, PlacementRun, RunStatus, RunTask } from "@/lib/legacyCustomers/placement";
-import { canRollBack, reviewLines, rollbackEffects, rollbackFollowUp, runHeadline, runInstructions, showsOrganizationLink, taskFailureText, verificationLines } from "@/lib/legacyCustomers/runView";
+import { canRollBack, reviewIdentities, reviewLines, rollbackEffects, rollbackFollowUp, runHeadline, runInstructions, showsOrganizationLink, taskFailureText, verificationLines } from "@/lib/legacyCustomers/runView";
 
 const ORG = "6b0000000000000000000002";
 const TEAM = "6c0000000000000000000003";
@@ -156,5 +156,38 @@ describe("what the run page does with a rollback answer", () => {
   it.each(REFUSALS)("reads the run again after %s", (failure) => {
     expect(rollbackFollowUp(RUN_ID, { ok: false, failure })).toEqual({ action: "recheck" });
     expect(rollbackFollowUp(RUN_ID, { ok: false, failure, retryAfterSeconds: 30, runId: RUN_ID })).toEqual({ action: "recheck" });
+  });
+});
+
+describe("the review names exactly what the request names", () => {
+  const OTHER_ORG = "6b00000000000000000000aa";
+  const existing = (organizationId: string, teamId?: string) => ({ target: "existing" as const, organizationId, role: "planner" as const, ...(teamId ? { teamId } : {}) });
+  const text = (identities: ReturnType<typeof reviewIdentities>) => identities.map((item) => [item.label, item.name, ...item.details.map((detail) => `${detail.label}: ${detail.value}`)].join(" | "));
+
+  it("shows the organization's name, slug and the id that is sent", () => {
+    expect(reviewIdentities(existing(ORG), { organizationName: "Acme Events", organizationSlug: "acme-events" })).toEqual([
+      { label: "Organization", name: "Acme Events", details: [{ label: "Slug", value: "acme-events" }, { label: "Organization id", value: ORG }] },
+    ]);
+  });
+
+  it("reads differently for two organizations with the same name", () => {
+    const first = text(reviewIdentities(existing(ORG), { organizationName: "Acme Events", organizationSlug: "acme-events" }));
+    const second = text(reviewIdentities(existing(OTHER_ORG), { organizationName: "Acme Events", organizationSlug: "acme-events-2" }));
+    expect(first).not.toEqual(second);
+    // Even with no slug on file, the id tells them apart.
+    expect(text(reviewIdentities(existing(ORG), { organizationName: "Acme Events" }))).not.toEqual(text(reviewIdentities(existing(OTHER_ORG), { organizationName: "Acme Events" })));
+  });
+
+  it("shows the team's name and id when a team is sent, and no team row when none is", () => {
+    expect(reviewIdentities(existing(ORG, TEAM), { organizationName: "Acme", organizationSlug: "acme", teamName: "East" })[1]).toEqual({ label: "Team", name: "East", details: [{ label: "Team id", value: TEAM }] });
+    expect(reviewIdentities(existing(ORG), { organizationName: "Acme", organizationSlug: "acme", teamName: "East" })).toHaveLength(1);
+  });
+
+  it("always shows the id, and says so when a name or slug was not kept", () => {
+    expect(text(reviewIdentities(existing(ORG, TEAM)))).toEqual([`Organization | Name not on file | Slug: No slug on file | Organization id: ${ORG}`, `Team | Name not on file | Team id: ${TEAM}`]);
+  });
+
+  it("has nothing to add for a new organization, which has no id yet", () => {
+    expect(reviewIdentities({ target: "new", organization: { name: "Acme Events" } })).toEqual([]);
   });
 });

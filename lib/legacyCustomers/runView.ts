@@ -193,6 +193,33 @@ export const reviewLines = (
   ];
 };
 
+export type ReviewIdentity = { label: string; name: string; details: Array<{ label: string; value: string }> };
+
+/* What the request will act on, as it is sent: the organization's id is what goes to the
+   backend, and a name alone does not say which organization that is (two can share a name). So
+   the review shows the name, the slug and the id of an existing organization, and the name and
+   id of a team. A new organization has no id yet: its name is in the review's first line. */
+export const reviewIdentities = (
+  request: PlacementRequest,
+  names: { organizationName?: string | null; organizationSlug?: string | null; teamName?: string | null } = {},
+): ReviewIdentity[] => {
+  if (request.target !== "existing") return [];
+  const identities: ReviewIdentity[] = [
+    {
+      label: "Organization",
+      name: names.organizationName?.trim() || "Name not on file",
+      details: [
+        { label: "Slug", value: names.organizationSlug?.trim() || "No slug on file" },
+        { label: "Organization id", value: request.organizationId },
+      ],
+    },
+  ];
+  if (request.teamId) {
+    identities.push({ label: "Team", name: names.teamName?.trim() || "Name not on file", details: [{ label: "Team id", value: request.teamId }] });
+  }
+  return identities;
+};
+
 /** "18 Nov 2026, 14:03:22 UTC", or a dash for a time that is not set. Always UTC, so the server
     and every browser write the same text. */
 export const formatInstant = (iso: string | null): string => {

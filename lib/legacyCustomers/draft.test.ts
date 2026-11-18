@@ -13,6 +13,14 @@ describe("the place flow's saved choices", () => {
     expect(parseDraft(JSON.stringify(draft))).toEqual(draft);
   });
 
+  it("keeps the chosen organization's slug with its name and id, for the review", () => {
+    expect(emptyDraft().organizationSlug).toBe("");
+    const draft = { ...emptyDraft(), target: "existing" as const, organizationId: ORG, organizationName: "Acme", organizationSlug: "acme-events", role: "planner" };
+    expect(parseDraft(JSON.stringify(draft))).toMatchObject({ organizationId: ORG, organizationName: "Acme", organizationSlug: "acme-events" });
+    expect(parseDraft(JSON.stringify({ ...draft, organizationSlug: 7 }))).toMatchObject({ organizationSlug: "" });
+    expect(parseDraft(JSON.stringify({ ...draft, organizationSlug: "s".repeat(500) }))?.organizationSlug).toHaveLength(80);
+  });
+
   it.each([null, undefined, "", "{", "[]", "null", "5", '"x"'])("reads %p as no draft", (stored) => {
     expect(parseDraft(stored)).toBeNull();
   });

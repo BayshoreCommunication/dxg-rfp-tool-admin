@@ -15,6 +15,8 @@ export type PlacementDraft = {
   eventsPerYear: string;
   organizationId: string;
   organizationName: string;
+  /** Kept with the name so the review can tell two organizations of the same name apart. */
+  organizationSlug: string;
   role: string;
   teamId: string;
   teamName: string;
@@ -33,6 +35,7 @@ export const emptyDraft = (): PlacementDraft => ({
   eventsPerYear: "",
   organizationId: "",
   organizationName: "",
+  organizationSlug: "",
   role: "",
   teamId: "",
   teamName: "",
@@ -64,6 +67,7 @@ export const parseDraft = (stored: string | null | undefined): PlacementDraft | 
     eventsPerYear: str(item.eventsPerYear, 10),
     organizationId: isPlacementId(item.organizationId) ? item.organizationId : "",
     organizationName: str(item.organizationName, 200),
+    organizationSlug: str(item.organizationSlug, 80),
     role: str(item.role, 40),
     teamId: isPlacementId(item.teamId) ? item.teamId : "",
     teamName: str(item.teamName, 200),
