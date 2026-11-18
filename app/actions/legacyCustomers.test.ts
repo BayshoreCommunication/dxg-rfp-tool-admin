@@ -11,9 +11,11 @@ import * as actions from "./legacyCustomers";
 const {
   getPlacementRunAction,
   listLegacyCustomersAction,
+  listLegacyCustomersPageAction,
   listPlacementTeamsAction,
   placeLegacyCustomerAction,
   rollbackPlacementRunAction,
+  searchLegacyCustomersAction,
   searchPlacementTargetsAction,
 } = actions;
 
@@ -46,9 +48,13 @@ const RUN_VIEW = { runId: RUN, userId: USER, targetOrganizationId: ORG, createdO
 const NEW = { target: "new", organization: { name: "Acme Events" } };
 const EXISTING = { target: "existing", organizationId: ORG, role: "planner" };
 
+const NO_LIST = { ok: true as const, data: { customers: [], total: 0, matching: 0, page: 1, pageCount: 1, search: "" } };
+
 /** Every action with valid arguments, the request it makes and an answer that satisfies it. */
 const ALL: Array<{ name: string; run: () => Promise<{ ok: boolean }>; method: string; url: RegExp; answer: () => Response }> = [
   { name: "list", run: () => listLegacyCustomersAction(), method: "GET", url: new RegExp(`${API}$`), answer: () => jsonResponse(200, { success: true, data: { customers: [] } }) },
+  { name: "list page", run: () => listLegacyCustomersPageAction("1"), method: "GET", url: new RegExp(`${API}$`), answer: () => jsonResponse(200, { success: true, data: { customers: [] } }) },
+  { name: "list search", run: () => searchLegacyCustomersAction(NO_LIST, new FormData()), method: "GET", url: new RegExp(`${API}$`), answer: () => jsonResponse(200, { success: true, data: { customers: [] } }) },
   { name: "search", run: () => searchPlacementTargetsAction("acme"), method: "GET", url: new RegExp(`${API}/target-organizations\\?q=acme$`), answer: () => jsonResponse(200, { success: true, data: { organizations: [] } }) },
   { name: "teams", run: () => listPlacementTeamsAction(ORG), method: "GET", url: new RegExp(`/api/v1/admin/organizations/${ORG}/teams$`), answer: () => jsonResponse(200, { success: true, data: { organizationId: ORG, teams: [] } }) },
   { name: "place", run: () => placeLegacyCustomerAction(USER, EXISTING, KEY), method: "POST", url: new RegExp(`${API}/${USER}/placements$`), answer: () => jsonResponse(202, { success: true, data: { placement: RUN_VIEW, replayed: false } }) },
@@ -69,12 +75,14 @@ describe("legacy customer placement actions", () => {
     expect(Object.keys(actions).sort()).toEqual([
       "getPlacementRunAction",
       "listLegacyCustomersAction",
+      "listLegacyCustomersPageAction",
       "listPlacementTeamsAction",
       "placeLegacyCustomerAction",
       "rollbackPlacementRunAction",
+      "searchLegacyCustomersAction",
       "searchPlacementTargetsAction",
     ]);
-    expect(ALL).toHaveLength(6);
+    expect(ALL).toHaveLength(8);
   });
 
   it.each(ALL)("$name: one request to its own route, uncached, through the signed-in session", async ({ run, method, url, answer }) => {
@@ -487,6 +495,125 @@ describe("legacy customer placement actions", () => {
           }
         }
       }
+    });
+  });
+
+  // The backend returns every unplaced customer in one answer. Only one page of them may leave
+  // the server, and a search (a name or an email) may never be put in an address.
+  describe("the list, one page at a time", () => {
+    const hex = (index: number) => index.toString(16).padStart(24, "0");
+    /** 120 customers; every tenth works at Lovelace Ltd, and one is Grace. */
+    const customers = Array.from({ length: 120 }, (_, index) => ({
+      userId: hex(index + 1),
+      name: index === 77 ? "Grace Hopper" : `Customer ${index + 1}`,
+      email: index === 77 ? "grace@navy.example" : `customer${index + 1}@example.com`,
+      company: index % 10 === 0 ? "Lovelace Ltd" : null,
+      proposalCount: 120 - index,
+      holdingOrganizationId: ORG,
+    }));
+    const list = (rows: unknown[] = customers) => jsonResponse(200, { success: true, data: { customers: rows } });
+    const form = (fields: Record<string, string>) => {
+      const data = new FormData();
+      for (const [name, value] of Object.entries(fields)) data.set(name, value);
+      return data;
+    };
+    const everyUrl = () => mockedFetch.mock.calls.map((call) => String(call[0]));
+
+    it("the page action returns one page of at most 50 rows, with the total, from one backend read", async () => {
+      mockedFetch.mockResolvedValue(list());
+      const first = await listLegacyCustomersPageAction(undefined);
+      expect(first).toMatchObject({ ok: true, data: { total: 120, matching: 120, page: 1, pageCount: 3, search: "" } });
+      if (!first.ok) throw new Error("refused");
+      expect(first.data.customers).toHaveLength(50);
+      expect(first.data.customers[0]).toEqual({ userId: hex(1), name: "Customer 1", email: "customer1@example.com", company: "Lovelace Ltd", proposalCount: 120 });
+      expect(mockedFetch).toHaveBeenCalledTimes(1);
+
+      const last = await listLegacyCustomersPageAction("3");
+      if (!last.ok) throw new Error("refused");
+      expect(last.data.customers.map((customer) => customer.userId)).toEqual(customers.slice(100).map((customer) => customer.userId));
+      expect(mockedFetch).toHaveBeenCalledTimes(2);
+      // Nothing of the other pages is anywhere in the answer.
+      expect(JSON.stringify(last)).not.toMatch(/customer1@example\.com|grace@navy\.example/);
+    });
+
+    it.each([["2", 2], ["0", 1], ["-1", 1], ["2.5", 1], ["2abc", 1], ["1e1", 1], [" 2", 1], ["", 1], [["2", "3"], 1], [{ page: 2 }, 1], [null, 1], [2, 2], ["999999", 3]])(
+      "the page number is a number only: %p is page %p",
+      async (page, expected) => {
+        mockedFetch.mockResolvedValue(list());
+        expect(await listLegacyCustomersPageAction(page)).toMatchObject({ ok: true, data: { page: expected } });
+        expect(mockedFetch).toHaveBeenCalledTimes(1);
+        expect(urlOf()).toMatch(new RegExp(`${API}$`));
+      },
+    );
+
+    it("the search action returns only the matching rows of one page, from one backend read", async () => {
+      mockedFetch.mockResolvedValue(list());
+      const result = await searchLegacyCustomersAction(NO_LIST, form({ search: "  grace@navy.example " }));
+      expect(result).toEqual({
+        ok: true,
+        data: { customers: [{ userId: hex(78), name: "Grace Hopper", email: "grace@navy.example", company: null, proposalCount: 43 }], total: 120, matching: 1, page: 1, pageCount: 1, search: "grace@navy.example" },
+      });
+      expect(mockedFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("never returns more than one page of a search, and pages through it by the form's page field", async () => {
+      mockedFetch.mockResolvedValue(list());
+      const first = await searchLegacyCustomersAction(NO_LIST, form({ search: "customer" }));
+      if (!first.ok) throw new Error("refused");
+      expect(first.data).toMatchObject({ total: 120, matching: 119, page: 1, pageCount: 3 });
+      expect(first.data.customers).toHaveLength(50);
+      const third = await searchLegacyCustomersAction(first, form({ search: "customer", page: "3" }));
+      if (!third.ok) throw new Error("refused");
+      expect(third.data).toMatchObject({ page: 3, matching: 119 });
+      expect(third.data.customers).toHaveLength(19);
+      const company = await searchLegacyCustomersAction(NO_LIST, form({ search: "LOVELACE" }));
+      if (!company.ok) throw new Error("refused");
+      expect(company.data.customers).toHaveLength(12);
+      expect(mockedFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("puts the search text in no address: the backend is asked for the list, with no query", async () => {
+      mockedFetch.mockResolvedValue(list());
+      await searchLegacyCustomersAction(NO_LIST, form({ search: "grace@navy.example", page: "2" }));
+      await searchLegacyCustomersAction(NO_LIST, form({ search: "Hopper" }));
+      await listLegacyCustomersPageAction("2");
+      expect(everyUrl()).toHaveLength(3);
+      for (const url of everyUrl()) {
+        expect(url).toMatch(new RegExp(`${API}$`));
+        expect(url).not.toMatch(/[?#]|grace|navy|hopper/i);
+      }
+      for (const call of mockedFetch.mock.calls) expect(JSON.stringify(call[1])).not.toMatch(/grace|hopper/i);
+    });
+
+    it("an empty search, or Clear search, is the first page of the whole list", async () => {
+      mockedFetch.mockResolvedValue(list());
+      for (const fields of [{}, { search: "   " }, { search: "grace", clear: "1" }] as Array<Record<string, string>>) {
+        const result = await searchLegacyCustomersAction(NO_LIST, form(fields));
+        expect(result).toMatchObject({ ok: true, data: { total: 120, matching: 120, page: 1, search: "" } });
+      }
+    });
+
+    it("says when nothing matches, and when nobody is waiting", async () => {
+      mockedFetch.mockResolvedValue(list());
+      expect(await searchLegacyCustomersAction(NO_LIST, form({ search: "nobody at all" }))).toEqual({ ok: true, data: { customers: [], total: 120, matching: 0, page: 1, pageCount: 1, search: "nobody at all" } });
+      mockedFetch.mockResolvedValue(list([]));
+      expect(await listLegacyCustomersPageAction("4")).toEqual({ ok: true, data: { customers: [], total: 0, matching: 0, page: 1, pageCount: 1, search: "" } });
+    });
+
+    it("bounds the search text and takes nothing that is not text", async () => {
+      mockedFetch.mockResolvedValue(list());
+      const long = await searchLegacyCustomersAction(NO_LIST, form({ search: "x".repeat(5000) }));
+      expect(long).toMatchObject({ ok: true, data: { search: "x".repeat(200), matching: 0 } });
+      // A caller that sends something other than a form gets the first page, not an error.
+      expect(await searchLegacyCustomersAction(NO_LIST, { search: "grace" } as unknown as FormData)).toMatchObject({ ok: true, data: { search: "", page: 1 } });
+      expect(await searchLegacyCustomersAction(NO_LIST, null as unknown as FormData)).toMatchObject({ ok: true, data: { search: "" } });
+    });
+
+    it("a refused search keeps the text for the form, and never the previous rows", async () => {
+      mockedFetch.mockResolvedValue(refusal(429, "PLACEMENT_RATE_LIMITED", {}, { "Retry-After": "60" }));
+      const previous = { ok: true as const, data: { ...NO_LIST.data, customers: [{ userId: hex(1), name: "Ada", email: "ada@example.com", company: null, proposalCount: 1 }] } };
+      expect(await searchLegacyCustomersAction(previous, form({ search: "grace" }))).toEqual({ ok: false, failure: "rate_limited", retryAfterSeconds: 60, search: "grace" });
+      expect(mockedFetch).toHaveBeenCalledTimes(1);
     });
   });
 });

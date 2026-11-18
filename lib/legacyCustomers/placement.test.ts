@@ -1,6 +1,11 @@
 import {
   customerLabel,
+  customerPageOf,
+  customerPageSummary,
+  CUSTOMERS_PAGE_SIZE,
   filterCustomers,
+  legacyCustomersPagePath,
+  pageNumberOf,
   isIdempotencyKey,
   isPlacementId,
   isRunId,
@@ -147,5 +152,55 @@ describe("the customer list", () => {
     expect(customerLabel(customers[0])).toBe("Ada Lovelace (ada@example.com)");
     expect(customerLabel(customers[1])).toBe("grace@example.com");
     expect(customerLabel({ name: null, email: null })).toMatch(/no name or email/);
+  });
+});
+
+describe("the list, cut into pages on the server", () => {
+  const many = (length: number) =>
+    Array.from({ length }, (_, index) => ({ userId: index.toString(16).padStart(24, "0"), name: `Customer ${index + 1}`, email: `c${index + 1}@example.com`, company: index < 3 ? "Lovelace Ltd" : null, proposalCount: 1 }));
+
+  it("never holds more than 50 rows, whatever is asked", () => {
+    expect(CUSTOMERS_PAGE_SIZE).toBe(50);
+    for (const length of [0, 1, 49, 50, 51, 120, 1000]) {
+      for (const page of [undefined, "1", "2", "20", "999999", "x"]) {
+        for (const search of ["", "customer", "lovelace", "zzz"]) {
+          const cut = customerPageOf(many(length), page, search);
+          expect(cut.customers.length).toBeLessThanOrEqual(50);
+          expect(cut.total).toBe(length);
+          expect(cut.page).toBeGreaterThanOrEqual(1);
+          expect(cut.page).toBeLessThanOrEqual(cut.pageCount);
+        }
+      }
+    }
+  });
+
+  it("gives each customer on exactly one page, in the backend's order", () => {
+    const all = many(120);
+    const seen = [1, 2, 3].flatMap((page) => customerPageOf(all, String(page)).customers);
+    expect(seen).toEqual(all);
+    expect(customerPageOf(all, "9").page).toBe(3);
+  });
+
+  it("takes a page number that is digits only", () => {
+    expect(["1", "2", "007", "999999", 4].map(pageNumberOf)).toEqual([1, 2, 7, 999999, 4]);
+    for (const bad of ["", "0", "-2", "2.0", "2a", "a2", " 2", "2 ", "1e3", "0x10", "1234567", "二", null, undefined, {}, ["2"], 2.5, -1, NaN, Infinity]) expect(pageNumberOf(bad)).toBe(1);
+  });
+
+  it("builds an address that carries a page number and nothing else", () => {
+    expect(legacyCustomersPagePath(1)).toBe("/legacy-customers");
+    expect(legacyCustomersPagePath(2)).toBe("/legacy-customers?page=2");
+    for (const page of [0, -3, 2.5, NaN, "ada@example.com" as unknown as number, "2&q=ada" as unknown as number]) expect(legacyCustomersPagePath(page)).toBe("/legacy-customers");
+    for (const page of [1, 2, 37, 999999]) expect(legacyCustomersPagePath(page)).toMatch(/^\/legacy-customers(\?page=[0-9]+)?$/);
+  });
+
+  it("says how many of how many, with the right number", () => {
+    expect(customerPageSummary(customerPageOf(many(12), "1"))).toBe("");
+    expect(customerPageSummary(customerPageOf(many(120), "1"))).toBe("Showing 1 to 50 of 120 customers.");
+    expect(customerPageSummary(customerPageOf(many(120), "3"))).toBe("Showing 101 to 120 of 120 customers.");
+    expect(customerPageSummary(customerPageOf(many(120), "1", "lovelace"))).toBe("3 of 120 customers match.");
+    expect(customerPageSummary(customerPageOf(many(120), "1", "customer 120"))).toBe("1 of 120 customers matches.");
+    expect(customerPageSummary(customerPageOf(many(1), "1", "zzz"))).toBe("0 of 1 customer match.");
+    expect(customerPageSummary(customerPageOf(many(120), "2", "customer"))).toBe("120 of 120 customers match. Showing 51 to 100.");
+    expect(customerPageSummary(customerPageOf(many(1500), "30"))).toBe("Showing 1,451 to 1,500 of 1,500 customers.");
   });
 });

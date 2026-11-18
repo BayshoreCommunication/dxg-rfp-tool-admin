@@ -55,7 +55,7 @@ describe("the Legacy customers screen", () => {
     for (const path of imported) expect(path).toBe("@/app/actions/legacyCustomers");
     const actions = [...new Set(source.match(/\b\w+Action\b/g) ?? [])].filter((name) => name !== "PlacementAction");
     for (const action of actions) {
-      expect(action).toMatch(/^(listLegacyCustomers|searchPlacementTargets|listPlacementTeams|placeLegacyCustomer|getPlacementRun|rollbackPlacementRun)Action$/);
+      expect(action).toMatch(/^(listLegacyCustomers|listLegacyCustomersPage|searchLegacyCustomers|searchPlacementTargets|listPlacementTeams|placeLegacyCustomer|getPlacementRun|rollbackPlacementRun)Action$/);
     }
     // The pure code under lib/ calls nothing at all: what it sends is handed to it.
     if (file.startsWith(LIB)) expect(imported).toEqual([]);
@@ -76,7 +76,7 @@ describe("the Legacy customers screen", () => {
     expect(source.match(/authenticatedBackendFetch\(/g)).toHaveLength(1);
     // Every exported action asks who is signed in before anything else.
     const bodies = source.split(/\nexport async function /).slice(1);
-    expect(bodies).toHaveLength(6);
+    expect(bodies).toHaveLength(8);
     for (const body of bodies) {
       const firstStatement = body.slice(body.indexOf("{\n") + 2).trimStart();
       expect(firstStatement.startsWith("const denied = await staffRefusal();\n  if (denied) return denied;")).toBe(true);
@@ -162,6 +162,34 @@ describe("the Legacy customers screen", () => {
     // The slug is saved when the organization is chosen and dropped when it is cleared.
     expect(flow).toMatch(/organizationName: organization\.name, organizationSlug: organization\.slug \?\? "", teamId: "", teamName: ""/);
     expect(flow).toMatch(/organizationId: "", organizationName: "", organizationSlug: "", teamId: "", teamName: ""/);
+  });
+
+  it("sends the browser one page of the list, and the search by POST, never in an address", () => {
+    const page = read(`${PAGES}/page.tsx`);
+    const list = read(`${COMPONENTS}/LegacyCustomersList.tsx`);
+    // The page asks for one page, by the page number alone, and reads nothing else from the address.
+    expect(page).toMatch(/const result = await listLegacyCustomersPageAction\(\(await searchParams\)\?\.page\);/);
+    expect(page.match(/searchParams/g)).toHaveLength(3);
+    expect(page).not.toMatch(/listLegacyCustomersAction\b/);
+    // The whole list is asked for only by the place page, which keeps one customer of it.
+    expect(screenFiles.filter((file) => /listLegacyCustomersAction\b/.test(read(file)))).toEqual([`${PAGES}/[userId]/place/page.tsx`]);
+    // The list gets its rows from the server and has no list of its own to narrow.
+    expect(list).toMatch(/export default function LegacyCustomersList\(\{ initial \}: \{ initial: CustomerPage \}\)/);
+    expect(list).not.toMatch(/filterCustomers|useMemo|LegacyCustomer\[\]/);
+    // The search is the form's action (a POST), sent on submit and not as each letter is typed.
+    expect(list).toMatch(/useActionState<CustomerListState, FormData>\(searchLegacyCustomersAction, \{ ok: true, data: initial \}\)/);
+    expect(list).toMatch(/<form action=\{search\}/);
+    expect(list).toMatch(/<input\s+id=\{searchId\}\s+name="search"\s+type="search"\s+defaultValue=\{applied\}/);
+    expect(list).not.toMatch(/onChange|onInput|onKeyUp|onKeyDown|method=/);
+    // Nothing here can put the text in an address.
+    expect(withoutComments(list)).not.toMatch(/useRouter|useSearchParams|usePathname|URLSearchParams|location\b|history\b|router\.|encodeURIComponent|\?search|[?&]q=/);
+    // The only addresses built here are the list's pages (a number) and the place page (an id).
+    const hrefs = [...list.matchAll(/href=\{([^}]+)\}/g)].map((match) => match[1]);
+    for (const href of hrefs) expect(href).toMatch(/^(legacyCustomersPagePath\(page\.page [-+] 1\)|placeCustomerPath\(customer\.userId\)|sessionRenewPath\(LEGACY_CUSTOMERS_PATH\))$/);
+    expect(hrefs.length).toBeGreaterThanOrEqual(4);
+    const placement = read(`${LIB}/placement.ts`);
+    expect(placement).toMatch(/export const CUSTOMERS_PAGE_SIZE = 50;/);
+    expect(placement).toMatch(/return number <= 1 \? LEGACY_CUSTOMERS_PATH : `\$\{LEGACY_CUSTOMERS_PATH\}\?page=\$\{number\}`;/);
   });
 
   it("searches organizations only through the debounced search", () => {

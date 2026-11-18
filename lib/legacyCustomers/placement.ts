@@ -545,6 +545,70 @@ export const filterCustomers = (customers: LegacyCustomer[], search: string): Le
   return customers.filter((customer) => [customer.name, customer.email, customer.company].some((value) => value?.toLowerCase().includes(term)));
 };
 
+// ── The list, one page at a time ────────────────────────────────────────────────────────────
+//
+// The backend returns every unplaced customer in one answer, with no paging or search of its
+// own. Names, emails and companies are personal data, so the whole answer stays on the Next
+// server: it cuts one page (and narrows it to a search) and only those rows go to the browser.
+
+/** The most customers one view sends to the browser. */
+export const CUSTOMERS_PAGE_SIZE = 50;
+export const CUSTOMER_SEARCH_MAX_LENGTH = 200;
+
+export type CustomerPage = {
+  /** The rows of this page only: never more than CUSTOMERS_PAGE_SIZE. */
+  customers: LegacyCustomer[];
+  /** Every customer waiting to be placed. */
+  total: number;
+  /** Those the search matches; the same as total without a search. */
+  matching: number;
+  page: number;
+  pageCount: number;
+  /** The search this page is narrowed to, or "". */
+  search: string;
+};
+
+/** A page number from an address or a form: digits only, 1 for anything else. */
+export const pageNumberOf = (value: unknown): number => {
+  if (typeof value === "number") return Number.isInteger(value) && value >= 1 && value <= 999_999 ? value : 1;
+  if (typeof value !== "string" || !/^[0-9]{1,6}$/.test(value)) return 1;
+  return Math.max(1, Number(value));
+};
+
+/** The search text of the list's form: trimmed and bounded, "" for anything that is not text. */
+export const customerSearchOf = (value: unknown): string => (typeof value === "string" ? value.trim().slice(0, CUSTOMER_SEARCH_MAX_LENGTH) : "");
+
+/** One page of the list, narrowed to the search. A page past the end is the last page. */
+export const customerPageOf = (customers: LegacyCustomer[], page: unknown, search: unknown = ""): CustomerPage => {
+  const term = customerSearchOf(search);
+  const matches = filterCustomers(customers, term);
+  const pageCount = Math.max(1, Math.ceil(matches.length / CUSTOMERS_PAGE_SIZE));
+  const number = Math.min(pageNumberOf(page), pageCount);
+  const start = (number - 1) * CUSTOMERS_PAGE_SIZE;
+  return { customers: matches.slice(start, start + CUSTOMERS_PAGE_SIZE), total: customers.length, matching: matches.length, page: number, pageCount, search: term };
+};
+
+/** The address of a page of the list. It carries a page number and nothing else. */
+export const legacyCustomersPagePath = (page: number): string => {
+  const number = pageNumberOf(page);
+  return number <= 1 ? LEGACY_CUSTOMERS_PATH : `${LEGACY_CUSTOMERS_PATH}?page=${number}`;
+};
+
+/** "Showing 51 to 100 of 120 customers", "7 of 120 customers match", or "" when one page shows them all. */
+export const customerPageSummary = (page: CustomerPage): string => {
+  const first = (page.page - 1) * CUSTOMERS_PAGE_SIZE + 1;
+  const last = first + page.customers.length - 1;
+  const range = `${first.toLocaleString("en-US")} to ${last.toLocaleString("en-US")}`;
+  if (page.search) {
+    const found = `${page.matching.toLocaleString("en-US")} of ${countLabel(page.total, "customer")} ${page.matching === 1 ? "matches" : "match"}`;
+    return page.pageCount > 1 ? `${found}. Showing ${range}.` : `${found}.`;
+  }
+  return page.pageCount > 1 ? `Showing ${range} of ${countLabel(page.total, "customer")}.` : "";
+};
+
+/** What the list on the page holds: a page of customers, or the refusal of the last search. */
+export type CustomerListState = { ok: true; data: CustomerPage } | { ok: false; failure: PlacementFailure; retryAfterSeconds?: number; search?: string };
+
 /** "Ada Lovelace (ada@example.com)", or whichever of the two is known. */
 export const customerLabel = (customer: Pick<LegacyCustomer, "name" | "email">): string =>
   customer.name && customer.email ? `${customer.name} (${customer.email})` : (customer.name ?? customer.email ?? "A customer with no name or email on file");

@@ -3,6 +3,8 @@
 import { listOrganizationTeamsAction } from "@/app/actions/organizationContent";
 import { BACKEND_URL } from "@/lib/config";
 import {
+  customerPageOf,
+  customerSearchOf,
   isIdempotencyKey,
   isPlacementId,
   isRunId,
@@ -14,6 +16,8 @@ import {
   searchTermOf,
   startedRunOf,
   validatePlacementRequest,
+  type CustomerListState,
+  type CustomerPage,
   type LegacyCustomer,
   type PlacementAction,
   type PlacementFailure,
@@ -97,6 +101,27 @@ export async function listLegacyCustomersAction(): Promise<PlacementResult<Legac
   const denied = await staffRefusal();
   if (denied) return denied;
   return ask("list", "", { method: "GET" }, parseLegacyCustomers);
+}
+
+/* One page of the list, for the list page. The backend has no paging: this reads the whole list
+   once and returns at most 50 rows of it, so the rest never leaves the server. */
+export async function listLegacyCustomersPageAction(page: unknown): Promise<PlacementResult<CustomerPage>> {
+  const denied = await staffRefusal();
+  if (denied) return denied;
+  const result = await ask("list", "", { method: "GET" }, parseLegacyCustomers);
+  return result.ok ? { ok: true, data: customerPageOf(result.data, page) } : result;
+}
+
+/* The list's search, as the action of its form: the text arrives in the form's body (a POST),
+   never in an address, and is matched here against one read of the list. Only the matching rows
+   of one page are returned. The text is not sent to the backend, which has no search. */
+export async function searchLegacyCustomersAction(_previous: CustomerListState, formData: FormData): Promise<CustomerListState> {
+  const denied = await staffRefusal();
+  if (denied) return denied;
+  const field = (name: string): unknown => (typeof formData?.get === "function" ? formData.get(name) : null);
+  const search = field("clear") ? "" : customerSearchOf(field("search"));
+  const result = await ask("list", "", { method: "GET" }, parseLegacyCustomers);
+  return result.ok ? { ok: true, data: customerPageOf(result.data, field("page"), search) } : { ...result, ...(search ? { search } : {}) };
 }
 
 /** GET /target-organizations?q=: the organizations a customer can be placed in, by name. */

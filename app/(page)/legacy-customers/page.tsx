@@ -1,4 +1,4 @@
-import { listLegacyCustomersAction } from "@/app/actions/legacyCustomers";
+import { listLegacyCustomersPageAction } from "@/app/actions/legacyCustomers";
 import AdminPageHeader from "@/components/layout/AdminPageHeader";
 import LegacyCustomersList from "@/components/legacyCustomers/LegacyCustomersList";
 import { PlacementFailureState, PlacementFrame } from "@/components/legacyCustomers/PlacementChrome";
@@ -9,8 +9,14 @@ export const metadata = { title: "Legacy customers" };
 // The list changes as customers are placed: it is read for every view and never cached.
 export const dynamic = "force-dynamic";
 
-export default async function LegacyCustomersPage() {
-  const result = await listLegacyCustomersAction();
+type Props = { searchParams?: Promise<{ page?: string | string[] }> };
+
+/* One page of the list (at most 50 customers), chosen by ?page=, which is a number and nothing
+   else. The backend returns the whole list in one answer; the action cuts the page on the server,
+   so the rest of the names and emails never reach the browser. One backend read per view. The
+   search is the list's own form (a POST): its text is never in this address. */
+export default async function LegacyCustomersPage({ searchParams }: Props) {
+  const result = await listLegacyCustomersPageAction((await searchParams)?.page);
   return (
     <PlacementFrame back={false}>
       <AdminPageHeader
@@ -20,7 +26,7 @@ export default async function LegacyCustomersPage() {
         icon={UserRoundCog}
       />
       {result.ok ? (
-        <LegacyCustomersList customers={result.data} />
+        <LegacyCustomersList key={result.data.page} initial={result.data} />
       ) : (
         <PlacementFailureState failure={result.failure} retryAfterSeconds={result.retryAfterSeconds} retryHref={LEGACY_CUSTOMERS_PATH} />
       )}
