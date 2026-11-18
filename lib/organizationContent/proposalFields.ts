@@ -1,5 +1,5 @@
-// How a granted RFP is put into words for RFPilot Support (ORG-406). Pure helpers, moved from
-// the old all-organization "Proposals" screens, which no longer exist.
+// How a customer's proposal is put into words for RFPilot staff in the organization content
+// browser (owner decision, 2026-11-17). Pure helpers; they came from the grant workspace (ORG-406).
 
 /**
  * A published RFP is Live unless it was switched off. "rejected" is a status left by an
@@ -52,10 +52,10 @@ export const eventDates = (rfp: { startDate?: string | null; endDate?: string | 
 
 // ---- RFP detail: turning stored form data into readable rows ----
 
-export type RfpField =
+export type ProposalField =
   | { kind: "text"; label: string; value: string }
   | { kind: "link"; label: string; value: string }
-  | { kind: "group"; label: string; items: { title: string; fields: RfpField[] }[] };
+  | { kind: "group"; label: string; items: { title: string; fields: ProposalField[] }[] };
 
 const ACRONYMS: Record<string, string> = {
   av: "AV", coi: "COI", dei: "DEI", nda: "NDA", qa: "Q&A", url: "URL", urls: "URLs",
@@ -119,9 +119,9 @@ const itemTitle = (item: Record<string, unknown>, fallback: string) => {
  * blank. Nested answers ("podiumMic": {"podiumMic", "podiumMicQty"}) become
  * their own rows; lists of objects (rooms, sessions, files) become groups.
  */
-export const rfpFields = (data: unknown, parent?: string): RfpField[] => {
+export const proposalFields = (data: unknown, parent?: string): ProposalField[] => {
   if (!data || typeof data !== "object" || Array.isArray(data)) return [];
-  const fields: RfpField[] = [];
+  const fields: ProposalField[] = [];
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     if (isBlank(value)) continue;
     const label =
@@ -138,13 +138,13 @@ export const rfpFields = (data: unknown, parent?: string): RfpField[] => {
           label,
           items: present.map((item, index) =>
             typeof item === "object" && item
-              ? { title: itemTitle(item as Record<string, unknown>, `${humanizeKey(key)} ${index + 1}`), fields: rfpFields(item) }
+              ? { title: itemTitle(item as Record<string, unknown>, `${humanizeKey(key)} ${index + 1}`), fields: proposalFields(item) }
               : { title: humanizeValue(item), fields: [] },
           ),
         });
       }
     } else if (typeof value === "object") {
-      fields.push(...rfpFields(value, key));
+      fields.push(...proposalFields(value, key));
     } else {
       const text = String(value).trim();
       fields.push(/^https?:\/\//i.test(text) ? { kind: "link", label, value: text } : { kind: "text", label, value: humanizeValue(value) });
@@ -154,7 +154,7 @@ export const rfpFields = (data: unknown, parent?: string): RfpField[] => {
 };
 
 /** The planner's form sections, in the order they fill them in. */
-export const RFP_SECTIONS: { key: string; title: string }[] = [
+export const PROPOSAL_SECTIONS: { key: string; title: string }[] = [
   { key: "event", title: "Event overview" },
   { key: "contact", title: "Contact" },
   { key: "venueSchedule", title: "Venue & schedule" },
@@ -168,6 +168,98 @@ export const RFP_SECTIONS: { key: string; title: string }[] = [
   { key: "uploads", title: "Files & references" },
 ];
 
+/* ---------- Files & references ---------- */
+
+/* The backend returns `uploads` as an allowlist: seven file fields as arrays of bare filenames
+   (staff cannot open a customer's files, so there is nothing to link to), and the fields the
+   planner typed. The same allowlist is applied here, so a key added to the response later is
+   not shown, and a file is only ever a name in plain text. */
+export const UPLOAD_FILE_FIELDS: Array<[key: string, label: string]> = [
+  ["brandGuideFiles", "Brand guide files"],
+  ["eventLogoFiles", "Event logo files"],
+  ["referenceFiles", "Reference files"],
+  ["venueDocs", "Venue documents"],
+  ["ndaDocumentFiles", "NDA document files"],
+  ["scenicInspirationFiles", "Scenic inspiration files"],
+  ["venueCoiFiles", "Venue COI files"],
+];
+
+const CO_VENDORS: Array<[key: string, title: string]> = [
+  ["inHouseVenueAv", "In-house venue AV"],
+  ["eventDecorator", "Event decorator"],
+  ["registrationTech", "Registration tech"],
+  ["agencyOfRecord", "Agency of record"],
+  ["photographer", "Photographer"],
+];
+const CO_VENDOR_FIELDS = ["companyName", "contactName", "contactEmail", "contactPhone", "status", "notes"];
+
+/**
+ * A file's name and nothing else. Anything that could address the file (a path, a query
+ * string, a scheme) is cut away, the way the backend does it; what is left is shown as text.
+ */
+export const bareFilename = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const name = (value.split(/[?#]/)[0].split(/[\\/]/).pop() ?? "").trim();
+  return name && !name.includes(":") ? name : null;
+};
+
+const plainText = (label: string, value: unknown): ProposalField[] => {
+  const raw = typeof value === "string" ? value.trim() : typeof value === "boolean" || typeof value === "number" ? value : "";
+  return raw === "" ? [] : [{ kind: "text", label, value: humanizeValue(raw) }];
+};
+
+const isWebAddress = (value: string) => /^https?:\/\//i.test(value);
+
+/** The "Files & references" rows. File names are always `kind: "text"`: never a link. */
+export const uploadsFields = (data: unknown): ProposalField[] => {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+  const uploads = data as Record<string, unknown>;
+  const fields: ProposalField[] = [];
+
+  for (const [key, label] of UPLOAD_FILE_FIELDS) {
+    const stored = uploads[key];
+    const names = (Array.isArray(stored) ? stored : [stored]).flatMap((entry) => {
+      const name = bareFilename(entry);
+      return name ? [name] : [];
+    });
+    if (names.length) fields.push({ kind: "text", label, value: names.join("\n") });
+  }
+
+  const brandGuide = typeof uploads.brandGuideUrl === "string" ? uploads.brandGuideUrl.trim() : "";
+  if (brandGuide) fields.push({ kind: isWebAddress(brandGuide) ? "link" : "text", label: "Brand guide URL", value: brandGuide });
+
+  const references = (Array.isArray(uploads.referenceUrls) ? uploads.referenceUrls : []).flatMap((entry, index) => {
+    const reference = entry && typeof entry === "object" ? (entry as Record<string, unknown>) : {};
+    const url = typeof reference.url === "string" ? reference.url.trim() : "";
+    const label = typeof reference.label === "string" ? reference.label.trim() : "";
+    if (!url && !label) return [];
+    const row: ProposalField[] = url ? [{ kind: isWebAddress(url) ? "link" : "text", label: "URL", value: url }] : [];
+    return [{ title: label || `Reference ${index + 1}`, fields: row }];
+  });
+  if (references.length) fields.push({ kind: "group", label: "Reference URLs", items: references });
+
+  fields.push(...plainText("NDA required", uploads.ndaRequired), ...plainText("NDA type", uploads.ndaType));
+
+  const coVendors = uploads.coVendors && typeof uploads.coVendors === "object" && !Array.isArray(uploads.coVendors)
+    ? (uploads.coVendors as Record<string, unknown>)
+    : {};
+  const vendors = CO_VENDORS.flatMap(([key, title]) => {
+    const vendor = coVendors[key] && typeof coVendors[key] === "object" ? (coVendors[key] as Record<string, unknown>) : {};
+    const rows = CO_VENDOR_FIELDS.flatMap((field) => (typeof vendor[field] === "string" ? plainText(humanizeKey(field), vendor[field]) : []));
+    return rows.length ? [{ title, fields: rows }] : [];
+  });
+  if (vendors.length) fields.push({ kind: "group", label: "Co-vendors", items: vendors });
+
+  return fields;
+};
+
 /** A section's rows; a list section (rooms) is wrapped so it renders as cards. */
-export const sectionFields = (key: string, value: unknown): RfpField[] =>
-  Array.isArray(value) ? rfpFields({ [key]: value }) : rfpFields(value);
+export const sectionFields = (key: string, value: unknown): ProposalField[] => {
+  if (key === "uploads") return uploadsFields(value);
+  return Array.isArray(value) ? proposalFields({ [key]: value }) : proposalFields(value);
+};
+
+/** What a template keeps from a proposal: content sections only (no contact, no files). */
+export const TEMPLATE_SECTIONS = PROPOSAL_SECTIONS.filter((section) =>
+  ["event", "venueSchedule", "roomByRoom", "production", "hybridVirtual", "contentCreative", "venue", "budget"].includes(section.key),
+);
