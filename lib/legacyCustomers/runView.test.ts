@@ -191,3 +191,90 @@ describe("the review names exactly what the request names", () => {
     expect(reviewIdentities({ target: "new", organization: { name: "Acme Events" } })).toEqual([]);
   });
 });
+
+// Every run the backend's placementRunView can return, by status, operation, journal state and
+// task code, and the sentence the page says for it. The page must never say more than the
+// backend's API document does (docs/API.md, "Legacy customer placement").
+describe("the run headline says only what the backend has said", () => {
+  const AGAIN = "The customer is still waiting in the Legacy customers list and can be placed again.";
+  const failedTask = (code: string | null) => task({ status: "failed", code });
+  const detailOf = (value: PlacementRun) => runHeadline(value).detail;
+
+  it.each([
+    // status, operation, state, title, what the detail must say, what it must not say
+    ["queued", "placement", "queued", "Placement waiting to start", /Nothing has moved yet\./, /still in the organization/],
+    ["queued", "rollback", "rolling_back", "Rollback waiting to start", /records are still in the organization/, /Nothing has moved/],
+    ["running", "placement", "started", "Placement running", /records are being moved\./, /moved back|checks/],
+    ["running", "placement", "queued", "Placement running", /records are being moved\./, /moved back/],
+    ["running", "placement", "done", "Placement running: checking the move", /The records have moved\./, /being moved\./],
+    ["running", "placement", "rolling_back", "Placement running: undoing the move", /checks after the move did not pass.*moving the customer's records back itself/, /records are being moved\.|Nothing has moved/],
+    ["running", "placement", "failed", "Placement running: the move did not complete", /Part of the move did not complete/, /records are being moved\.|Nothing/],
+    ["running", "rollback", "rolling_back", "Rollback running", /being moved back/, /Nothing has moved/],
+  ] as const)("%s %s in state %s: %s", (status, operation, state, title, says, never) => {
+    const headline = runHeadline(run(status, { operation, state }));
+    expect(headline.title).toBe(title);
+    expect(headline.detail).toMatch(says);
+    expect(headline.detail).not.toMatch(never);
+  });
+
+  it("does not say records are being moved, or that nothing has moved, for any state it has other words for", () => {
+    for (const state of ["rolling_back", "failed", "done"] as const) expect(detailOf(run("running", { state }))).not.toMatch(/records are being moved\./);
+    for (const state of ["rolling_back", "rolled_back", "done", "failed"] as const) expect(detailOf(run("queued", { operation: "rollback", state }))).not.toMatch(/Nothing has moved/);
+  });
+
+  it.each([
+    // The four the API document says can be made again.
+    ["PLACEMENT_TASK_START_FAILED", true, /can be placed again/],
+    ["PLACEMENT_TASK_NOT_STARTED", true, /can be placed again/],
+    ["PLACEMENT_TASK_LOST", true, /can be placed again/],
+    ["PLACEMENT_FAILED", true, /can be placed again/],
+    // The customer may not be waiting any more.
+    ["NOT_A_LEGACY_CUSTOMER", false, /no longer waiting to be placed.*another run may have placed them/],
+    ["USER_NOT_FOUND", false, /account was not found/],
+    // The target no longer takes them: placing again as before would fail again.
+    ["ALREADY_A_MEMBER", false, /already has a membership.*Choose a different organization/],
+    ["ORGANIZATION_NOT_FOUND", false, /organization that was chosen was no longer available/],
+    ["UNKNOWN_TEAM", false, /team that was chosen was no longer an active team/],
+    // The task refused the request itself.
+    ["PLACEMENT_REQUEST_INVALID", false, /did not accept the request\. Do not make the same request again/],
+    // Not documented as retryable: the page does not know.
+    ["PLACEMENT_TASK_ERROR", false, /Check the Legacy customers list to see whether the customer is still waiting/],
+    ["BRAND_NEW_CODE", false, /Check the Legacy customers list to see whether the customer is still waiting/],
+    [null, false, /Check the Legacy customers list to see whether the customer is still waiting/],
+  ] as const)("failed with nothing moved, task code %s: placeable again %p", (code, again, says) => {
+    const headline = runHeadline(run("failed", { state: "aborted", task: failedTask(code) }));
+    expect(headline).toMatchObject({ title: "Failed: nothing was moved", tone: "neutral" });
+    expect(headline.detail === AGAIN).toBe(again);
+    expect(headline.detail).toMatch(says);
+    if (!again) {
+      expect(headline.detail).toMatch(/^This run moved nothing\./);
+      expect(headline.detail).not.toMatch(/can be placed again|still waiting in the Legacy customers list and/);
+    }
+  });
+
+  it("says the same for a failed run with no task at all (a server that places inside the request)", () => {
+    expect(detailOf(run("failed", { state: "aborted", task: null }))).toMatch(/^This run moved nothing\. Check the Legacy customers list/);
+  });
+
+  it.each(["PLACEMENT_FAILED", "PLACEMENT_TASK_LOST", "PLACEMENT_TASK_ERROR", "PLACEMENT_VERIFICATION_FAILED", "ROLLBACK_TASK_LOST", null] as const)(
+    "never says nothing moved, or place again, for a failed run that must be rolled back (task code %s)",
+    (code) => {
+      const headline = runHeadline(run("failed", { state: "failed", rollbackRequired: true, task: failedTask(code) }));
+      expect(headline).toMatchObject({ title: "Failed: this run must be rolled back", tone: "danger" });
+      expect(headline.detail).not.toMatch(/nothing|placed again|still waiting/i);
+    },
+  );
+
+  it("words every status, operation and state without a dead end", () => {
+    for (const status of ["queued", "running", "succeeded", "failed", "rolled_back"] as const) {
+      for (const operation of ["placement", "rollback"] as const) {
+        for (const state of ["queued", "started", "done", "failed", "aborted", "rolling_back", "rolled_back", null] as const) {
+          const headline = runHeadline(run(status, { operation, state }));
+          expect(headline.title.length).toBeGreaterThan(3);
+          expect(headline.detail.length).toBeGreaterThan(10);
+          expect(`${headline.title} ${headline.detail}`).not.toMatch(/\bRFP\b|undefined|null/);
+        }
+      }
+    }
+  });
+});

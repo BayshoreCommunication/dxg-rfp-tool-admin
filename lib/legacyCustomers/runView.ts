@@ -26,20 +26,85 @@ export const canRollBack = (run: PlacementRun): boolean => run.status === "succe
 /** The link to the organization is for a customer who is placed there now. */
 export const showsOrganizationLink = (run: PlacementRun): boolean => run.status === "succeeded" && run.targetOrganizationId !== null;
 
+/* A failed run that moved nothing (status failed without rollbackRequired). "Nothing was moved"
+   is true of every one of them; what happens to the customer next is not the same, and is said
+   only where the backend's API document says it (docs/API.md, "Legacy customer placement"):
+
+   - the task could not be started, never started, or was lost before it moved anything, and
+     PLACEMENT_FAILED without rollbackRequired: "nothing moved and the request can be made again";
+   - a request-time refusal met again when the task ran (the data changed in between): the
+     customer may no longer be waiting (NOT_A_LEGACY_CUSTOMER), may have no account
+     (USER_NOT_FOUND), or the target no longer takes them (ALREADY_A_MEMBER,
+     ORGANIZATION_NOT_FOUND, UNKNOWN_TEAM);
+   - PLACEMENT_REQUEST_INVALID: the task did not accept the request itself;
+   - anything else: this screen does not know, and says so. */
+const PLACEABLE_AGAIN = ["PLACEMENT_TASK_START_FAILED", "PLACEMENT_TASK_NOT_STARTED", "PLACEMENT_TASK_LOST", "PLACEMENT_FAILED"];
+
+const nothingMovedDetail = (code: string | null): string => {
+  if (code !== null && PLACEABLE_AGAIN.includes(code)) return "The customer is still waiting in the Legacy customers list and can be placed again.";
+  switch (code) {
+    case "NOT_A_LEGACY_CUSTOMER":
+      return "This run moved nothing. The customer was no longer waiting to be placed when the task ran: another run may have placed them. Look for them in the Legacy customers list before doing anything else.";
+    case "USER_NOT_FOUND":
+      return "This run moved nothing. The customer's account was not found when the task ran, so there may be nothing left to place. Look for them in the Legacy customers list.";
+    case "ALREADY_A_MEMBER":
+      return "This run moved nothing. The customer already has a membership in the organization that was chosen, so they can't be placed into it. Choose a different organization, or ask the engineering team about the membership.";
+    case "ORGANIZATION_NOT_FOUND":
+      return "This run moved nothing. The organization that was chosen was no longer available when the task ran. If the customer is still in the Legacy customers list, choose an organization again.";
+    case "UNKNOWN_TEAM":
+      return "This run moved nothing. The team that was chosen was no longer an active team of the organization when the task ran. If the customer is still in the Legacy customers list, choose a team again, or no team.";
+    case "PLACEMENT_REQUEST_INVALID":
+      return "This run moved nothing. The task did not accept the request. Do not make the same request again until the reason is known.";
+    default:
+      return "This run moved nothing. Check the Legacy customers list to see whether the customer is still waiting.";
+  }
+};
+
+/* What each run the backend can return says. The meanings are the backend's (docs/API.md and
+   placementRunView in src/modules/tenancy/placementTasks.ts):
+
+   - queued placement: the request is journaled and no task has started. Nothing has moved.
+   - queued rollback: the run is claimed for a rollback (state rolling_back) and its task has not
+     started. The records are still in the target organization.
+   - running placement: state started (moving), done (moved; Postgres commit, checks and audit
+     still to come), rolling_back (the checks failed and the placement task is undoing its own
+     move) or failed (part of the move did not commit and the task has not finished).
+   - running rollback: the rollback task is moving the records back. */
 export const runHeadline = (run: PlacementRun): { title: string; detail: string; tone: RunTone } => {
   const rollback = run.operation === "rollback";
   switch (run.status) {
     case "queued":
-      return {
-        title: rollback ? "Rollback waiting to start" : "Placement waiting to start",
-        detail: "The request is recorded and its task is starting. That normally takes about a minute. Nothing has moved yet.",
-        tone: "working",
-      };
+      return rollback
+        ? {
+            title: "Rollback waiting to start",
+            detail: "The rollback is recorded and its task is starting. That normally takes about a minute. Until it runs, the customer's records are still in the organization.",
+            tone: "working",
+          }
+        : {
+            title: "Placement waiting to start",
+            detail: "The request is recorded and its task is starting. That normally takes about a minute. Nothing has moved yet.",
+            tone: "working",
+          };
     case "running":
       if (rollback) return { title: "Rollback running", detail: "The customer's records are being moved back. A large customer takes a few minutes.", tone: "working" };
-      return run.state === "done"
-        ? { title: "Placement running: checking the move", detail: "The records have moved. The task is now finishing the move, running its checks and writing the audit record. It can't be rolled back until that is done.", tone: "working" }
-        : { title: "Placement running", detail: "The customer's records are being moved. A large customer takes a few minutes.", tone: "working" };
+      if (run.state === "done") {
+        return { title: "Placement running: checking the move", detail: "The records have moved. The task is now finishing the move, running its checks and writing the audit record. It can't be rolled back until that is done.", tone: "working" };
+      }
+      if (run.state === "rolling_back") {
+        return {
+          title: "Placement running: undoing the move",
+          detail: "The checks after the move did not pass, so the task is moving the customer's records back itself. Wait for it to finish: this page will say whether that worked.",
+          tone: "warning",
+        };
+      }
+      if (run.state === "failed") {
+        return {
+          title: "Placement running: the move did not complete",
+          detail: "Part of the move did not complete and the task has not finished with this run. Wait for it to finish: this page will then say whether the run must be rolled back.",
+          tone: "warning",
+        };
+      }
+      return { title: "Placement running", detail: "The customer's records are being moved. A large customer takes a few minutes.", tone: "working" };
     case "succeeded":
       if (run.task?.operation === "rollback" && run.task.status === "failed") {
         return { title: "Placed. The rollback did not happen", detail: "A rollback of this run was asked for and failed, so the placement stands as it was.", tone: "warning" };
@@ -50,7 +115,7 @@ export const runHeadline = (run: PlacementRun): { title: string; detail: string;
     case "failed":
       return run.rollbackRequired
         ? { title: "Failed: this run must be rolled back", detail: "The customer's records are in the target organization, but the run did not finish cleanly.", tone: "danger" }
-        : { title: "Failed: nothing was moved", detail: "The customer is still waiting in the Legacy customers list and can be placed again.", tone: "neutral" };
+        : { title: "Failed: nothing was moved", detail: nothingMovedDetail(run.task?.code ?? null), tone: "neutral" };
     case "rolled_back":
       return run.task?.needsOperatorCheck
         ? { title: "Rolled back, needs an engineering check", detail: "The rollback's first half finished, but its task did not report that it completed.", tone: "danger" }
