@@ -116,6 +116,9 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
 
   const stop = (reason: PollStopReason) => {
     cancelTimer();
+    // The loop has given up: a recheck that was waiting for this read goes with it. Left set, it
+    // would add a second read to the next manual refresh, even of a run that had finished.
+    recheckPending = false;
     emit({ phase: "stopped", stopReason: reason, reading: false });
   };
 

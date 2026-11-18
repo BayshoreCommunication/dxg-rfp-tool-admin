@@ -517,6 +517,55 @@ describe("recheck: one more read of a run the loop had finished with", () => {
     expect(h.gaps()).toEqual([6000, 12_000, 24_000, 48_000]);
     expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "rate_limited" });
   });
+  it("forgets a recheck asked for during a read that ended in a final refusal: the next refresh reads once", async () => {
+    const h = harness(run("succeeded"));
+    h.controller.start();
+    await advance(10_000);
+    h.controller.refresh();
+    await advance(0);
+    h.controller.recheck();
+    h.pending[0].resolve({ ok: false, failure: "forbidden" });
+    await advance(60_000);
+    expect(h.startedAt).toHaveLength(1);
+    expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "forbidden" });
+
+    h.controller.refresh();
+    await advance(0);
+    expect(h.startedAt).toHaveLength(2);
+    h.pending[1].resolve(ok("succeeded"));
+    await advance(0);
+    expect(h.controller.getState()).toMatchObject({ phase: "finished", run: { status: "succeeded" } });
+    // The run has finished: nothing is scheduled and nothing more is read.
+    expect(jest.getTimerCount()).toBe(0);
+    await advance(10 * 60_000);
+    expect(h.startedAt).toHaveLength(2);
+    expect(h.pending).toHaveLength(2);
+  });
+
+  it("forgets a recheck asked for during the read that was the third error in a row", async () => {
+    const h = harness(run("succeeded"));
+    h.controller.start();
+    h.controller.recheck();
+    const failed: PlacementResult<PlacementRun> = { ok: false, failure: "unavailable" };
+    for (let read = 0; read < MAX_CONSECUTIVE_ERRORS; read += 1) {
+      await advance(MAX_BACKOFF_MS);
+      expect(h.pending).toHaveLength(read + 1);
+      if (read === MAX_CONSECUTIVE_ERRORS - 1) h.controller.recheck();
+      h.pending[read].resolve(failed);
+      await advance(0);
+    }
+    expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "errors" });
+
+    h.controller.refresh();
+    await advance(MIN_POLL_INTERVAL_MS);
+    expect(h.pending).toHaveLength(MAX_CONSECUTIVE_ERRORS + 1);
+    h.pending[MAX_CONSECUTIVE_ERRORS].resolve(ok("succeeded"));
+    await advance(0);
+    expect(h.controller.getState()).toMatchObject({ phase: "finished" });
+    expect(jest.getTimerCount()).toBe(0);
+    await advance(10 * 60_000);
+    expect(h.pending).toHaveLength(MAX_CONSECUTIVE_ERRORS + 1);
+  });
 });
 
 // A tab left open on a run that never finishes must not read for ever.
