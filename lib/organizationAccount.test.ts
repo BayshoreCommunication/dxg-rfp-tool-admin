@@ -24,7 +24,6 @@ import {
   roleCountRows,
   standingBadge,
   standingLabel,
-  supportAccessLabel,
   teamCountLabels,
   twoFactorLabel,
   type OrganizationAccountFailure,
@@ -75,7 +74,6 @@ const response = () => ({
     allowManagerInvites: false,
   },
   activity: { lastSignInAt: "2026-11-16T08:05:00.000Z" },
-  supportAccess: { active: true },
 });
 
 describe("reading the organization account response", () => {
@@ -89,12 +87,14 @@ describe("reading the organization account response", () => {
       members: [{ name: "Someone Else", email: "someone@acme.example" }],
       owner: { name: "Dana Whitfield", email: "dana@acme.example", id: "c".repeat(24), phone: "555-0100" },
       plan: { ...response().plan, lastChange: { ...response().plan.lastChange, note: "Paid by invoice" } },
+      // The backend still answers with the old grant field; nothing of it is kept.
       supportAccess: { active: true, reason: "Ticket 4411", expiresAt: "2026-12-01T00:00:00.000Z" },
       // The same platform-wide list for every organization: not a fact about this one.
       security: { ...response().security, signInMethods: ["password", "google", "microsoft", "company_sso"] },
     };
     const parsed = parseOrganizationAccount(withExtras);
     expect(parsed).toEqual(response());
+    expect(parsed).not.toHaveProperty("supportAccess");
     expect(JSON.stringify(parsed)).not.toMatch(/Someone Else|555-0100|Paid by invoice|Ticket 4411|signInMethods|microsoft/i);
   });
 
@@ -119,7 +119,6 @@ describe("reading the organization account response", () => {
       },
       security: { requireTwoFactor: false, domains: [], companySso: { configured: false, enabled: false, required: false, type: null } },
       activity: { lastSignInAt: null },
-      supportAccess: { active: false },
     });
   });
 
@@ -310,15 +309,13 @@ describe("organization account wording", () => {
     );
   });
 
-  it("words the settings and support access", () => {
+  it("words the settings", () => {
     expect(twoFactorLabel(true)).toBe("Required");
     expect(twoFactorLabel(false)).toBe("Not required");
     expect(autoApproveLabel(false)).toBe("Off");
     expect(autoApproveLabel(true)).toMatch(/^On: /);
     expect(managerInvitesLabel(true)).toBe("Allowed");
     expect(managerInvitesLabel(false)).toBe("Not allowed");
-    expect(supportAccessLabel(true)).toBe("Active");
-    expect(supportAccessLabel(false)).toBe("None");
   });
 
   it("shows the Owner as the account contact, and says when there is none", () => {

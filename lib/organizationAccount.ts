@@ -1,9 +1,10 @@
 // Organization account detail for RFPilot staff (owner decision, 2026-11-17): the shape of
 // GET /api/v1/admin/organizations/:organizationId and the wording the detail page shows.
-// Staff may see account-level information about any organization without a support grant, and
-// nothing else: no member list and no customer content. The backend builds the response as an
-// allowlist; the parser here keeps only the fields the page shows, so a field added to the
-// response later does not reach the screen by accident.
+// This page shows account-level information only: counts, settings and the Owner as account
+// contact. Members and customer content are on their own pages (lib/organizationContent), each
+// its own recorded read. The backend builds the response as an allowlist; the parser here keeps
+// only the fields the page shows, so a field added to the response later does not reach the
+// screen by accident.
 
 import { planLabel, type OrganizationPlanItem, type PlanFeatures, type PlanOption, type PlanUsage } from "@/lib/organizationPlans";
 import { countLabel } from "@/lib/plural";
@@ -70,7 +71,6 @@ export type OrganizationAccount = {
     allowManagerInvites: boolean;
   };
   activity: { lastSignInAt: string | null };
-  supportAccess: { active: boolean };
 };
 
 export const ORGANIZATIONS_PATH = "/organizations";
@@ -205,7 +205,6 @@ export const parseOrganizationAccount = (data: unknown): OrganizationAccount | n
       allowManagerInvites: security?.allowManagerInvites === true,
     },
     activity: { lastSignInAt: instant(record(root.activity)?.lastSignInAt) },
-    supportAccess: { active: record(root.supportAccess)?.active === true },
   };
 };
 
@@ -392,7 +391,6 @@ export const twoFactorLabel = (required: boolean): string => (required ? "Requir
 export const autoApproveLabel = (on: boolean): string =>
   on ? "On: people with a verified domain email join without approval" : "Off";
 export const managerInvitesLabel = (allowed: boolean): string => (allowed ? "Allowed" : "Not allowed");
-export const supportAccessLabel = (active: boolean): string => (active ? "Active" : "None");
 
 /** Counts shown bare ("Owner 1") still use the en-US thousands separator. */
 export const plainCount = (value: number): string => value.toLocaleString("en-US");

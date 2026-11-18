@@ -89,7 +89,7 @@ export async function changeOrganizationPlanAction(
 }
 
 /* Organization account detail (owner decision, 2026-11-17): account-level facts about one
-   organization, with no support grant, no member list and no customer content. The backend
+   organization. Its members and content are read by app/actions/organizationContent.ts. The backend
    records each successful read in the staff organization's audit trail, so nothing here is
    cached and the page is never fetched ahead of being opened. */
 

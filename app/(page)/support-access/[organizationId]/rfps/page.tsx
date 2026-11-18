@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { SUPPORT_ACCESS_PATH, isSupportAccessId, organizationRfpsPath } from "@/lib/supportAccess/grants";
+import { supportAccessRedirect } from "@/lib/organizationContent/content";
 
-export default async function GrantedRfpsIndexPage({ params }: { params: Promise<{ organizationId: string }> }) {
+// The grant workspace is gone (owner decision, 2026-11-17): this old address goes to its place
+// in the organization content browser. Nothing is read to decide.
+export default async function SupportAccessProposalsRedirect({ params }: { params: Promise<{ organizationId: string }> }) {
   const { organizationId } = await params;
-  redirect(isSupportAccessId(organizationId) ? organizationRfpsPath(organizationId) : SUPPORT_ACCESS_PATH);
+  // The old proposal list of an organization: an id that is not one (the empty string) lands on the new list.
+  redirect(supportAccessRedirect({ organizationId, rfpId: "" }));
 }
