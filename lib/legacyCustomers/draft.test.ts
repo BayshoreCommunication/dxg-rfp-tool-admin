@@ -1,4 +1,4 @@
-import { clearPlacementDrafts, draftStorageKey, emptyDraft, parseDraft, requestOfDraft, teamAfterListing } from "@/lib/legacyCustomers/draft";
+import { clearPlacementDrafts, clearPlacementDraftsIn, draftStorageKey, emptyDraft, parseDraft, requestOfDraft, teamAfterListing } from "@/lib/legacyCustomers/draft";
 
 const ORG = "6b0000000000000000000002";
 const KEY = "3f1c9a52-7d7e-4b9e-9a51-0f6f6c1d2e3f";
@@ -109,5 +109,23 @@ describe("saved choices are cleared on sign-out", () => {
     expect(clearPlacementDrafts(undefined)).toBe(0);
     const refusing = { get length(): number { throw new Error("blocked"); }, key: () => null, removeItem: () => undefined };
     expect(clearPlacementDrafts(refusing)).toBe(0);
+  });
+
+  it("does not throw when the storage itself cannot be reached, and clears one that can", () => {
+    // What a browser does with site data blocked, or in a sandboxed frame: the getter throws.
+    const blocked = {
+      get sessionStorage(): Storage {
+        throw new DOMException("The operation is insecure.", "SecurityError");
+      },
+    };
+    expect(() => clearPlacementDraftsIn(() => blocked.sessionStorage)).not.toThrow();
+    expect(clearPlacementDraftsIn(() => blocked.sessionStorage)).toBe(0);
+    // On the server there is no window at all.
+    expect(clearPlacementDraftsIn(() => (globalThis as unknown as { window: Window }).window.sessionStorage)).toBe(0);
+    expect(clearPlacementDraftsIn(() => null)).toBe(0);
+    expect(clearPlacementDraftsIn(() => undefined)).toBe(0);
+    const storage = storageOf({ [draftStorageKey("6a0000000000000000000001")]: "{}", theme: "dark" });
+    expect(clearPlacementDraftsIn(() => storage)).toBe(1);
+    expect([...storage.map.keys()]).toEqual(["theme"]);
   });
 });

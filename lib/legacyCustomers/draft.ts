@@ -64,6 +64,18 @@ export const clearPlacementDrafts = (storage: Pick<Storage, "length" | "key" | "
   }
 };
 
+/* The same, for a storage that may not be reachable at all. Where site data is blocked or the
+   page is in a sandboxed frame, reading window.sessionStorage itself throws (SecurityError), and
+   on the server there is no window: the storage is asked for inside the try, so nothing here can
+   throw into the caller (the sign-out handler, which must go on to sign out). */
+export const clearPlacementDraftsIn = (storageOf: () => Pick<Storage, "length" | "key" | "removeItem"> | null | undefined): number => {
+  try {
+    return clearPlacementDrafts(storageOf());
+  } catch {
+    return 0;
+  }
+};
+
 const str = (value: unknown, max: number) => (typeof value === "string" ? value.slice(0, max) : "");
 
 export const parseDraft = (stored: string | null | undefined): PlacementDraft | null => {

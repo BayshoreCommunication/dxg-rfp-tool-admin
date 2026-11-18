@@ -158,7 +158,14 @@ describe("the Legacy customers screen", () => {
     const sidebar = read("components/layout/Sidebar.tsx");
     // The app's one sign-out handler; both sign-out buttons call it.
     expect(sidebar.match(/const signOutHandler = async/g)).toHaveLength(1);
-    expect(sidebar).toMatch(/setIsSigningOut\(true\);\s*(\/\/[^\n]*\n\s*)?clearPlacementDrafts\(typeof window === "undefined" \? null : window\.sessionStorage\);/);
+    // The drafts are cleared inside the handler's try, in a try of their own, with the storage
+    // asked for inside the helper: a browser that refuses the storage cannot stop the sign-out.
+    expect(sidebar).toMatch(
+      /setIsSigningOut\(true\);\s*try \{\s*(\/\/[^\n]*\n\s*)*try \{\s*clearPlacementDraftsIn\(\(\) => window\.sessionStorage\);\s*\} catch \{[^}]*\}\s*try \{\s*await signOutAction\(\);/,
+    );
+    // The storage is named nowhere else in the handler, and never outside a function handed to the helper.
+    expect(sidebar.match(/sessionStorage/g)).toHaveLength(1);
+    expect(sidebar).not.toMatch(/clearPlacementDrafts\(/);
     const everywhere = [...sourceFiles("app"), ...sourceFiles("components"), ...sourceFiles("lib")];
     const signsOut = everywhere.filter((file) => /from "next-auth\/react"/.test(read(file)) && /\bsignOut\(/.test(read(file)));
     expect(signsOut).toEqual(["components/layout/Sidebar.tsx"]);
