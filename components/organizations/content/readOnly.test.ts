@@ -96,6 +96,26 @@ describe("the organization content pages are view-only", () => {
     expect(chrome).not.toMatch(/aria-disabled|pointer-events-none border|tabIndex/);
   });
 
+  it("never draws the page being shown as a link, in any content component or page", () => {
+    // A Link marked as the current page leads to the address already open: one more recorded read.
+    const current = contentFiles.flatMap((file) =>
+      (read(file).match(/<Link\b[^>]*>/g) ?? []).filter((link) => /aria-current=(?:"page"|\{[^}]*"page")/.test(link)).map((link) => ({ file, link })),
+    );
+    expect(current).toEqual([]);
+    // The proposal's two views: the open one is text, the other one a link.
+    const detail = read(`${COMPONENTS}/ProposalDetail.tsx`);
+    const tabs = detail.slice(detail.indexOf("export const ProposalViewTabs"), detail.indexOf("export const BackToProposals"));
+    expect(tabs).toMatch(/tab\.id === active \? \(\s*<span key=\{tab\.id\} aria-current="page"/);
+    expect(tabs.match(/<Link\b/g)).toHaveLength(1);
+    expect(tabs).toMatch(/\) : \(\s*<Link key=\{tab\.id\} href=\{tab\.href\} prefetch=\{false\}/);
+    // Each of the two pages names its own view as the open one.
+    expect(detail).toMatch(/<ProposalViewTabs organizationId=\{organizationId\} proposalId=\{proposal\.id\} active="proposal" \/>/);
+    expect(read(`${PAGES}/proposals/[proposalId]/vendor-responses/page.tsx`)).toMatch(
+      /<ProposalViewTabs organizationId=\{organizationId\} proposalId=\{proposalId\} active="vendor-responses" \/>/,
+    );
+    expect(contentFiles.flatMap((file) => read(file).match(/<ProposalViewTabs\b/g) ?? [])).toHaveLength(2);
+  });
+
   it("links out of the app only for an address the planner typed, never for a file", () => {
     const anchors = contentFiles.flatMap((file) => (read(file).match(/<a\b[^>]*>/g) ?? []).map((anchor) => ({ file, anchor })));
     expect(anchors.map(({ file }) => file)).toEqual([`${COMPONENTS}/ProposalDetail.tsx`, `${COMPONENTS}/ProposalDetail.tsx`]);

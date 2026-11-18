@@ -68,6 +68,8 @@ export const Fields = ({ fields, nested = false }: { fields: ProposalField[]; ne
   </dl>
 );
 
+const tabClass = "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold transition";
+
 /** Which view of a proposal is open. Each one is its own recorded read, so they are separate pages. */
 export const ProposalViewTabs = ({
   organizationId,
@@ -84,21 +86,18 @@ export const ProposalViewTabs = ({
         { id: "proposal", label: "Proposal", href: organizationProposalPath(organizationId, proposalId) },
         { id: "vendor-responses", label: "Vendor responses", href: organizationVendorResponsesPath(organizationId, proposalId) },
       ] as const
-    ).map((tab) => (
-      <Link
-        key={tab.id}
-        href={tab.href}
-        prefetch={false}
-        aria-current={tab.id === active ? "page" : undefined}
-        className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-          tab.id === active
-            ? "border-[#aee9e8] bg-[#eaf9f8] text-[#007f86]"
-            : "border-slate-200 text-slate-600 hover:border-[#00aeb5] hover:text-[#007f86]"
-        }`}
-      >
-        {tab.label}
-      </Link>
-    ))}
+    ).map((tab) =>
+      // The open view is text: a link to it would be one more recorded read of the same page.
+      tab.id === active ? (
+        <span key={tab.id} aria-current="page" className={`${tabClass} border-[#aee9e8] bg-[#eaf9f8] text-[#007f86]`}>
+          {tab.label}
+        </span>
+      ) : (
+        <Link key={tab.id} href={tab.href} prefetch={false} className={`${tabClass} border-slate-200 text-slate-600 hover:border-[#00aeb5] hover:text-[#007f86]`}>
+          {tab.label}
+        </Link>
+      ),
+    )}
   </nav>
 );
 
