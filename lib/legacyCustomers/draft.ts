@@ -1,0 +1,86 @@
+// The place flow's unsent choices, kept in the tab's session storage so a refresh on the place
+// page returns to the same step with the same values (draft.test.ts). It is read back as an
+// allowlist of strings; the request itself is always rebuilt and checked from it
+// (validatePlacementRequest), never trusted.
+
+import { isIdempotencyKey, isPlacementId, type PlacementRequest, validatePlacementRequest, type FieldErrors } from "@/lib/legacyCustomers/placement";
+
+export type PlacementDraft = {
+  target: "new" | "existing" | "";
+  name: string;
+  type: string;
+  industry: string;
+  country: string;
+  timeZone: string;
+  eventsPerYear: string;
+  organizationId: string;
+  organizationName: string;
+  role: string;
+  teamId: string;
+  teamName: string;
+  step: "form" | "review";
+  /** Made when the review opens, and replaced whenever it opens again: one key per reviewed request. */
+  idempotencyKey: string;
+};
+
+export const emptyDraft = (): PlacementDraft => ({
+  target: "",
+  name: "",
+  type: "",
+  industry: "",
+  country: "",
+  timeZone: "",
+  eventsPerYear: "",
+  organizationId: "",
+  organizationName: "",
+  role: "",
+  teamId: "",
+  teamName: "",
+  step: "form",
+  idempotencyKey: "",
+});
+
+export const draftStorageKey = (userId: string) => `legacy-placement-draft:${userId}`;
+
+const str = (value: unknown, max: number) => (typeof value === "string" ? value.slice(0, max) : "");
+
+export const parseDraft = (stored: string | null | undefined): PlacementDraft | null => {
+  if (!stored) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(stored);
+  } catch {
+    return null;
+  }
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
+  const item = raw as Record<string, unknown>;
+  const draft: PlacementDraft = {
+    target: item.target === "new" || item.target === "existing" ? item.target : "",
+    name: str(item.name, 300),
+    type: str(item.type, 40),
+    industry: str(item.industry, 200),
+    country: str(item.country, 10),
+    timeZone: str(item.timeZone, 80),
+    eventsPerYear: str(item.eventsPerYear, 10),
+    organizationId: isPlacementId(item.organizationId) ? item.organizationId : "",
+    organizationName: str(item.organizationName, 200),
+    role: str(item.role, 40),
+    teamId: isPlacementId(item.teamId) ? item.teamId : "",
+    teamName: str(item.teamName, 200),
+    step: item.step === "review" ? "review" : "form",
+    idempotencyKey: isIdempotencyKey(item.idempotencyKey) ? item.idempotencyKey : "",
+  };
+  // A review is only restored whole: with a request that still passes and the key it was opened with.
+  if (draft.step === "review" && (!draft.idempotencyKey || !requestOfDraft(draft).ok)) return { ...draft, step: "form", idempotencyKey: "" };
+  return draft;
+};
+
+/** The request the draft describes, checked. */
+export const requestOfDraft = (draft: PlacementDraft): { ok: true; request: PlacementRequest } | { ok: false; errors: FieldErrors } =>
+  validatePlacementRequest(
+    draft.target === "new"
+      ? { target: "new", organization: { name: draft.name, type: draft.type, industry: draft.industry, country: draft.country, timeZone: draft.timeZone, eventsPerYear: draft.eventsPerYear } }
+      : draft.target === "existing"
+        ? { target: "existing", organizationId: draft.organizationId, role: draft.role, teamId: draft.teamId }
+        : {},
+  );
