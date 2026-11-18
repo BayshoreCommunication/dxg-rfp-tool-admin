@@ -71,8 +71,6 @@ export type OrganizationAccount = {
     allowManagerInvites: boolean;
   };
   activity: { lastSignInAt: string | null };
-  /** Whether a support grant is stored. Kept from the response, not shown: a grant gates nothing now. */
-  supportAccess: { active: boolean };
 };
 
 export const ORGANIZATIONS_PATH = "/organizations";
@@ -207,7 +205,6 @@ export const parseOrganizationAccount = (data: unknown): OrganizationAccount | n
       allowManagerInvites: security?.allowManagerInvites === true,
     },
     activity: { lastSignInAt: instant(record(root.activity)?.lastSignInAt) },
-    supportAccess: { active: record(root.supportAccess)?.active === true },
   };
 };
 
@@ -394,8 +391,6 @@ export const twoFactorLabel = (required: boolean): string => (required ? "Requir
 export const autoApproveLabel = (on: boolean): string =>
   on ? "On: people with a verified domain email join without approval" : "Off";
 export const managerInvitesLabel = (allowed: boolean): string => (allowed ? "Allowed" : "Not allowed");
-/** No longer on screen: a support grant gates nothing since 2026-11-17, so the page does not report one. */
-export const supportAccessLabel = (active: boolean): string => (active ? "Active" : "None");
 
 /** Counts shown bare ("Owner 1") still use the en-US thousands separator. */
 export const plainCount = (value: number): string => value.toLocaleString("en-US");

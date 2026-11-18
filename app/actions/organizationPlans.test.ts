@@ -109,7 +109,6 @@ const account = {
     allowManagerInvites: true,
   },
   activity: { lastSignInAt: null },
-  supportAccess: { active: false },
 };
 
 describe("organization account action", () => {
@@ -138,7 +137,8 @@ describe("organization account action", () => {
       }),
     );
     const result = await getOrganizationAccountAction(ORG);
-    expect(result).toEqual({ ok: true, data: { ...account, supportAccess: { active: true } } });
+    expect(result).toEqual({ ok: true, data: account });
+    expect(JSON.stringify(result)).not.toMatch(/supportAccess/);
     expect(JSON.stringify(result)).not.toMatch(/someone@acme\.example|Ticket 4411|microsoft/);
   });
 
@@ -211,8 +211,7 @@ describe("organization account action", () => {
   });
 });
 
-// No component harness in this repo (Jest runs in node), so these read the source, the same way
-// the support-access tests check their links.
+// No component harness in this repo (Jest runs in node), so these read the source.
 describe("organization detail page wiring", () => {
   const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
   const page = "app/(page)/organizations/[organizationId]/page.tsx";
