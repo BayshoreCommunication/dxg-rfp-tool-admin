@@ -29,8 +29,10 @@ export const stageLabel = (rfp: { stage?: string | null; isDraft?: boolean; isAr
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
 
 /**
- * Timestamps and plain "YYYY-MM-DD" dates are formatted (the latter in UTC so
- * they never shift a day); anything else the planner typed is shown as is.
+ * Timestamps and plain "YYYY-MM-DD" dates are formatted; anything else the planner typed is shown
+ * as is. The pages are rendered on the server, so a timestamp is given as its UTC day and says so,
+ * the same way `formatContentDate` does on the other content pages. A plain date is a day, not a
+ * moment: it is read in UTC so it never shifts, and carries no zone.
  */
 export const formatDate = (value?: string | null) => {
   const raw = value?.trim();
@@ -39,7 +41,8 @@ export const formatDate = (value?: string | null) => {
   if (!plainDate && !/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw;
   const date = new Date(plainDate ? `${raw}T00:00:00Z` : raw);
   if (Number.isNaN(date.getTime())) return raw;
-  return date.toLocaleDateString("en-US", plainDate ? { ...DATE_FORMAT, timeZone: "UTC" } : DATE_FORMAT);
+  const day = date.toLocaleDateString("en-US", { ...DATE_FORMAT, timeZone: "UTC" });
+  return plainDate ? day : `${day} UTC`;
 };
 
 /** "Nov 12 – 14, 2026" style range from the planner's free-text event dates. */

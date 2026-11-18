@@ -1,4 +1,8 @@
-import { TEMPLATE_SECTIONS, UPLOAD_FILE_FIELDS, bareFilename, eventDates, humanizeKey, humanizeValue, publishedState, proposalFields, sectionFields, stageLabel, uploadsFields, type ProposalField } from "./proposalFields";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { formatContentDate } from "./content";
+import { TEMPLATE_SECTIONS, UPLOAD_FILE_FIELDS, bareFilename, eventDates, formatDate, humanizeKey, humanizeValue, publishedState, proposalFields, sectionFields, stageLabel, uploadsFields, type ProposalField } from "./proposalFields";
 
 describe("proposal wording", () => {
   it("names the lifecycle stage the planner sees", () => {
@@ -13,6 +17,27 @@ describe("proposal wording", () => {
     expect(eventDates({ startDate: "2026-11-12", endDate: "2026-11-14" })).toBe("Nov 12, 2026 – Nov 14, 2026");
     expect(eventDates({ startDate: "Spring 2027", endDate: null })).toBe("Spring 2027");
     expect(eventDates({ startDate: null, endDate: null })).toBe("Not set");
+  });
+
+  it("gives a full timestamp as its UTC day and says so, like the other content pages", () => {
+    // Just before and just after midnight UTC: the day shown is the UTC one wherever the server runs.
+    expect(formatDate("2026-11-17T23:30:00.000Z")).toBe("Nov 17, 2026 UTC");
+    expect(formatDate("2026-11-18T00:15:00.000Z")).toBe("Nov 18, 2026 UTC");
+    expect(formatDate("2026-11-18T03:00:00+06:00")).toBe("Nov 17, 2026 UTC");
+    for (const iso of ["2026-11-17T23:30:00.000Z", "2026-11-18T00:15:00.000Z", "2026-03-01T00:00:00.000Z"]) {
+      expect(formatDate(iso)).toBe(formatContentDate(iso));
+    }
+    // A plain date is a day, not a moment: it is not shifted and carries no zone.
+    expect(formatDate("2026-11-18")).toBe("Nov 18, 2026");
+    expect(formatDate("Spring 2027")).toBe("Spring 2027");
+    expect(formatDate("")).toBeNull();
+    expect(formatDate(null)).toBeNull();
+    // No other date formatting in the proposal components: all three go through formatDate.
+    for (const file of ["ProposalList.tsx", "ProposalDetail.tsx", "VendorResponses.tsx"]) {
+      const source = readFileSync(join(process.cwd(), "components/organizations/content", file), "utf8");
+      expect({ file, own: /toLocaleDateString|toLocaleTimeString|new Date\(|Intl\.DateTimeFormat/.test(source) }).toEqual({ file, own: false });
+      expect(source).toMatch(/\bformatDate\(/);
+    }
   });
 
   it("shows published RFPs as Live or Offline, never the legacy Rejected status", () => {
