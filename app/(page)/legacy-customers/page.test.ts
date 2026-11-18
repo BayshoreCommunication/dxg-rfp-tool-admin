@@ -24,7 +24,7 @@ const customers = Array.from({ length: 120 }, (_, index) => ({
 }));
 const answer = (rows: unknown[]) => ({ ok: true, status: 200, json: async () => ({ success: true, data: { customers: rows } }), headers: { get: () => null } }) as unknown as Response;
 
-type Element = { type: unknown; props: Record<string, unknown> };
+type Element = { type: unknown; key?: unknown; props: Record<string, unknown> };
 const isElement = (value: unknown): value is Element => typeof value === "object" && value !== null && "props" in value && "type" in value;
 /** Every element the page returns, without rendering its components. */
 const elements = (node: unknown): Element[] => {
@@ -102,5 +102,26 @@ describe("the Legacy customers list page", () => {
     expect(lists).toHaveLength(0);
     expect(found.some((element) => element.props.failure === "forbidden")).toBe(true);
     expect(mockedFetch).not.toHaveBeenCalled();
+  });
+
+  // The list keeps what it was first given (useActionState reads its initial value once), so it
+  // must be a new list for every server read, not only for every page number: otherwise a fresh
+  // read of the same page spends a backend read and leaves the old rows or an old search on screen.
+  it("keys the list on the server read, so a second read of the same page number replaces what is shown", async () => {
+    const first = await render({ page: "2" });
+    mockedFetch.mockResolvedValue(answer(customers.slice(0, 70)));
+    const second = await render({ page: "2" });
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+    expect((first.lists[0].props.initial as CustomerPage).page).toBe(2);
+    expect((second.lists[0].props.initial as CustomerPage).page).toBe(2);
+    const keys = [first.lists[0].key, second.lists[0].key];
+    for (const key of keys) expect(key).toEqual(expect.stringMatching(/^2:[0-9a-f-]{36}$/));
+    expect(keys[0]).not.toBe(keys[1]);
+    // Unchanged rows are no exception: the key is the read, not what it returned.
+    const third = await render({ page: "2" });
+    expect(third.lists[0].key).not.toBe(second.lists[0].key);
+    expect(new Set([...keys, third.lists[0].key, (await render()).lists[0].key]).size).toBe(4);
+    // The key carries the page number and a random id: nothing of the list.
+    expect(JSON.stringify(keys)).not.toMatch(/customer|example\.com/i);
   });
 });
