@@ -272,7 +272,7 @@ describe("organization detail page wiring", () => {
     expect(source).not.toMatch(/grant|permission|SUPPORT_ACCESS_PATH|support-access|Support access|are not shown here/i);
     // The page links to the five sections and reads none of them itself.
     const nav = read("components/organizations/content/ContentChrome.tsx");
-    expect(nav).toMatch(/CONTENT_SECTIONS\.map\(\(section\) => \(\s*<Link\s+key=\{section\}\s+href=\{organizationSectionPath\(organizationId, section\)\}\s+prefetch=\{false\}/);
+    expect(nav).toMatch(/<Link\s+key=\{section\}\s+href=\{organizationSectionPath\(organizationId, section\)\}\s+prefetch=\{false\}/);
     expect(source).not.toMatch(/Action\b|organizationContent"/);
     // The platform-wide sign-in list says nothing about one organization, so it is not shown.
     expect(source).not.toMatch(/sign-in methods|signInMethod|Microsoft|Google/i);

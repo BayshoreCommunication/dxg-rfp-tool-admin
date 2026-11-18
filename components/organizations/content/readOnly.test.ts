@@ -39,8 +39,13 @@ describe("the organization content pages are view-only", () => {
 
   it.each(contentFiles)("%s renders no edit, delete, share, download or export control", (file) => {
     const source = withoutComments(read(file));
-    // No control that could change or take away customer content: the only form is the search box.
-    expect(source).not.toMatch(/<button\b|<input\b|<select\b|<textarea\b|<form\b|onClick=|onSubmit=|onChange=|formAction|"use client"|"use server"/);
+    // No control that could change or take away customer content. The one form is the search box
+    // in ContentChrome (checked below); it is cut out here so the rest of that file is still scanned.
+    const search = /<form action=\{action\} method="get" role="search"[\s\S]*?<\/form>/;
+    if (file === `${COMPONENTS}/ContentChrome.tsx`) expect(source).toMatch(search);
+    const scanned = file === `${COMPONENTS}/ContentChrome.tsx` ? source.replace(search, "") : source;
+    expect(scanned).not.toMatch(/<button\b|<input\b|<select\b|<textarea\b|<form\b|type="submit"/);
+    expect(source).not.toMatch(/onClick=|onSubmit=|onChange=|formAction|"use client"|"use server"|useEffect|useRouter|router\./);
     expect(source).not.toMatch(/\bdownload\b|window\.open|navigator\.clipboard|Blob\(|createObjectURL|\.csv|\.xlsx/i);
     // No icon and no label of such a control.
     expect(source).not.toMatch(/\b(Pencil|PencilLine|Edit|Edit2|Edit3|SquarePen|Trash|Trash2|Share|Share2|Download|Upload|FileDown|Copy|Printer|Send|Plus|Save)\b,?/);
@@ -53,12 +58,42 @@ describe("the organization content pages are view-only", () => {
     expect(source).not.toMatch(/ChangePlanButton|ConfirmDialog|organizationPlans|allClients|adminUser|supportDesk/);
   });
 
-  it("uses no interactive component except the search box", () => {
+  it("uses no component from outside the content browser, and no client code", () => {
     const imported = contentFiles.flatMap((file) => [...read(file).matchAll(/from "(@\/components\/[^"]+)"/g)].map((match) => match[1]));
     const outside = [...new Set(imported)].filter((path) => !path.startsWith("@/components/organizations/content/"));
-    expect(outside.sort()).toEqual(["@/components/clients/ClientDetilas", "@/components/clients/ClientSearchForm"]);
     // From ClientDetilas only the page-number helper is taken, not the client controls.
+    expect(outside).toEqual(["@/components/clients/ClientDetilas"]);
     expect(read(`${COMPONENTS}/ContentChrome.tsx`)).toMatch(/import \{ buildPageList \} from "@\/components\/clients\/ClientDetilas";/);
+    for (const file of contentFiles) expect({ file, hooks: /from "react"/.test(read(file)) && !/import type \{[^}]*\} from "react"/.test(read(file)) }).toEqual({ file, hooks: false });
+  });
+
+  it("searches with a plain GET form: one submit, one page view, nothing sent while typing or clearing", () => {
+    const chrome = read(`${COMPONENTS}/ContentChrome.tsx`);
+    const form = chrome.match(/<form action=\{action\} method="get" role="search"[\s\S]*?<\/form>/)?.[0] ?? "";
+    expect(form).toMatch(/<input\s+type="search"\s+name="search"\s+defaultValue=\{search\}\s+maxLength=\{200\}/);
+    // Besides the search text, only the filters already chosen are sent, as hidden fields.
+    expect(form.match(/<input\b/g)).toHaveLength(2);
+    expect(form).toMatch(/<input key=\{name\} type="hidden" name=\{name\} value=\{value\} \/>/);
+    expect(form.match(/<button\b[^>]*>\s*Search\s*<\/button>/)).not.toBeNull();
+    expect(form).not.toMatch(/method="post"|onChange|onSubmit|\svalue=\{search\}/i);
+    // The search boxes used elsewhere in the app navigate on their own (on mount and on clearing):
+    // each of those would be a recorded read nobody asked for.
+    for (const file of contentFiles) expect({ file, uses: /ClientSearchForm/.test(read(file)) }).toEqual({ file, uses: false });
+    for (const list of ["ProposalList.tsx", "TemplatesList.tsx", "VendorsList.tsx"]) {
+      expect(read(`${COMPONENTS}/${list}`)).toMatch(/<ContentSearch\s+action=\{organization(Proposals|Templates|Vendors)Path\(organizationId\)\}/);
+    }
+  });
+
+  it("never links a page to the address it is already showing, or to a page that is not there", () => {
+    const chrome = read(`${COMPONENTS}/ContentChrome.tsx`);
+    // The current section, the chosen filter and the current page number are text, not links.
+    expect(chrome).toMatch(/section === active && here \? \(\s*<span key=\{section\} aria-current="page"/);
+    expect(chrome).toMatch(/option\.value === active \? \(\s*<span key=\{option\.value\} aria-current="true"/);
+    expect(chrome).toMatch(/item === pagination\.page \? \(\s*<span\s+key=\{item\}\s+aria-current="page"/);
+    // Previous and Next are links only when there is such a page.
+    expect(chrome).toMatch(/\{hasPrev \? \(\s*<Link href=\{hrefFor\(pagination\.page - 1\)\}/);
+    expect(chrome).toMatch(/\{hasNext \? \(\s*<Link href=\{hrefFor\(pagination\.page \+ 1\)\}/);
+    expect(chrome).not.toMatch(/aria-disabled|pointer-events-none border|tabIndex/);
   });
 
   it("links out of the app only for an address the planner typed, never for a file", () => {
@@ -88,7 +123,8 @@ describe("the organization content pages are view-only", () => {
     for (const file of contentFiles) {
       for (const link of read(file).match(/<Link\b[^>]*>/g) ?? []) {
         // The Organizations list is not customer content and is not a recorded read.
-        if (/href=\{ORGANIZATIONS_PATH\}/.test(link)) continue;
+        // Nor is the sign-in page.
+        if (/href=\{ORGANIZATIONS_PATH\}|href="\/sign-in"/.test(link)) continue;
         found += 1;
         expect({ file, link, optsOut: /prefetch=\{false\}/.test(link) }).toMatchObject({ optsOut: true });
       }
@@ -115,8 +151,8 @@ describe("the organization content pages are view-only", () => {
     expect(list).toMatch(/<div className="divide-y divide-slate-100 lg:hidden">/);
     for (const file of sourceFiles(COMPONENTS)) {
       const source = read(file);
-      // No fixed minimum width outside that table, and no nowrap on customer text.
-      expect({ file, fixed: (source.match(/min-w-\[\d+px\]/g) ?? []).filter((width) => width !== "min-w-[880px]") }).toEqual({ file, fixed: [] });
+      // No fixed minimum width outside that table (the 84px one is the Search button).
+      expect({ file, fixed: (source.match(/min-w-\[\d+px\]/g) ?? []).filter((width) => width !== "min-w-[880px]" && width !== "min-w-[84px]") }).toEqual({ file, fixed: [] });
     }
   });
 });

@@ -111,13 +111,45 @@ const ITEM_TITLE_KEYS = ["roomFunction", "functionName", "name", "fileName", "or
 
 const itemTitle = (item: Record<string, unknown>, fallback: string) => {
   const key = ITEM_TITLE_KEYS.find((candidate) => typeof item[candidate] === "string" && String(item[candidate]).trim());
-  return key ? String(item[key]).trim() : fallback;
+  if (!key) return fallback;
+  // A file's title is its bare name, whatever was stored under it.
+  return key === "fileName" || key === "originalName" ? bareFilename(item[key]) ?? fallback : String(item[key]).trim();
 };
+
+/**
+ * A file's name and nothing else. Anything that could address the file (a path, a query
+ * string, a scheme) is cut away, the way the backend does it; what is left is shown as text.
+ */
+export const bareFilename = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const name = (value.split(/[?#]/)[0].split(/[\\/]/).pop() ?? "").trim();
+  return name && !name.includes(":") ? name : null;
+};
+
+/* Keys that hold uploaded files, in any section (the same pattern the backend's template
+   snapshot uses to leave files out). Staff cannot open a customer's files, so whatever is stored
+   there (a name, an address, an object describing the file) is shown as bare file names only. */
+const FILE_KEY = /(Files?|Docs|Documents|Attachments?)$|^(fileName|filename|originalName)$/;
+const FILE_NAME_KEYS = ["fileName", "originalName", "name", "filename", "url", "key", "path"];
+
+const fileNames = (value: unknown): string[] =>
+  (Array.isArray(value) ? value : [value]).flatMap((entry) => {
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      const file = entry as Record<string, unknown>;
+      const name = FILE_NAME_KEYS.map((key) => bareFilename(file[key])).find(Boolean);
+      return name ? [name] : [];
+    }
+    const name = bareFilename(entry);
+    return name ? [name] : [];
+  });
 
 /**
  * Flattens one stored section into labelled rows, skipping anything left
  * blank. Nested answers ("podiumMic": {"podiumMic", "podiumMicQty"}) become
- * their own rows; lists of objects (rooms, sessions, files) become groups.
+ * their own rows; lists of objects (rooms, sessions) become groups. Every row
+ * is plain text: nothing a planner stored becomes a link here, and a key that
+ * holds files shows their bare names only. (The two addresses a planner types
+ * on purpose are linked by uploadsFields, and nowhere else.)
  */
 export const proposalFields = (data: unknown, parent?: string): ProposalField[] => {
   if (!data || typeof data !== "object" || Array.isArray(data)) return [];
@@ -128,6 +160,11 @@ export const proposalFields = (data: unknown, parent?: string): ProposalField[] 
       parent && !key.toLowerCase().startsWith(parent.toLowerCase())
         ? `${humanizeKey(parent)} · ${humanizeKey(key)}`
         : humanizeKey(key);
+    if (FILE_KEY.test(key)) {
+      const names = fileNames(value);
+      if (names.length) fields.push({ kind: "text", label, value: names.join("\n") });
+      continue;
+    }
     if (Array.isArray(value)) {
       const present = value.filter((item) => !isBlank(item));
       if (present.every((item) => typeof item !== "object")) {
@@ -146,8 +183,7 @@ export const proposalFields = (data: unknown, parent?: string): ProposalField[] 
     } else if (typeof value === "object") {
       fields.push(...proposalFields(value, key));
     } else {
-      const text = String(value).trim();
-      fields.push(/^https?:\/\//i.test(text) ? { kind: "link", label, value: text } : { kind: "text", label, value: humanizeValue(value) });
+      fields.push({ kind: "text", label, value: humanizeValue(value) });
     }
   }
   return fields;
@@ -193,16 +229,6 @@ const CO_VENDORS: Array<[key: string, title: string]> = [
 ];
 const CO_VENDOR_FIELDS = ["companyName", "contactName", "contactEmail", "contactPhone", "status", "notes"];
 
-/**
- * A file's name and nothing else. Anything that could address the file (a path, a query
- * string, a scheme) is cut away, the way the backend does it; what is left is shown as text.
- */
-export const bareFilename = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const name = (value.split(/[?#]/)[0].split(/[\\/]/).pop() ?? "").trim();
-  return name && !name.includes(":") ? name : null;
-};
-
 const plainText = (label: string, value: unknown): ProposalField[] => {
   const raw = typeof value === "string" ? value.trim() : typeof value === "boolean" || typeof value === "number" ? value : "";
   return raw === "" ? [] : [{ kind: "text", label, value: humanizeValue(raw) }];
@@ -217,6 +243,7 @@ export const uploadsFields = (data: unknown): ProposalField[] => {
   const fields: ProposalField[] = [];
 
   for (const [key, label] of UPLOAD_FILE_FIELDS) {
+    // Strings only here: the response's file fields are arrays of names, never objects.
     const stored = uploads[key];
     const names = (Array.isArray(stored) ? stored : [stored]).flatMap((entry) => {
       const name = bareFilename(entry);

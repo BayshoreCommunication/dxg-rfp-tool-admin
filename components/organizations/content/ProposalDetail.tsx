@@ -33,14 +33,14 @@ export const Fields = ({ fields, nested = false }: { fields: ProposalField[]; ne
   <dl className={`grid gap-x-6 gap-y-3 sm:grid-cols-2 ${nested ? "xl:grid-cols-3" : ""}`}>
     {fields.map((field, index) =>
       field.kind === "group" ? (
-        <div key={`${field.label}-${index}`} className="sm:col-span-full">
+        <div key={`${field.label}-${index}`} className="min-w-0 sm:col-span-full">
           <dt className="mb-2 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500">
             {field.label} · {field.items.length}
           </dt>
           <dd className="space-y-3">
             {field.items.map((item, itemIndex) => (
-              <div key={itemIndex} className={`rounded-xl border p-4 ${nested ? "border-slate-100" : "border-slate-100 bg-[#f8fafc]"}`}>
-                <p className="mb-3 text-sm font-bold text-[#20304b]">{item.title}</p>
+              <div key={itemIndex} className={`min-w-0 rounded-xl border p-4 ${nested ? "border-slate-100" : "border-slate-100 bg-[#f8fafc]"}`}>
+                <p className="mb-3 break-words text-sm font-bold text-[#20304b]">{item.title}</p>
                 {item.fields.length ? (
                   <Fields fields={item.fields} nested />
                 ) : (

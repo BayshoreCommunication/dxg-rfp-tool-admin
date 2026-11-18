@@ -1,4 +1,3 @@
-import ClientSearchForm from "@/components/clients/ClientSearchForm";
 import { countLabel } from "@/lib/plural";
 import {
   STATUS_FILTERS,
@@ -17,7 +16,7 @@ import {
 } from "@/lib/organizationContent/content";
 import { LayoutTemplate } from "lucide-react";
 import Link from "next/link";
-import { ContentBadge, ContentCard, EmptyState, FilterPills, Pager } from "./ContentChrome";
+import { ContentBadge, ContentCard, ContentSearch, EmptyState, FilterPills, Pager } from "./ContentChrome";
 
 type Props = { organizationId: string; query: TemplatesQuery; page: TemplatesPage };
 
@@ -44,7 +43,13 @@ export default function TemplatesList({ organizationId, query, page }: Props) {
       description="The organization's templates and each member's personal templates, by title."
       controls={
         <>
-          <ClientSearchForm initialSearch={query.search} label="Search templates" placeholder="Search title or description" />
+          <ContentSearch
+            action={organizationTemplatesPath(organizationId)}
+            search={query.search}
+            label="Search templates"
+            placeholder="Search title or description"
+            keep={{ scope: query.scope === "all" ? undefined : query.scope, status: query.status === "all" ? undefined : query.status }}
+          />
           <FilterPills
             label="Template kind"
             options={TEMPLATE_SCOPES.map((value) => ({ value, label: TEMPLATE_SCOPE_LABELS[value] }))}
@@ -63,8 +68,8 @@ export default function TemplatesList({ organizationId, query, page }: Props) {
       {templates.length === 0 ? (
         <EmptyState
           icon={LayoutTemplate}
-          title="No templates found"
-          message={filtered ? "Try a different search or filter." : "This organization has no templates yet."}
+          title={pagination.total > 0 ? "No templates on this page" : "No templates found"}
+          message={pagination.total > 0 ? "Go back to an earlier page." : filtered ? "Try a different search or filter." : "This organization has no templates yet."}
         />
       ) : (
         <ul className="divide-y divide-slate-100">

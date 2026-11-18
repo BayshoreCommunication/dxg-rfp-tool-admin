@@ -17,7 +17,7 @@ export default async function OrganizationVendorResponsesPage({ params }: Props)
   const known = isContentId(organizationId) ? organizationId : null;
 
   return (
-    <ContentFrame organizationId={known} active="proposals">
+    <ContentFrame organizationId={known} active="proposals" here={false}>
       {result.ok ? (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">

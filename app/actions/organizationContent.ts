@@ -80,6 +80,10 @@ const read = async <T>(
   }
 };
 
+/** What a caller passed as the query: a server action can be called with anything. */
+const asQuery = (value: unknown): Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+
 /** Page 1 and "all" are the backend's defaults, so they are left off the request. */
 const pageParam = (page: unknown) => (pageOf(page) > 1 ? pageOf(page) : undefined);
 const filterParam = <T extends string>(value: unknown, allowed: readonly T[]) =>
@@ -89,7 +93,8 @@ export async function listOrganizationProposalsAction(
   organizationId: string,
   query: { page?: number; search?: string } = {},
 ): Promise<ContentResult<ProposalsPage>> {
-  return read({ organizationId }, () => "/proposals", { page: pageParam(query.page), search: searchOf(query.search) }, (data) =>
+  const asked = asQuery(query);
+  return read({ organizationId }, () => "/proposals", { page: pageParam(asked.page), search: searchOf(asked.search) }, (data) =>
     parseProposalsPage(data, organizationId),
   );
 }
@@ -107,7 +112,7 @@ export async function listOrganizationVendorResponsesAction(organizationId: stri
 }
 
 export async function listOrganizationMembersAction(organizationId: string, query: { page?: number } = {}): Promise<ContentResult<MembersPage>> {
-  return read({ organizationId }, () => "/members", { page: pageParam(query.page) }, (data) => parseMembersPage(data, organizationId));
+  return read({ organizationId }, () => "/members", { page: pageParam(asQuery(query).page) }, (data) => parseMembersPage(data, organizationId));
 }
 
 export async function listOrganizationTeamsAction(organizationId: string): Promise<ContentResult<TeamsList>> {
@@ -118,14 +123,15 @@ export async function listOrganizationTemplatesAction(
   organizationId: string,
   query: { page?: number; search?: string; scope?: string; status?: string } = {},
 ): Promise<ContentResult<TemplatesPage>> {
+  const asked = asQuery(query);
   return read(
     { organizationId },
     () => "/templates",
     {
-      page: pageParam(query.page),
-      search: searchOf(query.search),
-      scope: filterParam(query.scope, TEMPLATE_SCOPES),
-      status: filterParam(query.status, STATUS_FILTERS),
+      page: pageParam(asked.page),
+      search: searchOf(asked.search),
+      scope: filterParam(asked.scope, TEMPLATE_SCOPES),
+      status: filterParam(asked.status, STATUS_FILTERS),
     },
     (data) => parseTemplatesPage(data, organizationId),
   );
@@ -141,10 +147,11 @@ export async function listOrganizationVendorsAction(
   organizationId: string,
   query: { page?: number; search?: string; status?: string } = {},
 ): Promise<ContentResult<VendorsPage>> {
+  const asked = asQuery(query);
   return read(
     { organizationId },
     () => "/vendors",
-    { page: pageParam(query.page), search: searchOf(query.search), status: filterParam(query.status, STATUS_FILTERS) },
+    { page: pageParam(asked.page), search: searchOf(asked.search), status: filterParam(asked.status, STATUS_FILTERS) },
     (data) => parseVendorsPage(data, organizationId),
   );
 }

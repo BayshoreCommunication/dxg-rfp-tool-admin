@@ -14,7 +14,7 @@ import { MailPlus, Users } from "lucide-react";
 import { ContentBadge, ContentCard, EmptyState, Pager } from "./ContentChrome";
 
 const cell = "min-w-0 break-words text-[13px] text-slate-600";
-const label = "text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 lg:hidden";
+const label = "text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 lg:sr-only";
 
 /** Everyone in the organization, every status, oldest first; then the invitations still pending. View only. */
 export default function MembersList({ organizationId, page }: { organizationId: string; page: MembersPage }) {
@@ -29,7 +29,7 @@ export default function MembersList({ organizationId, page }: { organizationId: 
         description="Everyone in this organization, active or not, in the order they joined."
       >
         {members.length === 0 ? (
-          <EmptyState icon={Users} title="No members found" message="This organization has no members on this page." />
+          <EmptyState icon={Users} title={pagination.total > 0 ? "No members on this page" : "No members found"} message={pagination.total > 0 ? "Go back to an earlier page." : "This organization has no members."} />
         ) : (
           <>
             <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 border-b border-slate-100 bg-[#f8fafc] px-6 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 lg:grid" aria-hidden="true">

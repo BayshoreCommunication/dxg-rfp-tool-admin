@@ -1,4 +1,3 @@
-import ClientSearchForm from "@/components/clients/ClientSearchForm";
 import { countLabel } from "@/lib/plural";
 import {
   STATUS_FILTERS,
@@ -11,7 +10,7 @@ import {
   type VendorsQuery,
 } from "@/lib/organizationContent/content";
 import { Store } from "lucide-react";
-import { ContentBadge, ContentCard, EmptyState, FilterPills, Pager } from "./ContentChrome";
+import { ContentBadge, ContentCard, ContentSearch, EmptyState, FilterPills, Pager } from "./ContentChrome";
 
 type Props = { organizationId: string; query: VendorsQuery; page: VendorsPage };
 
@@ -37,7 +36,13 @@ export default function VendorsList({ organizationId, query, page }: Props) {
       description="The vendor companies and contacts this organization sends proposals to, by company."
       controls={
         <>
-          <ClientSearchForm initialSearch={query.search} label="Search vendors" placeholder="Search vendors" />
+          <ContentSearch
+            action={organizationVendorsPath(organizationId)}
+            search={query.search}
+            label="Search vendors"
+            placeholder="Search vendors"
+            keep={{ status: query.status === "all" ? undefined : query.status }}
+          />
           <FilterPills
             label="Vendor status"
             options={STATUS_FILTERS.map((value) => ({ value, label: STATUS_FILTER_LABELS[value] }))}
@@ -50,8 +55,8 @@ export default function VendorsList({ organizationId, query, page }: Props) {
       {vendors.length === 0 ? (
         <EmptyState
           icon={Store}
-          title="No vendors found"
-          message={filtered ? "Try a different search or filter." : "This organization has not added a vendor yet."}
+          title={pagination.total > 0 ? "No vendors on this page" : "No vendors found"}
+          message={pagination.total > 0 ? "Go back to an earlier page." : filtered ? "Try a different search or filter." : "This organization has not added a vendor yet."}
         />
       ) : (
         <ul className="divide-y divide-slate-100">

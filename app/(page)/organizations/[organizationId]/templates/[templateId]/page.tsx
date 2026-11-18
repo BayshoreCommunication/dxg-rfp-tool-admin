@@ -16,7 +16,7 @@ export default async function OrganizationTemplatePage({ params }: Props) {
   const known = isContentId(organizationId) ? organizationId : null;
 
   return (
-    <ContentFrame organizationId={known} active="templates">
+    <ContentFrame organizationId={known} active="templates" here={false}>
       {result.ok ? (
         <TemplateDetail organizationId={organizationId} template={result.data.template} />
       ) : (

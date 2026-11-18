@@ -16,7 +16,7 @@ export default async function OrganizationProposalPage({ params }: Props) {
   const known = isContentId(organizationId) ? organizationId : null;
 
   return (
-    <ContentFrame organizationId={known} active="proposals">
+    <ContentFrame organizationId={known} active="proposals" here={false}>
       {result.ok ? (
         <ProposalDetail organizationId={organizationId} data={result.data} />
       ) : (

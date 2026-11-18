@@ -1,4 +1,3 @@
-import ClientSearchForm from "@/components/clients/ClientSearchForm";
 import { countLabel } from "@/lib/plural";
 import {
   organizationProposalPath,
@@ -11,7 +10,7 @@ import {
 import { eventDates, formatDate, stageLabel } from "@/lib/organizationContent/proposalFields";
 import { CalendarDays, Clock, FileText } from "lucide-react";
 import Link from "next/link";
-import { ContentCard, EmptyState, Pager } from "./ContentChrome";
+import { ContentCard, ContentSearch, EmptyState, Pager } from "./ContentChrome";
 
 const STAGE_TONES: Record<string, string> = {
   Draft: "border-amber-200 bg-amber-50 text-amber-700",
@@ -60,13 +59,13 @@ export default function ProposalList({ organizationId, search, page }: ProposalL
       title="Proposals"
       count={`${pagination.total.toLocaleString("en-US")} ${search.trim() ? "matching" : "total"}`}
       description="Every proposal in this organization, most recently updated first."
-      controls={<ClientSearchForm initialSearch={search} label="Search proposals" placeholder="Search by event name" />}
+      controls={<ContentSearch action={organizationProposalsPath(organizationId)} search={search} label="Search proposals" placeholder="Search by event name" />}
     >
       {rfps.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="No proposals found"
-          message={search.trim() ? "Try a different event name." : "This organization has no proposals yet."}
+          title={pagination.total > 0 ? "No proposals on this page" : "No proposals found"}
+          message={pagination.total > 0 ? "Go back to an earlier page." : search.trim() ? "Try a different event name." : "This organization has no proposals yet."}
         />
       ) : (
         <>
@@ -121,11 +120,11 @@ export default function ProposalList({ organizationId, search, page }: ProposalL
           <div className="divide-y divide-slate-100 lg:hidden">
             {rfps.map((rfp) => (
               <article key={rfp.id} className="space-y-2 px-5 py-4">
-                <h3 className="break-words text-sm font-bold text-[#20304b]">
+                <h2 className="break-words text-sm font-bold text-[#20304b]">
                   <Link href={organizationProposalPath(organizationId, rfp.id)} prefetch={false} className="hover:text-[#008f96]">
                     {rfp.eventName}
                   </Link>
-                </h3>
+                </h2>
                 <Stage rfp={rfp} />
                 <Owner rfp={rfp} />
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">

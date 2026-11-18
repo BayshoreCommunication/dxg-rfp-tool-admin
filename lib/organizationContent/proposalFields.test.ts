@@ -45,7 +45,8 @@ describe("proposal wording", () => {
       { kind: "text", label: "Podium mic", value: "Yes" },
       { kind: "text", label: "Podium mic qty", value: "2" },
       { kind: "text", label: "Evaluation matrix · Pricing", value: "17" },
-      { kind: "link", label: "Brand guide URL", value: "https://example.com/brand" },
+      // Plain text since the content browser: only the uploads section links an address.
+      { kind: "text", label: "Brand guide URL", value: "https://example.com/brand" },
     ]);
   });
 
@@ -154,9 +155,36 @@ describe("Files & references (the uploads allowlist)", () => {
     expect(uploadsFields({})).toEqual([]);
   });
 
-  it("is what the proposal page uses for its uploads section, and no other section", () => {
+  it("is what the proposal page uses for its uploads section", () => {
     expect(sectionFields("uploads", { brandGuideFiles: ["https://files.example/a.pdf"] })).toEqual([{ kind: "text", label: "Brand guide files", value: "a.pdf" }]);
     expect(sectionFields("venue", { venueName: "Lakeside" })).toEqual([{ kind: "text", label: "Venue name", value: "Lakeside" }]);
+  });
+
+  it("links nothing in any other section, and shows a file there as its bare name", () => {
+    const stored = {
+      venueWebsite: "https://venue.example/ballroom",
+      floorPlanFiles: ["https://customer-files.example/org/1/floor.pdf?X-Amz-Signature=abc", "uploads/org/1/rigging.pdf"],
+      supportDocuments: [{ fileName: "https://customer-files.example/org/1/run-of-show.xlsx?sig=1", url: "https://customer-files.example/k?sig=2", size: 12 }, { url: "https://customer-files.example/org/1/only-url.pdf?sig=3" }, { size: 4 }],
+      venueDocs: "s3://bucket/org/1/coi.pdf",
+      rooms: [{ roomFunction: "General session", roomFiles: [{ originalName: "plot.pdf", key: "org/1/plot.pdf" }], fileName: "https://customer-files.example/org/1/seating.pdf?sig=4" }],
+    };
+    for (const section of ["event", "contact", "venueSchedule", "venue", "roomByRoom", "production", "hybridVirtual", "contentCreative", "videoRecordingStep", "budget"]) {
+      const rows = allFields(sectionFields(section, stored));
+      expect(rows.filter((row) => row.kind === "link")).toEqual([]);
+      const text = JSON.stringify(rows);
+      expect(text).not.toMatch(/customer-files|X-Amz|sig=|s3:|uploads\/org|org\/1/);
+      expect(text).toMatch(/floor\.pdf\\nrigging\.pdf/);
+      expect(text).toMatch(/run-of-show\.xlsx\\nonly-url\.pdf/);
+      expect(text).toMatch(/coi\.pdf/);
+      expect(text).toMatch(/plot\.pdf/);
+      // An address the planner typed is still shown, as text.
+      expect(rows).toContainEqual({ kind: "text", label: "Venue website", value: "https://venue.example/ballroom" });
+    }
+    const [rooms] = sectionFields("roomByRoom", stored.rooms);
+    expect(rooms).toMatchObject({ kind: "group", items: [{ title: "General session" }] });
+    expect(proposalFields({ items: [{ fileName: "https://customer-files.example/a/b.pdf?sig=1", note: "x" }] })).toEqual([
+      { kind: "group", label: "Items", items: [{ title: "b.pdf", fields: [{ kind: "text", label: "File name", value: "b.pdf" }, { kind: "text", label: "Note", value: "x" }] }] },
+    ]);
   });
 
   it("shows a template's content sections only: no contact and no files", () => {

@@ -11,7 +11,7 @@ import {
   type Pagination,
   type Tone,
 } from "@/lib/organizationContent/content";
-import { AlertCircle, ArrowLeft, ChevronLeft, ChevronRight, Clock, Eye, FileQuestion, type LucideIcon } from "lucide-react";
+import { AlertCircle, ArrowLeft, ChevronLeft, ChevronRight, Clock, Eye, FileQuestion, Search, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -29,20 +29,38 @@ const pillClass = (active: boolean) =>
       : "border-slate-200 text-slate-600 hover:border-[#00aeb5] hover:text-[#007f86]"
   }`;
 
+/* A page never links to the address it is already showing: following such a link would be one
+   more recorded read for nothing. The current item is text. */
+
 /** The five sections of an organization's content. Shown on the detail page and on every section. */
-export const OrganizationSectionNav = ({ organizationId, active }: { organizationId: string; active?: ContentSection }) => (
+export const OrganizationSectionNav = ({
+  organizationId,
+  active,
+  here = true,
+}: {
+  organizationId: string;
+  active?: ContentSection;
+  /** False on a page inside the section (one proposal, one template): the section still links to its list. */
+  here?: boolean;
+}) => (
   <nav aria-label="Organization content" className="flex flex-wrap gap-2">
-    {CONTENT_SECTIONS.map((section) => (
-      <Link
-        key={section}
-        href={organizationSectionPath(organizationId, section)}
-        prefetch={false}
-        aria-current={section === active ? "page" : undefined}
-        className={pillClass(section === active)}
-      >
-        {CONTENT_SECTION_LABELS[section]}
-      </Link>
-    ))}
+    {CONTENT_SECTIONS.map((section) =>
+      section === active && here ? (
+        <span key={section} aria-current="page" className={pillClass(true)}>
+          {CONTENT_SECTION_LABELS[section]}
+        </span>
+      ) : (
+        <Link
+          key={section}
+          href={organizationSectionPath(organizationId, section)}
+          prefetch={false}
+          aria-current={section === active ? "true" : undefined}
+          className={pillClass(section === active)}
+        >
+          {CONTENT_SECTION_LABELS[section]}
+        </Link>
+      ),
+    )}
   </nav>
 );
 
@@ -57,10 +75,13 @@ export const ReadOnlyNote = () => (
 export const ContentFrame = ({
   organizationId,
   active,
+  here = true,
   children,
 }: {
   organizationId: string | null;
   active: ContentSection;
+  /** False on a page inside the section, so the section links back to its list. */
+  here?: boolean;
   children: ReactNode;
 }) => (
   <div className="mx-auto w-full max-w-[1540px] space-y-5 pb-10">
@@ -73,7 +94,7 @@ export const ContentFrame = ({
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Organization
         </Link>
-        <OrganizationSectionNav organizationId={organizationId} active={active} />
+        <OrganizationSectionNav organizationId={organizationId} active={active} here={here} />
         <ReadOnlyNote />
       </>
     ) : (
@@ -127,6 +148,11 @@ export const ContentFailureState = ({ failure, kind, retryHref, back }: FailureP
             Back to Organizations
           </Link>
         )}
+        {failure === "session_ended" ? (
+          <Link href="/sign-in" className={linkClass}>
+            Sign in
+          </Link>
+        ) : null}
         {retryHref && RETRY.includes(failure) ? (
           <Link href={retryHref} prefetch={false} className={linkClass}>
             Try again
@@ -222,18 +248,59 @@ export const FilterPills = <T extends string>({
   hrefFor: (value: T) => string;
 }) => (
   <nav aria-label={label} className="flex flex-wrap gap-1.5">
-    {options.map((option) => (
-      <Link
-        key={option.value}
-        href={hrefFor(option.value)}
-        prefetch={false}
-        aria-current={option.value === active ? "true" : undefined}
-        className={pillClass(option.value === active)}
-      >
-        {option.label}
-      </Link>
-    ))}
+    {options.map((option) =>
+      option.value === active ? (
+        <span key={option.value} aria-current="true" className={pillClass(true)}>
+          {option.label}
+        </span>
+      ) : (
+        <Link key={option.value} href={hrefFor(option.value)} prefetch={false} className={pillClass(false)}>
+          {option.label}
+        </Link>
+      ),
+    )}
   </nav>
+);
+
+/* The search box of a list: a plain form the browser submits (GET) to the list's own address,
+   with the filters already chosen. One submit is one page view and one recorded read; nothing
+   is sent while typing or when the box is cleared. A new search starts at page 1. */
+export const ContentSearch = ({
+  action,
+  search,
+  label,
+  placeholder,
+  keep = {},
+}: {
+  action: string;
+  search: string;
+  label: string;
+  placeholder: string;
+  /** Filters to carry over, left out when not set. */
+  keep?: Record<string, string | undefined>;
+}) => (
+  <form action={action} method="get" role="search" className="flex w-full gap-2 lg:w-auto">
+    {Object.entries(keep).map(([name, value]) => (value ? <input key={name} type="hidden" name={name} value={value} /> : null))}
+    <label className="relative min-w-0 flex-1 lg:w-72">
+      <span className="sr-only">{label}</span>
+      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+      <input
+        type="search"
+        name="search"
+        defaultValue={search}
+        maxLength={200}
+        placeholder={placeholder}
+        autoComplete="off"
+        className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm text-[#20304b] outline-none transition placeholder:text-slate-400 focus:border-[#00aeb5] focus:ring-4 focus:ring-cyan-500/10"
+      />
+    </label>
+    <button
+      type="submit"
+      className="inline-flex h-11 min-w-[84px] items-center justify-center rounded-xl bg-[#007f86] px-4 text-sm font-bold text-white transition hover:bg-[#006d73] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5]"
+    >
+      Search
+    </button>
+  </form>
 );
 
 export const Pager = ({
@@ -253,56 +320,57 @@ export const Pager = ({
   const hasNext = pagination.page < pagination.totalPages;
   const stepClass = (enabled: boolean) =>
     `inline-flex h-9 w-9 items-center justify-center rounded-lg border text-slate-600 transition ${
-      enabled ? "border-slate-200 hover:border-[#00aeb5] hover:text-[#007f86]" : "pointer-events-none border-slate-100 bg-slate-50 text-slate-300"
+      enabled ? "border-slate-200 hover:border-[#00aeb5] hover:text-[#007f86]" : "border-slate-100 bg-slate-50 text-slate-300"
     }`;
   return (
     <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-      <p className="text-xs font-semibold text-slate-600" aria-live="polite">
-        {summary}
-      </p>
+      <p className="text-xs font-semibold text-slate-600">{summary}</p>
       {pagination.totalPages > 1 ? (
         <nav aria-label={label} className="flex flex-wrap items-center gap-1">
-          <Link
-            href={hrefFor(Math.max(1, pagination.page - 1))}
-            prefetch={false}
-            aria-label="Previous page"
-            aria-disabled={!hasPrev}
-            tabIndex={hasPrev ? undefined : -1}
-            className={stepClass(hasPrev)}
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          </Link>
+          {hasPrev ? (
+            <Link href={hrefFor(pagination.page - 1)} prefetch={false} aria-label="Previous page" className={stepClass(true)}>
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span aria-hidden="true" className={stepClass(false)}>
+              <ChevronLeft className="h-4 w-4" />
+            </span>
+          )}
           {buildPageList(pagination.page, pagination.totalPages).map((item, index) =>
             item === "..." ? (
               <span key={`ellipsis-${index}`} className="inline-flex h-9 w-6 items-center justify-center text-sm text-slate-400">
                 …
+              </span>
+            ) : item === pagination.page ? (
+              <span
+                key={item}
+                aria-current="page"
+                aria-label={`Page ${item}, this page`}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#aee9e8] bg-[#eaf9f8] text-sm font-bold text-[#007f86]"
+              >
+                {item}
               </span>
             ) : (
               <Link
                 key={item}
                 href={hrefFor(item)}
                 prefetch={false}
-                aria-current={item === pagination.page ? "page" : undefined}
-                className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-bold transition ${
-                  item === pagination.page
-                    ? "pointer-events-none border-[#aee9e8] bg-[#eaf9f8] text-[#007f86]"
-                    : "border-slate-200 text-slate-600 hover:border-[#00aeb5] hover:text-[#007f86]"
-                }`}
+                aria-label={`Page ${item}`}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-sm font-bold text-slate-600 transition hover:border-[#00aeb5] hover:text-[#007f86]"
               >
                 {item}
               </Link>
             ),
           )}
-          <Link
-            href={hrefFor(pagination.page + 1)}
-            prefetch={false}
-            aria-label="Next page"
-            aria-disabled={!hasNext}
-            tabIndex={hasNext ? undefined : -1}
-            className={stepClass(hasNext)}
-          >
-            <ChevronRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
+          {hasNext ? (
+            <Link href={hrefFor(pagination.page + 1)} prefetch={false} aria-label="Next page" className={stepClass(true)}>
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <span aria-hidden="true" className={stepClass(false)}>
+              <ChevronRight className="h-4 w-4" />
+            </span>
+          )}
         </nav>
       ) : null}
     </div>

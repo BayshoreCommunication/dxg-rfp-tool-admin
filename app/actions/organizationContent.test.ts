@@ -55,7 +55,17 @@ beforeEach(() => {
 
 describe("organization content actions", () => {
   it("covers every action the file exports", () => {
-    expect(Object.keys(actions).sort()).toHaveLength(ALL.length);
+    expect(Object.keys(actions).sort()).toEqual([
+      "getOrganizationProposalAction",
+      "getOrganizationTemplateAction",
+      "listOrganizationMembersAction",
+      "listOrganizationProposalsAction",
+      "listOrganizationTeamsAction",
+      "listOrganizationTemplatesAction",
+      "listOrganizationVendorResponsesAction",
+      "listOrganizationVendorsAction",
+    ]);
+    expect(ALL).toHaveLength(8);
   });
 
   it.each(ALL)("$name: one GET to its own staff route, uncached, through the signed-in session", async ({ run, path, body }) => {
@@ -123,6 +133,22 @@ describe("organization content actions", () => {
     expect(urlOf(5)).toMatch(/\/vendors\?page=2&search=audio&status=active$/);
     await listOrganizationVendorsAction(ORG, { status: "deleted", ...({ category: "x", organizationId: "y" } as object) });
     expect(urlOf(6)).toMatch(/\/vendors$/);
+  });
+
+  it("checks the session before anything else, even when called with a query that is not one", async () => {
+    const junk = [null, "page=2", 7, ["x"]] as unknown as Array<{ page?: number }>;
+    mockedAuth.mockResolvedValue({ user: { role: "planner" } });
+    for (const query of junk) {
+      expect(await listOrganizationProposalsAction(ORG, query)).toEqual({ ok: false, failure: "forbidden" });
+      expect(await listOrganizationMembersAction(ORG, query)).toEqual({ ok: false, failure: "forbidden" });
+      expect(await listOrganizationTemplatesAction(ORG, query)).toEqual({ ok: false, failure: "forbidden" });
+      expect(await listOrganizationVendorsAction(ORG, query)).toEqual({ ok: false, failure: "forbidden" });
+    }
+    expect(mockedFetch).not.toHaveBeenCalled();
+    mockedAuth.mockResolvedValue({ user: { role: "admin" } });
+    mockedFetch.mockResolvedValue(data({ vendors: [], pagination: PAGINATION }));
+    expect(await listOrganizationVendorsAction(ORG, junk[0])).toMatchObject({ ok: true });
+    expect(urlOf(0)).toMatch(/\/vendors$/);
   });
 
   it.each(ALL)("$name: maps each refusal to its own state, and passes no backend text through", async ({ run }) => {
@@ -198,10 +224,18 @@ describe("how the admin app reads customer content", () => {
     expect(sources.filter((file) => /^app\/api\/support-access/.test(file))).toEqual([]);
   });
 
-  it("never polls a staff content route: no timer and no refresh in the content pages or components", () => {
-    for (const file of [...sourceFiles(CONTENT_ROOT), ...sourceFiles("components/organizations/content"), "app/actions/organizationContent.ts", "lib/organizationContent/content.ts"]) {
-      if (file === `${CONTENT_ROOT}/page.tsx` || file === `${CONTENT_ROOT}/loading.tsx`) continue;
-      expect({ file, polls: /setInterval|setTimeout|router\.refresh|revalidatePath|SupportAutoRefresh|"use client"/.test(read(file)) }).toEqual({ file, polls: false });
+  it("never polls a staff content route: no timer, no refresh and no client code in the content pages or components", () => {
+    const files = [...sourceFiles(CONTENT_ROOT), ...sourceFiles("components/organizations/content"), "app/actions/organizationContent.ts", "lib/organizationContent/content.ts", "lib/organizationContent/proposalFields.ts"]
+      .filter((file) => file !== `${CONTENT_ROOT}/page.tsx` && file !== `${CONTENT_ROOT}/loading.tsx`);
+    expect(files.length).toBeGreaterThan(25);
+    for (const file of files) {
+      const source = read(file);
+      expect({ file, polls: /setInterval|setTimeout|requestAnimationFrame|router\.|useRouter|useEffect|revalidatePath|SupportAutoRefresh|ClientSearchForm|"use client"/.test(source) }).toEqual({ file, polls: false });
+      // Everything these files import from the app's own components is inside the content browser
+      // (plus the page-number helper), so no client component rides in.
+      for (const [, from] of source.matchAll(/from "(@\/components\/[^"]+)"/g)) {
+        expect({ file, from, inside: from.startsWith("@/components/organizations/content/") || from === "@/components/clients/ClientDetilas" }).toMatchObject({ inside: true });
+      }
     }
   });
 
@@ -274,6 +308,8 @@ describe("how the admin app reads customer content", () => {
 
   it("says nowhere on screen that staff need the customer's grant or permission", () => {
     const stripped = (file: string) => read(file).replace(/\/\*[\s\S]*?\*\/|(^|\s)\/\/.*$/gm, "");
-    expect(sources.filter((file) => /\bgrant(s|ed)?\b|Granted to me|permission from|customer's permission/i.test(stripped(file)))).toEqual([]);
+    expect(
+      sources.filter((file) => /\bgrant(s|ed|ing)?\b|\bpermissions?\b|\bconsent\b|support access|ask the (organization|customer|owner)|access (has )?(ended|expired|been revoked)|access was revoked/i.test(stripped(file))),
+    ).toEqual([]);
   });
 });

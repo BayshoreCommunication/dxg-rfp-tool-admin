@@ -26,7 +26,7 @@ export default function VendorResponses({ responses }: { responses: VendorRespon
           {responses.map((response) => (
             <li key={response.id} className="space-y-2 px-5 py-4 sm:px-6">
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h3 className="break-words text-sm font-bold text-[#20304b]">{response.vendorName ?? "Unnamed vendor"}</h3>
+                <h2 className="min-w-0 break-words text-sm font-bold text-[#20304b]">{response.vendorName ?? "Unnamed vendor"}</h2>
                 <p className="text-xs text-slate-500">
                   Submitted {formatDate(response.createdAt) ?? "—"}
                   {response.updatedAt && formatDate(response.updatedAt) !== formatDate(response.createdAt)
