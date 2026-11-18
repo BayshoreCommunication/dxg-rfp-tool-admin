@@ -515,6 +515,7 @@ function ReviewStep({
   const heading = useRef<HTMLHeadingElement>(null);
   const [gateState, setGateState] = useState<SubmitState>({ confirmed: false, inFlight: false, done: false });
   const [refusal, setRefusal] = useState<Extract<PlaceResult, { ok: false }> | null>(null);
+  const refusalNote = useRef<HTMLDivElement>(null);
   // One gate for this review: nothing is sent before the confirmation, and a second submit while
   // the first is in flight sends nothing. The key is the one this review was opened with.
   const [gate] = useState(() =>
@@ -534,6 +535,12 @@ function ReviewStep({
   useEffect(() => {
     heading.current?.focus();
   }, []);
+  // A refusal turns the submit button off (the confirmation is asked for again), which would
+  // drop the focus on the page. It goes to the refusal, which sits above the confirmation: the
+  // next Tab is the confirmation, then "Place customer".
+  useEffect(() => {
+    if (refusal) refusalNote.current?.focus();
+  }, [refusal]);
 
   const place = async () => {
     setRefusal(null);
@@ -591,24 +598,8 @@ function ReviewStep({
         The placement runs as its own task, one at a time with other placements. You follow it on the next page, and it can be rolled back from there once it has finished.
       </p>
 
-      <label
-        htmlFor={confirmId}
-        className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-300 px-4 py-3 text-sm text-[#20304b] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#00aeb5]"
-      >
-        <input
-          id={confirmId}
-          type="checkbox"
-          checked={gateState.confirmed}
-          disabled={busy}
-          onChange={(event) => gate.setConfirmed(event.target.checked)}
-          className="mt-1 h-4 w-4 accent-[#007f86]"
-        />
-        <span>
-          I have checked the customer, the organization and the role above, and I want to move {customerLabel(customer)} now.
-        </span>
-      </label>
-
       {refusal ? (
+        <div ref={refusalNote} tabIndex={-1} className={`rounded-xl ${focusRing}`}>
         <FailureNote failure={refusal.failure} retryAfterSeconds={refusal.retryAfterSeconds}>
           {refusal.failure === "session_ended" ? (
             <Link href={sessionRenewPath(placeCustomerPath(customer.userId))} prefetch={false} className={linkClass}>
@@ -626,7 +617,25 @@ function ReviewStep({
             </Link>
           ) : null}
         </FailureNote>
+        </div>
       ) : null}
+
+      <label
+        htmlFor={confirmId}
+        className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-300 px-4 py-3 text-sm text-[#20304b] has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[#00aeb5]"
+      >
+        <input
+          id={confirmId}
+          type="checkbox"
+          checked={gateState.confirmed}
+          disabled={busy}
+          onChange={(event) => gate.setConfirmed(event.target.checked)}
+          className="mt-1 h-4 w-4 accent-[#007f86]"
+        />
+        <span>
+          I have checked the customer, the organization and the role above, and I want to move {customerLabel(customer)} now.
+        </span>
+      </label>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
         <button type="submit" disabled={!gateState.confirmed || busy} className={primaryButton}>

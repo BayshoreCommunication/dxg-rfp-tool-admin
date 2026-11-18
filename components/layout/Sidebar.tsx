@@ -5,6 +5,7 @@ import { navigationConfig, NavItem } from "@/config/navigation";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useAdminNotifications } from "@/components/notifications/AdminNotificationsProvider";
+import { clearPlacementDrafts } from "@/lib/legacyCustomers/draft";
 import { badgeLabel } from "@/lib/notifications/adminNotifications";
 import { cn } from "@/lib/utils";
 import { LoaderCircle, LogOut } from "lucide-react";
@@ -27,6 +28,8 @@ const Sidebar = () => {
   const signOutHandler = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
+    // Unsent legacy-customer placement choices kept in this tab do not outlive the session.
+    clearPlacementDrafts(typeof window === "undefined" ? null : window.sessionStorage);
 
     try {
       try {

@@ -113,6 +113,57 @@ describe("the Legacy customers screen", () => {
     expect(found).toBeGreaterThanOrEqual(6);
   });
 
+  it("never prefetches the list: every link to /legacy-customers inside this feature opts out", () => {
+    // Each view of the list is a backend read that counts toward the 600 per 15 minutes the list
+    // and the organization search share.
+    const toList = /LEGACY_CUSTOMERS_PATH|legacyCustomersPagePath\(|["'`]\/legacy-customers/;
+    const found = screenFiles.flatMap((file) => links(file).filter((link) => toList.test(link)).map((link) => ({ file, link })));
+    for (const { file, link } of found) expect({ file, link, optsOut: /prefetch=\{false\}/.test(link) }).toMatchObject({ optsOut: true });
+    // The frame's way back, the failure state's, the run page's, the review's, the list's sign-in and its two pager links.
+    expect(found.length).toBeGreaterThanOrEqual(7);
+    expect(found.filter(({ file }) => file === `${COMPONENTS}/PlacementChrome.tsx`).length).toBeGreaterThanOrEqual(3);
+    // No link here is written without going through one of those, and nothing goes there in code.
+    for (const file of screenFiles) {
+      for (const link of links(file)) expect({ file, link, hasHref: /href=\{/.test(link) }).toMatchObject({ hasHref: true });
+      expect({ file, navigates: /router\.(push|replace|prefetch)\(\s*(LEGACY_CUSTOMERS_PATH|legacyCustomersPagePath|["'`]\/legacy-customers)/.test(read(file)) }).toEqual({ file, navigates: false });
+    }
+  });
+
+  it("keeps the keyboard focus on the page after a rollback answer and after a refused placement", () => {
+    const view = read(`${COMPONENTS}/PlacementRunView.tsx`);
+    // The run headline can take focus, and takes it after every rollback answer, before anything else.
+    expect(view).toMatch(/<h1 id="run-headline" ref=\{headlineRef\} tabIndex=\{-1\}/);
+    expect(view).toMatch(/const next = rollbackFollowUp\(runId, result\);\s*(\/\/[^\n]*\n\s*)*headlineRef\.current\?\.focus\(\);/);
+    const flow = read(`${COMPONENTS}/PlaceCustomerFlow.tsx`);
+    // A refused placement moves focus to the refusal...
+    expect(flow).toMatch(/useEffect\(\(\) => \{\s*if \(refusal\) refusalNote\.current\?\.focus\(\);\s*\}, \[refusal\]\);/);
+    expect(flow).toMatch(/<div ref=\{refusalNote\} tabIndex=\{-1\}/);
+    // ...which comes before the confirmation and the submit button, so retrying is forwards.
+    const review = flow.slice(flow.indexOf("function ReviewStep("));
+    const note = review.indexOf("<div ref={refusalNote}");
+    const confirmation = review.indexOf("id={confirmId}");
+    const submit = review.indexOf('<button type="submit"');
+    expect(note).toBeGreaterThan(0);
+    expect(note).toBeLessThan(confirmation);
+    expect(confirmation).toBeLessThan(submit);
+  });
+
+  it("says why it stopped after 30 minutes, with the manual refresh still there", () => {
+    const view = read(`${COMPONENTS}/PlacementRunView.tsx`);
+    expect(view).toMatch(/case "time_limit":\s*return \{ text: "Stopped checking: this run has been queued or running for 30 minutes\.[^"]*", stopped: true \};/);
+    expect(view).toMatch(/<button type="button" onClick=\{\(\) => controller\.current\?\.refresh\(\)\} disabled=\{poll\.reading\}/);
+  });
+
+  it("clears its saved choices when staff sign out", () => {
+    const sidebar = read("components/layout/Sidebar.tsx");
+    // The app's one sign-out handler; both sign-out buttons call it.
+    expect(sidebar.match(/const signOutHandler = async/g)).toHaveLength(1);
+    expect(sidebar).toMatch(/setIsSigningOut\(true\);\s*(\/\/[^\n]*\n\s*)?clearPlacementDrafts\(typeof window === "undefined" \? null : window\.sessionStorage\);/);
+    const everywhere = [...sourceFiles("app"), ...sourceFiles("components"), ...sourceFiles("lib")];
+    const signsOut = everywhere.filter((file) => /from "next-auth\/react"/.test(read(file)) && /\bsignOut\(/.test(read(file)));
+    expect(signsOut).toEqual(["components/layout/Sidebar.tsx"]);
+  });
+
   it("follows a run with one poll controller, made once per page and ended with it", () => {
     const view = read(`${COMPONENTS}/PlacementRunView.tsx`);
     expect(view.match(/createPollController\(/g)).toHaveLength(1);

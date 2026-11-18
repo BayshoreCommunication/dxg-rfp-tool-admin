@@ -69,6 +69,8 @@ const pollLine = (poll: PollState): { text: string; stopped: boolean } => {
       return { text: "Stopped checking: the last three checks got no answer. What is shown may be out of date.", stopped: true };
     case "rate_limited":
       return { text: "Stopped checking: this account has read too often. Wait a few minutes, then refresh. What is shown may be out of date.", stopped: true };
+    case "time_limit":
+      return { text: "Stopped checking: this run has been queued or running for 30 minutes. What is shown may be out of date. Refresh to check again; if it has not moved, tell the engineering team.", stopped: true };
     case null:
       return { text: "Not checking.", stopped: true };
     default:
@@ -88,6 +90,7 @@ export default function PlacementRunView({ initial }: { initial: PlacementRun })
   const runId = initial.runId;
   const [poll, setPoll] = useState<PollState>({ run: initial, phase: "checking", reading: false, stopReason: null, lastFailure: null });
   const controller = useRef<PollController | null>(null);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
   // The last rollback request's refusal. It is kept here, not in the panel, so it is still on
   // the page when the run read after it shows there is nothing left to roll back.
   const [rollbackRefusal, setRollbackRefusal] = useState<Extract<RollbackResult, { ok: false }> | null>(null);
@@ -127,7 +130,7 @@ export default function PlacementRunView({ initial }: { initial: PlacementRun })
           <span className="mt-0.5 shrink-0">{tone.icon}</span>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] opacity-80">{run.operation === "rollback" ? "Rollback of a placement" : "Placement"}</p>
-            <h1 id="run-headline" className="mt-0.5 break-words text-2xl font-extrabold tracking-[-0.03em]">
+            <h1 id="run-headline" ref={headlineRef} tabIndex={-1} className="mt-0.5 break-words text-2xl font-extrabold tracking-[-0.03em] outline-none">
               {headline.title}
             </h1>
             <p className="mt-1 text-sm leading-6">{headline.detail}</p>
@@ -256,6 +259,9 @@ export default function PlacementRunView({ initial }: { initial: PlacementRun })
           onAnswer={(result) => {
             setRollbackRefusal(result.ok ? null : result);
             const next = rollbackFollowUp(runId, result);
+            // The confirmation that had the focus is gone, and the panel may go too once the run
+            // is read again: the headline is always here, and says what the run is now.
+            headlineRef.current?.focus();
             if (next.action === "open") router.push(placementRunPath(next.runId));
             // The same run, now with a rollback task: carry on following it here.
             else if (next.action === "follow") controller.current?.adopt(next.run);

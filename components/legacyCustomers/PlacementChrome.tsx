@@ -5,7 +5,10 @@ import { AlertCircle, ArrowLeft, Clock, FileQuestion } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/* The frame and the states the three Legacy customers pages share. It follows the organization
+/* Every link to the list opts out of prefetch: each view of it is a backend read that counts
+   toward the staff member's allowance (600 list and search reads per 15 minutes).
+
+   The frame and the states the three Legacy customers pages share. It follows the organization
    pages' look (components/organizations/content/ContentChrome.tsx) and takes its focus outline
    from there. No hooks here: the pages render it on the server. */
 
@@ -25,6 +28,7 @@ export const PlacementFrame = ({ back = true, children }: { back?: boolean; chil
     {back ? (
       <Link
         href={LEGACY_CUSTOMERS_PATH}
+        prefetch={false}
         className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-slate-600 transition hover:text-[#007f86] dark:hover:text-cyan-300 ${focusRing}`}
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Legacy customers
@@ -62,7 +66,7 @@ export const PlacementFailureState = ({
       <p className="mt-1 max-w-md text-sm leading-6 text-slate-600">{message}</p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
         {retryHref === LEGACY_CUSTOMERS_PATH ? null : (
-          <Link href={LEGACY_CUSTOMERS_PATH} className={linkClass}>
+          <Link href={LEGACY_CUSTOMERS_PATH} prefetch={false} className={linkClass}>
             Back to Legacy customers
           </Link>
         )}

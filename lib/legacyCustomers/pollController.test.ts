@@ -1,6 +1,7 @@
 import type { PlacementResult, PlacementRun, RunStatus } from "@/lib/legacyCustomers/placement";
 import {
   createPollController,
+  MAX_ACTIVE_POLL_MS,
   MAX_BACKOFF_MS,
   MAX_CONSECUTIVE_ERRORS,
   MAX_CONSECUTIVE_RATE_LIMITS,
@@ -483,5 +484,80 @@ describe("recheck: one more read of a run the loop had finished with", () => {
     closed.controller.recheck();
     await advance(60_000);
     expect(closed.startedAt).toHaveLength(0);
+  });
+});
+
+// A tab left open on a run that never finishes must not read for ever.
+describe("the overall cap on following a run", () => {
+  it("is 30 minutes", () => {
+    expect(MAX_ACTIVE_POLL_MS).toBe(30 * 60_000);
+  });
+
+  it.each(["queued", "running"] as const)("stops after 30 minutes of a run that stays %s, with the stopped state and no timer left", async (status) => {
+    const h = harness(run(status), { answers: [ok(status)] });
+    h.controller.start();
+    await advance(MAX_ACTIVE_POLL_MS - 1);
+    expect(h.controller.getState()).toMatchObject({ phase: "checking", stopReason: null });
+    const before = h.startedAt.length;
+    expect(before).toBe(599);
+    await advance(1);
+    expect(h.startedAt).toHaveLength(600);
+    expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "time_limit", reading: false, run: { status } });
+    expect(jest.getTimerCount()).toBe(0);
+    await advance(2 * 60 * 60_000);
+    expect(h.startedAt).toHaveLength(600);
+    for (const gap of h.gaps()) expect(gap).toBeGreaterThanOrEqual(MIN_POLL_INTERVAL_MS);
+  });
+
+  it("counts a run that goes from queued to running as one stretch", async () => {
+    const h = harness(run("queued"), { answers: [...Array.from({ length: 300 }, () => ok("queued")), ok("running")] });
+    h.controller.start();
+    await advance(MAX_ACTIVE_POLL_MS + 60_000);
+    expect(h.startedAt).toHaveLength(600);
+    expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "time_limit", run: { status: "running" } });
+  });
+
+  it("the manual refresh starts it again, for another 30 minutes", async () => {
+    const h = harness(run("running"), { answers: [ok("running")] });
+    h.controller.start();
+    await advance(MAX_ACTIVE_POLL_MS);
+    expect(h.controller.getState().stopReason).toBe("time_limit");
+    h.controller.refresh();
+    expect(h.controller.getState()).toMatchObject({ phase: "checking", stopReason: null });
+    await advance(MAX_ACTIVE_POLL_MS - 1);
+    expect(h.controller.getState().phase).toBe("checking");
+    await advance(1);
+    expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "time_limit" });
+    expect(h.startedAt).toHaveLength(1200);
+  });
+
+  it("does not stop a run that finishes in time, and a rollback adopted later gets its own 30 minutes", async () => {
+    const h = harness(run("running"), { answers: [...Array.from({ length: 500 }, () => ok("running")), ok("succeeded")] });
+    h.controller.start();
+    await advance(MAX_ACTIVE_POLL_MS);
+    expect(h.controller.getState()).toMatchObject({ phase: "finished", stopReason: null, run: { status: "succeeded" } });
+
+    const adopted = harness(run("succeeded"), { answers: [{ ok: true, data: run("running", { operation: "rollback" }) }] });
+    adopted.controller.start();
+    await advance(45 * 60_000);
+    adopted.controller.adopt(run("queued", { operation: "rollback" }));
+    await advance(MAX_ACTIVE_POLL_MS - 1);
+    expect(adopted.controller.getState().phase).toBe("checking");
+    await advance(1);
+    expect(adopted.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "time_limit" });
+  });
+
+  it("a tab that was hidden past the cap reads once when it is shown again, then stops", async () => {
+    const h = harness(run("running"), { answers: [ok("running")] });
+    h.controller.start();
+    await advance(60_000);
+    const before = h.startedAt.length;
+    h.setVisible(false);
+    await advance(MAX_ACTIVE_POLL_MS);
+    expect(h.startedAt).toHaveLength(before);
+    h.setVisible(true);
+    await advance(0);
+    expect(h.startedAt).toHaveLength(before + 1);
+    expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "time_limit" });
   });
 });

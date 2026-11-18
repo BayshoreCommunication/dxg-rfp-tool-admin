@@ -77,6 +77,12 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
     `Idempotency-Key` made when the confirmation opens, so a repeat returns the same run. Backend
     message text (`message`, `error`, `task.message`) is never shown: codes map to wording in
     `placement.ts` and `runView.ts`.
+  - The list is paged and searched on the Next server (the backend has neither): one page of at
+    most 50 customers reaches the browser, `?page=` is a number only, and the search is a form
+    POST to a server action, so a name or email is never in an address. One backend list read per
+    page view or search; every link to `/legacy-customers` inside the feature opts out of prefetch.
+  - After any rollback answer that is not an accepted run, the run is read again
+    (`rollbackFollowUp`, `recheck`). The loop also stops after 30 minutes of queued or running.
   - The optional team comes from the content browser's teams read (recorded, and counted in that
     browser's allowance), asked only when staff press "Choose a team".
 - Config comes from `BACKEND_URL`, `NEXTAUTH_URL`, `AUTH_SECRET` and `BFF_SHARED_SECRET`

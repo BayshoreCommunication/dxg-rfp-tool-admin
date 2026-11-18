@@ -43,7 +43,26 @@ export const emptyDraft = (): PlacementDraft => ({
   idempotencyKey: "",
 });
 
-export const draftStorageKey = (userId: string) => `legacy-placement-draft:${userId}`;
+const DRAFT_KEY_PREFIX = "legacy-placement-draft:";
+export const draftStorageKey = (userId: string) => `${DRAFT_KEY_PREFIX}${userId}`;
+
+/* Removes every saved draft from a storage (the tab's session storage, on sign-out): the next
+   person to sign in on this tab must not find the last one's unsent choices. Only this feature's
+   keys are touched. Returns how many were removed; a storage that cannot be read removes none. */
+export const clearPlacementDrafts = (storage: Pick<Storage, "length" | "key" | "removeItem"> | null | undefined): number => {
+  try {
+    if (!storage) return 0;
+    const keys: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(DRAFT_KEY_PREFIX)) keys.push(key);
+    }
+    for (const key of keys) storage.removeItem(key);
+    return keys.length;
+  } catch {
+    return 0;
+  }
+};
 
 const str = (value: unknown, max: number) => (typeof value === "string" ? value.slice(0, max) : "");
 

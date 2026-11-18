@@ -8,6 +8,8 @@
 //   that cannot change by asking again, and after repeated errors;
 // - a rollback answer that leaves the run unknown (a refusal, a lost answer) is followed by one
 //   more read, at the floor, even of a run that had finished (recheck);
+// - it ends after 30 minutes of a run that is still queued or running (a tab left open must not
+//   read for ever); the manual refresh starts it again;
 // - it waits while the tab is hidden;
 // - a 429 makes it wait longer each time (at least what Retry-After says).
 //
@@ -22,6 +24,8 @@ export const MAX_BACKOFF_MS = 60_000;
 export const MAX_CONSECUTIVE_ERRORS = 3;
 export const MAX_CONSECUTIVE_RATE_LIMITS = 5;
 const MAX_RETRY_AFTER_MS = 15 * 60_000;
+/** The longest the loop follows a run that stays queued or running before it stops and says so. */
+export const MAX_ACTIVE_POLL_MS = 30 * 60_000;
 
 export type PollPhase =
   /** A read is scheduled or in flight. */
@@ -33,7 +37,7 @@ export type PollPhase =
   /** The loop gave up. Only the manual refresh starts it again. */
   | "stopped";
 
-export type PollStopReason = "not_found" | "errors" | "rate_limited" | PlacementFailure;
+export type PollStopReason = "not_found" | "errors" | "rate_limited" | "time_limit" | PlacementFailure;
 
 export type PollState = {
   run: PlacementRun | null;
@@ -79,6 +83,9 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
   // A recheck asked for while a read was in flight: that read began before the question, so its
   // answer does not settle it.
   let recheckPending = false;
+  // When this stretch of following a queued or running run began: the loop's start, a run
+  // adopted, or the last manual refresh.
+  let followingSince = now();
 
   const emit = (change: Partial<PollState>) => {
     state = { ...state, ...change };
@@ -144,7 +151,8 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
       } else if (finished()) {
         cancelTimer();
         emit({ phase: "finished", stopReason: null });
-      } else schedule(interval);
+      } else if (now() - followingSince >= MAX_ACTIVE_POLL_MS) stop("time_limit");
+      else schedule(interval);
       return;
     }
     if (result.failure === "run_not_found") return stop("not_found");
@@ -166,6 +174,7 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
   const begin = () => {
     errors = 0;
     rateLimits = 0;
+    followingSince = now();
     if (finished()) {
       cancelTimer();
       emit({ phase: "finished", stopReason: null, lastFailure: null });
@@ -191,6 +200,7 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
       if (disposed || state.reading) return;
       errors = 0;
       rateLimits = 0;
+      followingSince = now();
       state = { ...state, lastFailure: null };
       schedule(0);
     },
@@ -206,6 +216,7 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
       }
       errors = 0;
       rateLimits = 0;
+      followingSince = now();
       state = { ...state, lastFailure: null };
       schedule(0);
     },

@@ -1,4 +1,4 @@
-import { draftStorageKey, emptyDraft, parseDraft, requestOfDraft, teamAfterListing } from "@/lib/legacyCustomers/draft";
+import { clearPlacementDrafts, draftStorageKey, emptyDraft, parseDraft, requestOfDraft, teamAfterListing } from "@/lib/legacyCustomers/draft";
 
 const ORG = "6b0000000000000000000002";
 const KEY = "3f1c9a52-7d7e-4b9e-9a51-0f6f6c1d2e3f";
@@ -75,5 +75,39 @@ describe("a saved team against the organization's teams as they are now", () => 
   it("has nothing to do when no team was saved", () => {
     expect(teamAfterListing({ teamId: "", teamName: "" }, [{ id: TEAM, name: "East" }])).toEqual({ change: null, dropped: null });
     expect(teamAfterListing({ teamId: "", teamName: "stale" }, [])).toEqual({ change: null, dropped: null });
+  });
+});
+
+describe("saved choices are cleared on sign-out", () => {
+  const storageOf = (entries: Record<string, string>) => {
+    const map = new Map(Object.entries(entries));
+    return {
+      map,
+      get length() {
+        return map.size;
+      },
+      key: (index: number) => [...map.keys()][index] ?? null,
+      removeItem: (key: string) => void map.delete(key),
+    };
+  };
+
+  it("removes every placement draft and nothing else", () => {
+    const storage = storageOf({
+      [draftStorageKey("6a0000000000000000000001")]: "{}",
+      theme: "dark",
+      [draftStorageKey("6a0000000000000000000002")]: "{}",
+      "legacy-placement": "not a draft",
+      [draftStorageKey("6a0000000000000000000003")]: "{}",
+    });
+    expect(clearPlacementDrafts(storage)).toBe(3);
+    expect([...storage.map.keys()].sort()).toEqual(["legacy-placement", "theme"]);
+    expect(clearPlacementDrafts(storage)).toBe(0);
+  });
+
+  it("does nothing, and does not throw, without a storage or with one that refuses", () => {
+    expect(clearPlacementDrafts(null)).toBe(0);
+    expect(clearPlacementDrafts(undefined)).toBe(0);
+    const refusing = { get length(): number { throw new Error("blocked"); }, key: () => null, removeItem: () => undefined };
+    expect(clearPlacementDrafts(refusing)).toBe(0);
   });
 });
