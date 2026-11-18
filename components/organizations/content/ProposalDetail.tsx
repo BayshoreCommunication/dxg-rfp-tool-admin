@@ -1,3 +1,4 @@
+import { focusRing } from "@/components/organizations/content/ContentChrome";
 import {
   organizationProposalPath,
   organizationProposalsPath,
@@ -93,7 +94,7 @@ export const ProposalViewTabs = ({
           {tab.label}
         </span>
       ) : (
-        <Link key={tab.id} href={tab.href} prefetch={false} className={`${tabClass} border-slate-200 text-slate-600 hover:border-[#00aeb5] hover:text-[#007f86]`}>
+        <Link key={tab.id} href={tab.href} prefetch={false} className={`${tabClass} border-slate-200 text-slate-600 hover:border-[#00aeb5] hover:text-[#007f86] ${focusRing}`}>
           {tab.label}
         </Link>
       ),
@@ -105,7 +106,7 @@ export const BackToProposals = ({ organizationId }: { organizationId: string }) 
   <Link
     href={organizationProposalsPath(organizationId)}
     prefetch={false}
-    className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 transition hover:text-[#007f86]"
+    className={`inline-flex items-center gap-1.5 rounded text-sm font-semibold text-slate-600 transition hover:text-[#007f86] ${focusRing}`}
   >
     <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All proposals in this organization
   </Link>
@@ -176,7 +177,7 @@ export default function ProposalDetail({ organizationId, data }: { organizationI
                   ) : null}
                 </>
               ) : (
-                <span className="text-slate-400">No longer a member</span>
+                <span className="text-slate-600">No longer a member</span>
               )}
             </dd>
           </div>
@@ -234,7 +235,7 @@ export default function ProposalDetail({ organizationId, data }: { organizationI
             </section>
           ))}
           {empty.length ? (
-            <p className="px-1 text-xs text-slate-400">
+            <p className="px-1 text-xs text-slate-600">
               Not filled in yet: {empty.map((section) => section.title).join(", ")}.
             </p>
           ) : null}

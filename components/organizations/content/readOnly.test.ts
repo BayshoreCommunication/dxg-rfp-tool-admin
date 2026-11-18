@@ -162,6 +162,38 @@ describe("the organization content pages are view-only", () => {
     }
   });
 
+  it("shows keyboard focus on the pager, the proposal views and the way back, and gives the pager a 44px target", () => {
+    const chrome = read(`${COMPONENTS}/ContentChrome.tsx`);
+    const detail = read(`${COMPONENTS}/ProposalDetail.tsx`);
+    // One focus style, the one the filter pills carry.
+    expect(chrome).toMatch(
+      /export const focusRing =\s*"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-\[#00aeb5\]";/,
+    );
+    const pills = chrome.slice(chrome.indexOf("const pillClass"), chrome.indexOf("/* A page never links"));
+    expect(pills).toMatch(/\$\{focusRing\}/);
+    // Every link of the pager: the two step arrows and the page numbers.
+    const pager = chrome.slice(chrome.indexOf("export const Pager"));
+    const pagerLinks = pager.match(/<Link\b[^>]*>/g) ?? [];
+    expect(pagerLinks).toHaveLength(3);
+    for (const link of pagerLinks) expect(link).toMatch(/className=\{(stepClass\(true\)|pageLinkClass)\}/);
+    expect(pager).toMatch(/const stepClass = [\s\S]*?enabled \? `[^`]*\$\{focusRing\}`/);
+    expect(pager).toMatch(/const pageLinkClass = `[^`]*\$\{focusRing\}`/);
+    // 44px (h-11 w-11) for everything in the pager that can be pressed; nothing left at 36px.
+    expect(pager).toMatch(/const stepClass = [\s\S]*?`inline-flex h-11 w-11 /);
+    expect(pager).toMatch(/const pageClass = "inline-flex h-11 w-11 /);
+    expect(pager).toMatch(/const pageLinkClass = `\$\{pageClass\} /);
+    expect(pager).not.toMatch(/\b[hw]-9\b/);
+    // The proposal's other view and the way back to the list.
+    const tabs = detail.slice(detail.indexOf("export const ProposalViewTabs"), detail.indexOf("export const BackToProposals"));
+    expect(tabs).toMatch(/<Link key=\{tab\.id\}[^>]*className=\{`[^`]*\$\{focusRing\}[^`]*`\}/);
+    const back = detail.slice(detail.indexOf("export const BackToProposals"), detail.indexOf("/** A view-only page"));
+    expect(back).toMatch(/<Link\b[^>]*className=\{`[^`]*\$\{focusRing\}`\}/);
+    // Secondary text is not paler than on the other content pages.
+    expect(detail).not.toMatch(/text-slate-400/);
+    expect(detail).toMatch(/<span className="text-slate-600">No longer a member<\/span>/);
+    expect(detail).toMatch(/<p className="px-1 text-xs text-slate-600">\s*Not filled in yet:/);
+  });
+
   it("keeps wide content inside a phone screen: lists stack, and the one table is desktop-only", () => {
     const tables = contentFiles.filter((file) => /<table\b/.test(read(file)));
     expect(tables).toEqual([`${COMPONENTS}/ProposalList.tsx`]);

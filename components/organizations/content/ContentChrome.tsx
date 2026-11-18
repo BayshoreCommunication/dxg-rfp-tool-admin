@@ -22,8 +22,12 @@ import type { ReactNode } from "react";
 const linkClass =
   "text-sm font-bold text-[#007f86] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5] dark:text-cyan-300";
 
+/** The keyboard focus outline every link in the content browser's navigation carries. */
+export const focusRing =
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5]";
+
 const pillClass = (active: boolean) =>
-  `inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5] ${
+  `inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-bold transition ${focusRing} ${
     active
       ? "border-[#aee9e8] bg-[#eaf9f8] text-[#007f86] dark:text-cyan-300"
       : "border-slate-200 text-slate-600 hover:border-[#00aeb5] hover:text-[#007f86]"
@@ -318,10 +322,13 @@ export const Pager = ({
   if (pagination.total === 0) return null;
   const hasPrev = pagination.page > 1;
   const hasNext = pagination.page < pagination.totalPages;
+  // 44px squares: the pager is used by touch on a phone as much as by pointer.
   const stepClass = (enabled: boolean) =>
-    `inline-flex h-9 w-9 items-center justify-center rounded-lg border text-slate-600 transition ${
-      enabled ? "border-slate-200 hover:border-[#00aeb5] hover:text-[#007f86]" : "border-slate-100 bg-slate-50 text-slate-300"
+    `inline-flex h-11 w-11 items-center justify-center rounded-lg border text-slate-600 transition ${
+      enabled ? `border-slate-200 hover:border-[#00aeb5] hover:text-[#007f86] ${focusRing}` : "border-slate-100 bg-slate-50 text-slate-300"
     }`;
+  const pageClass = "inline-flex h-11 w-11 items-center justify-center rounded-lg border text-sm font-bold";
+  const pageLinkClass = `${pageClass} border-slate-200 text-slate-600 transition hover:border-[#00aeb5] hover:text-[#007f86] ${focusRing}`;
   return (
     <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <p className="text-xs font-semibold text-slate-600">{summary}</p>
@@ -338,7 +345,7 @@ export const Pager = ({
           )}
           {buildPageList(pagination.page, pagination.totalPages).map((item, index) =>
             item === "..." ? (
-              <span key={`ellipsis-${index}`} className="inline-flex h-9 w-6 items-center justify-center text-sm text-slate-400">
+              <span key={`ellipsis-${index}`} className="inline-flex h-11 w-6 items-center justify-center text-sm text-slate-400">
                 …
               </span>
             ) : item === pagination.page ? (
@@ -346,18 +353,12 @@ export const Pager = ({
                 key={item}
                 aria-current="page"
                 aria-label={`Page ${item}, this page`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#aee9e8] bg-[#eaf9f8] text-sm font-bold text-[#007f86]"
+                className={`${pageClass} border-[#aee9e8] bg-[#eaf9f8] text-[#007f86]`}
               >
                 {item}
               </span>
             ) : (
-              <Link
-                key={item}
-                href={hrefFor(item)}
-                prefetch={false}
-                aria-label={`Page ${item}`}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-sm font-bold text-slate-600 transition hover:border-[#00aeb5] hover:text-[#007f86]"
-              >
+              <Link key={item} href={hrefFor(item)} prefetch={false} aria-label={`Page ${item}`} className={pageLinkClass}>
                 {item}
               </Link>
             ),
