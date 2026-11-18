@@ -102,11 +102,17 @@ describe("organization content actions", () => {
   });
 
   it("refuses a proposal or template id that is not an id, without asking", async () => {
-    for (const id of ["", "abc", PROPOSAL.toUpperCase(), `${PROPOSAL}?x=1`, "../members"]) {
+    // A server action can be posted with anything, or with nothing, where the id belongs.
+    const notIds = [undefined, null, {}, 7, [PROPOSAL]] as unknown as string[];
+    for (const id of ["", "abc", PROPOSAL.toUpperCase(), `${PROPOSAL}?x=1`, "../members", ...notIds]) {
       expect(await getOrganizationProposalAction(ORG, id)).toEqual({ ok: false, failure: "record_not_found" });
       expect(await listOrganizationVendorResponsesAction(ORG, id)).toEqual({ ok: false, failure: "record_not_found" });
       expect(await getOrganizationTemplateAction(ORG, id)).toEqual({ ok: false, failure: "record_not_found" });
+      expect(mockedFetch).not.toHaveBeenCalled();
     }
+    // Left out altogether, as a bare call would.
+    const bare = { proposal: getOrganizationProposalAction, responses: listOrganizationVendorResponsesAction, template: getOrganizationTemplateAction } as unknown as Record<string, (organizationId: string) => Promise<unknown>>;
+    for (const action of Object.values(bare)) expect(await action(ORG)).toEqual({ ok: false, failure: "record_not_found" });
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 

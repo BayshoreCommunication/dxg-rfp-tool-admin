@@ -49,8 +49,11 @@ const refused = (failure: ContentFailure): { ok: false; failure: ContentFailure 
 
 type Query = Record<string, string | number | undefined>;
 
+/* A list is asked with the organization alone. A record action always passes `recordId`, whatever
+   it was called with (a server action can be posted with nothing there), and it is always checked:
+   a record route is never asked with an empty or made-up id. */
 const read = async <T>(
-  ids: { organizationId: string; recordId?: string },
+  ids: { organizationId: string } | { organizationId: string; recordId: unknown },
   path: (organizationId: string, recordId: string) => string,
   query: Query,
   parse: (data: unknown) => T | null,
@@ -58,13 +61,14 @@ const read = async <T>(
   const staff = await checkStaffAdmin();
   if (staff !== "staff") return refused(staff === "signed_out" ? "session_ended" : "forbidden");
   if (!isContentId(ids.organizationId)) return refused("invalid_id");
-  if (ids.recordId !== undefined && !isContentId(ids.recordId)) return refused("record_not_found");
+  const recordId = "recordId" in ids ? ids.recordId : "";
+  if ("recordId" in ids && !isContentId(recordId)) return refused("record_not_found");
 
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined && value !== "") params.set(key, String(value));
   }
-  const url = `${API}/${ids.organizationId}${path(ids.organizationId, ids.recordId ?? "")}${params.size ? `?${params.toString()}` : ""}`;
+  const url = `${API}/${ids.organizationId}${path(ids.organizationId, typeof recordId === "string" ? recordId : "")}${params.size ? `?${params.toString()}` : ""}`;
   try {
     const response = await authenticatedBackendFetch(url, {
       method: "GET",
