@@ -230,7 +230,11 @@ describe("organization detail page wiring", () => {
         entry.isDirectory() ? sources(`${dir}/${entry.name}`) : /\.tsx$/.test(entry.name) ? [`${dir}/${entry.name}`] : [],
       );
     // A link built with the path helper, or one that spells out /organizations/<something>.
-    const toDetail = /organizationAccountPath\(|["'`{]\/organizations\/|ORGANIZATIONS_PATH\}?\/|ORGANIZATIONS_PATH\s*\+/;
+    // Since the content browser: also a link built with one of its path helpers (the pages under
+    // the detail page are recorded reads too). components/organizations/content/readOnly.test.ts
+    // checks every Link in those pages and components, whatever its href is built from.
+    const toDetail =
+      /organizationAccountPath\(|["'`{]\/organizations\/|ORGANIZATIONS_PATH\}?\/|ORGANIZATIONS_PATH\s*\+|organization(Section|Proposals?|VendorResponses|Members|Teams|Templates?|Vendors)Path\(/;
     let found = 0;
     for (const file of [...sources("app"), ...sources("components")]) {
       for (const link of read(file).match(/<Link\b[^>]*>/g) ?? []) {
@@ -239,10 +243,10 @@ describe("organization detail page wiring", () => {
         expect({ file, link, optsOut: /prefetch=\{false\}/.test(link) }).toMatchObject({ optsOut: true });
       }
     }
-    expect(found).toBeGreaterThanOrEqual(2);
+    expect(found).toBeGreaterThanOrEqual(8);
     // Nothing navigates there in code either, where a prefetch would not be visible to this scan.
     for (const file of [...sources("app"), ...sources("components")]) {
-      expect({ file, prefetches: /router\.prefetch\(/.test(read(file)) && /organizationAccountPath|\/organizations\//.test(read(file)) }).toMatchObject({ prefetches: false });
+      expect({ file, prefetches: /router\.prefetch\(/.test(read(file)) && /organizationAccountPath|\/organizations\/|organization\w+Path\(/.test(read(file)) }).toMatchObject({ prefetches: false });
     }
   });
 
@@ -256,11 +260,20 @@ describe("organization detail page wiring", () => {
     expect(source).not.toMatch(/authenticatedBackendFetch|fetch\(/);
   });
 
-  it("says what staff do not see on the page and points to Support access", () => {
+  // Owner decision, 2026-11-17 (later the same day): staff view an organization's content with no
+  // grant. This test used to pin the earlier note ("They need a support access grant from the
+  // organization" and a link to Support access); it now pins the note that replaced it.
+  it("says staff can view the organization's content, read-only, and that each view is recorded", () => {
     const source = read("components/organizations/OrganizationAccount.tsx");
-    expect(source).toMatch(/Members, proposals and other customer content are not shown here\./);
-    expect(source).toMatch(/need a support access grant from the organization/);
-    expect(source).toMatch(/href=\{SUPPORT_ACCESS_PATH\}/);
+    expect(source).toMatch(/RFPilot staff can view this organization&apos;s content: its proposals, vendor responses, members, teams, templates and\s+vendors\./);
+    expect(source).toMatch(/It is read-only: nothing can be edited or deleted here\. Each view is recorded on the RFPilot side\./);
+    expect(source).toMatch(/<OrganizationSectionNav organizationId=\{organization\.id\} \/>/);
+    // Nothing on the page says a grant or the customer's permission is needed, and nothing links to the old screens.
+    expect(source).not.toMatch(/grant|permission|SUPPORT_ACCESS_PATH|support-access|Support access|are not shown here/i);
+    // The page links to the five sections and reads none of them itself.
+    const nav = read("components/organizations/content/ContentChrome.tsx");
+    expect(nav).toMatch(/CONTENT_SECTIONS\.map\(\(section\) => \(\s*<Link\s+key=\{section\}\s+href=\{organizationSectionPath\(organizationId, section\)\}\s+prefetch=\{false\}/);
+    expect(source).not.toMatch(/Action\b|organizationContent"/);
     // The platform-wide sign-in list says nothing about one organization, so it is not shown.
     expect(source).not.toMatch(/sign-in methods|signInMethod|Microsoft|Google/i);
   });

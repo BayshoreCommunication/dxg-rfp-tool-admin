@@ -18,18 +18,16 @@ import {
   proposalsStoredLabel,
   roleCountRows,
   standingBadge,
-  supportAccessLabel,
   teamCountLabels,
   twoFactorLabel,
   type BadgeTone,
   type OrganizationAccount as Account,
 } from "@/lib/organizationAccount";
 import type { PlanOption } from "@/lib/organizationPlans";
-import { SUPPORT_ACCESS_PATH } from "@/lib/supportAccess/grants";
-import { Building2, Info } from "lucide-react";
-import Link from "next/link";
+import { Building2, Eye } from "lucide-react";
 import type { ReactNode } from "react";
 import ChangePlanButton from "./ChangePlanButton";
+import { OrganizationSectionNav } from "./content/ContentChrome";
 import { Features, PlanBadge, Usage } from "./OrganizationsDirectory";
 
 type Props = {
@@ -57,9 +55,6 @@ const Badge = ({ tone, children, title }: { tone: BadgeTone; children: ReactNode
     {children}
   </span>
 );
-
-const linkClass =
-  "font-bold text-[#007f86] underline underline-offset-2 hover:no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5] dark:text-cyan-300";
 
 const Card = ({ title, children }: { title: string; children: ReactNode }) => (
   <section className="min-w-0 rounded-2xl border border-[#dce5ee] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.03)] sm:p-6">
@@ -119,18 +114,18 @@ export default function OrganizationAccount({ account, plans }: Props) {
       </header>
 
       <aside
-        aria-label="What this page does not show"
-        className="flex items-start gap-3 rounded-2xl border border-cyan-100 bg-cyan-50 px-5 py-4 text-sm leading-6 text-cyan-900"
+        aria-label="Viewing this organization's content"
+        className="space-y-3 rounded-2xl border border-cyan-100 bg-cyan-50 px-5 py-4 text-sm leading-6 text-cyan-900"
       >
-        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <p>
-          This page shows account information only. Members, proposals and other customer content are not shown here.
-          They need a support access grant from the organization:{" "}
-          <Link href={SUPPORT_ACCESS_PATH} className={linkClass}>
-            open Support access
-          </Link>
-          .
+        <p className="flex items-start gap-3">
+          <Eye className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            RFPilot staff can view this organization&apos;s content: its proposals, vendor responses, members, teams, templates and
+            vendors. It is read-only: nothing can be edited or deleted here. Each view is recorded on the RFPilot side.
+          </span>
         </p>
+        {/* Each section is its own page and its own recorded read: never fetched ahead of the click. */}
+        <OrganizationSectionNav organizationId={organization.id} />
       </aside>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -185,21 +180,11 @@ export default function OrganizationAccount({ account, plans }: Props) {
         </Card>
 
         <Card title="Proposals and support">
-          <Row label="Proposals stored" hint="Proposals the organization has now. Their titles and content are not shown here.">
+          <Row label="Proposals stored" hint="Proposals the organization has now. Open Proposals above to view them.">
             <span className="tabular-nums">{proposalsStoredLabel(counts.proposals.total)}</span>
           </Row>
           <Row label="Support tickets">
             <span className="tabular-nums">{openTicketsLabel(counts.openSupportTickets)}</span>
-          </Row>
-          <Row label="Support access">
-            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <Badge tone={account.supportAccess.active ? "good" : "neutral"}>
-                {supportAccessLabel(account.supportAccess.active)}
-              </Badge>
-              <Link href={SUPPORT_ACCESS_PATH} className={`text-xs ${linkClass}`}>
-                Go to Support access
-              </Link>
-            </span>
           </Row>
         </Card>
 

@@ -1,34 +1,10 @@
 import { redirect } from "next/navigation";
 
-import { getGrantedRfpAction } from "@/app/actions/supportAccess";
-import GrantWorkspace from "@/components/supportAccess/GrantWorkspace";
-import GrantedRfpDetail from "@/components/supportAccess/GrantedRfpDetail";
-import { RfpNotFound, SupportAccessError } from "@/components/supportAccess/SupportAccessStates";
-import { grantedOrganizationName } from "@/lib/supportAccess/grantedOrganization";
-import { accessEndedPath, organizationRfpsPath } from "@/lib/supportAccess/grants";
+import { supportAccessRedirect } from "@/lib/organizationContent/content";
 
-export const metadata = { title: "Proposal" };
-export const dynamic = "force-dynamic";
-
-type GrantedRfpPageProps = {
-  params: Promise<{ organizationId: string; rfpId: string }>;
-};
-
-export default async function GrantedRfpPage({ params }: GrantedRfpPageProps) {
+// The grant workspace is gone (owner decision, 2026-11-17): this old address goes to its place
+// in the organization content browser. Nothing is read to decide.
+export default async function SupportAccessProposalRedirect({ params }: { params: Promise<{ organizationId: string; rfpId: string }> }) {
   const { organizationId, rfpId } = await params;
-  const organizationName = await grantedOrganizationName(organizationId);
-  const response = await getGrantedRfpAction(organizationId, rfpId);
-  if (!response.ok) {
-    if (response.failure === "grant_required") redirect(accessEndedPath());
-    const back = { backHref: organizationRfpsPath(organizationId), backLabel: "Back to this organization's granted proposals" };
-    return response.failure === "not_found" ? <RfpNotFound {...back} /> : <SupportAccessError message={response.error} {...back} />;
-  }
-
-  return (
-    <div className="mx-auto w-full max-w-[1240px] space-y-6 pb-10">
-      <GrantWorkspace organizationId={organizationId} organizationName={organizationName} grants={[response.data.grant]} readAt={response.readAt}>
-        <GrantedRfpDetail organizationId={organizationId} data={response.data} />
-      </GrantWorkspace>
-    </div>
-  );
+  redirect(supportAccessRedirect({ organizationId, rfpId }));
 }

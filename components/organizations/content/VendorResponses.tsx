@@ -1,15 +1,16 @@
-import type { GrantedVendorResponse } from "@/lib/supportAccess/grants";
-import { formatDate } from "@/lib/supportAccess/rfpFields";
+import type { VendorResponse } from "@/lib/organizationContent/content";
+import { formatDate } from "@/lib/organizationContent/proposalFields";
+import { countLabel } from "@/lib/plural";
 import { Inbox } from "lucide-react";
 
-/** Summary fields only: the backend sends no document links, and none are built here. */
-export default function GrantedVendorResponses({ responses }: { responses: GrantedVendorResponse[] }) {
+/** Summary fields only: the backend sends a document count, no documents, and no link is built here. */
+export default function VendorResponses({ responses }: { responses: VendorResponse[] }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-5 sm:px-6">
-        <h2 className="text-xl font-bold tracking-[-0.02em] text-[#12213a]">Vendor responses</h2>
+        <h1 className="text-xl font-bold tracking-[-0.02em] text-[#12213a]">Vendor responses</h1>
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
-          {responses.length.toLocaleString()} total
+          {responses.length.toLocaleString("en-US")} total
         </span>
       </div>
       {responses.length === 0 ? (
@@ -18,7 +19,7 @@ export default function GrantedVendorResponses({ responses }: { responses: Grant
             <Inbox className="h-6 w-6" aria-hidden="true" />
           </span>
           <p className="mt-4 text-sm font-bold text-slate-600">No vendor responses yet</p>
-          <p className="mt-1 text-sm text-slate-400">No vendor has responded to this proposal.</p>
+          <p className="mt-1 text-sm text-slate-600">No vendor has responded to this proposal.</p>
         </div>
       ) : (
         <ul className="divide-y divide-slate-100">
@@ -42,7 +43,7 @@ export default function GrantedVendorResponses({ responses }: { responses: Grant
                 </p>
               ) : null}
               <p className="text-xs font-semibold text-slate-500">
-                {response.documentCount} {response.documentCount === 1 ? "document" : "documents"} · version{" "}
+                {countLabel(response.documentCount, "document")} · version{" "}
                 {Math.max(1, response.currentVersionNumber)}
               </p>
             </li>

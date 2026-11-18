@@ -1,10 +1,17 @@
-import { buildPageList } from "@/components/clients/ClientDetilas";
 import ClientSearchForm from "@/components/clients/ClientSearchForm";
 import { countLabel } from "@/lib/plural";
-import { grantedRfpPath, organizationRfpsPath, type GrantedRfpListItem, type GrantedRfpPage } from "@/lib/supportAccess/grants";
-import { eventDates, formatDate, stageLabel } from "@/lib/supportAccess/rfpFields";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock, FileText } from "lucide-react";
+import {
+  organizationProposalPath,
+  organizationProposalsPath,
+  pageRange,
+  withQuery,
+  type ProposalListItem,
+  type ProposalsPage,
+} from "@/lib/organizationContent/content";
+import { eventDates, formatDate, stageLabel } from "@/lib/organizationContent/proposalFields";
+import { CalendarDays, Clock, FileText } from "lucide-react";
 import Link from "next/link";
+import { ContentCard, EmptyState, Pager } from "./ContentChrome";
 
 const STAGE_TONES: Record<string, string> = {
   Draft: "border-amber-200 bg-amber-50 text-amber-700",
@@ -12,7 +19,7 @@ const STAGE_TONES: Record<string, string> = {
   Awarded: "border-violet-200 bg-violet-50 text-violet-700",
 };
 
-const Stage = ({ rfp }: { rfp: GrantedRfpListItem }) => {
+const Stage = ({ rfp }: { rfp: ProposalListItem }) => {
   const label = stageLabel(rfp);
   return (
     <span
@@ -25,77 +32,42 @@ const Stage = ({ rfp }: { rfp: GrantedRfpListItem }) => {
   );
 };
 
-const Owner = ({ rfp }: { rfp: GrantedRfpListItem }) =>
+const Owner = ({ rfp }: { rfp: ProposalListItem }) =>
   rfp.owner ? (
     <div className="min-w-0">
       <p className="truncate text-[13px] font-semibold text-[#20304b]">{rfp.owner.name || "Unnamed member"}</p>
       {rfp.owner.email ? <p className="truncate text-xs text-slate-500">{rfp.owner.email}</p> : null}
     </div>
   ) : (
-    <span className="text-[13px] text-slate-400">No longer a member</span>
+    <span className="text-[13px] text-slate-500">No longer a member</span>
   );
 
-type GrantedRfpListProps = {
+type ProposalListProps = {
   organizationId: string;
   search: string;
-  page: GrantedRfpPage;
+  page: ProposalsPage;
 };
 
-/** The RFPs the organization's active grants cover: all of them, or only the granted ones. */
-export default function GrantedRfpList({ organizationId, search, page }: GrantedRfpListProps) {
+/** Every proposal in the organization, most recently updated first. View only. */
+export default function ProposalList({ organizationId, search, page }: ProposalListProps) {
   const { rfps, pagination } = page;
-  const organizationWide = page.grants.some((grant) => grant.scope === "organization");
-  const rangeStart = pagination.total === 0 || rfps.length === 0 ? 0 : (pagination.page - 1) * pagination.perPage + 1;
-  const rangeEnd = rangeStart === 0 ? 0 : Math.min(rangeStart + rfps.length - 1, pagination.total);
-
-  const hrefFor = (nextPage: number) => {
-    const query = new URLSearchParams();
-    if (search.trim()) query.set("search", search.trim());
-    if (nextPage > 1) query.set("page", String(nextPage));
-    const base = organizationRfpsPath(organizationId);
-    return query.size ? `${base}?${query.toString()}` : base;
-  };
-  const hasPrev = pagination.page > 1;
-  const hasNext = pagination.page < pagination.totalPages;
-  const stepClass = (enabled: boolean) =>
-    `inline-flex h-9 w-9 items-center justify-center rounded-lg border text-slate-500 transition ${
-      enabled ? "border-slate-200 hover:border-[#00aeb5] hover:text-[#009ca4]" : "pointer-events-none border-slate-100 bg-slate-50 text-slate-300"
-    }`;
+  const range = pageRange(pagination, rfps.length);
+  const hrefFor = (nextPage: number) => withQuery(organizationProposalsPath(organizationId), { search: search.trim(), page: nextPage });
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-      <div className="flex flex-col gap-5 border-b border-slate-100 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#eaf9f8] text-[#00a3aa]">
-            <FileText className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-bold tracking-[-0.02em] text-[#12213a]">{organizationWide ? "Proposals" : "Granted proposals"}</h2>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
-                {pagination.total.toLocaleString()} {search.trim() ? "matching" : "total"}
-              </span>
-            </div>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {organizationWide
-                ? "Every proposal in this organization, most recently updated first."
-                : "Only the proposals this organization granted, most recently updated first."}
-            </p>
-          </div>
-        </div>
-        <ClientSearchForm initialSearch={search} label="Search proposals" placeholder="Search by event name" />
-      </div>
-
+    <ContentCard
+      icon={FileText}
+      title="Proposals"
+      count={`${pagination.total.toLocaleString("en-US")} ${search.trim() ? "matching" : "total"}`}
+      description="Every proposal in this organization, most recently updated first."
+      controls={<ClientSearchForm initialSearch={search} label="Search proposals" placeholder="Search by event name" />}
+    >
       {rfps.length === 0 ? (
-        <div className="flex min-h-64 flex-col items-center justify-center px-6 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">
-            <FileText className="h-6 w-6" aria-hidden="true" />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-600">No proposals found</p>
-          <p className="mt-1 text-sm text-slate-400">
-            {search.trim() ? "Try a different event name." : "There are no proposals under this support access yet."}
-          </p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No proposals found"
+          message={search.trim() ? "Try a different event name." : "This organization has no proposals yet."}
+        />
       ) : (
         <>
           <div className="hidden p-4 sm:p-5 lg:block">
@@ -120,7 +92,7 @@ export default function GrantedRfpList({ organizationId, search, page }: Granted
                     <tr key={rfp.id} className="transition-colors hover:bg-[#f8fcfc]">
                       <td className="px-4 py-3.5 align-middle">
                         <Link
-                          href={grantedRfpPath(organizationId, rfp.id)}
+                          href={organizationProposalPath(organizationId, rfp.id)}
                           prefetch={false}
                           className="block truncate text-[13px] font-bold text-[#20304b] transition hover:text-[#008f96]"
                           title={rfp.eventName}
@@ -150,7 +122,7 @@ export default function GrantedRfpList({ organizationId, search, page }: Granted
             {rfps.map((rfp) => (
               <article key={rfp.id} className="space-y-2 px-5 py-4">
                 <h3 className="break-words text-sm font-bold text-[#20304b]">
-                  <Link href={grantedRfpPath(organizationId, rfp.id)} prefetch={false} className="hover:text-[#008f96]">
+                  <Link href={organizationProposalPath(organizationId, rfp.id)} prefetch={false} className="hover:text-[#008f96]">
                     {rfp.eventName}
                   </Link>
                 </h3>
@@ -172,59 +144,12 @@ export default function GrantedRfpList({ organizationId, search, page }: Granted
         </>
       )}
 
-      {pagination.total > 0 ? (
-        <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <p className="text-xs font-semibold text-slate-500" aria-live="polite">
-            Showing {rangeStart.toLocaleString()}–{rangeEnd.toLocaleString()} of {countLabel(pagination.total, "proposal")}
-          </p>
-          <nav aria-label="Proposal pagination" className="flex items-center gap-1">
-            <Link
-              href={hrefFor(Math.max(1, pagination.page - 1))}
-              prefetch={false}
-              aria-label="Previous page"
-              aria-disabled={!hasPrev}
-              tabIndex={hasPrev ? undefined : -1}
-              className={stepClass(hasPrev)}
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            {buildPageList(pagination.page, pagination.totalPages).map((item, index) =>
-              item === "..." ? (
-                <span key={`ellipsis-${index}`} className="inline-flex h-9 w-8 items-center justify-center text-sm text-slate-400">
-                  …
-                </span>
-              ) : (
-                <Link
-                  key={item}
-                  href={hrefFor(item)}
-                  prefetch={false}
-                  aria-current={item === pagination.page ? "page" : undefined}
-                  className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-bold transition ${
-                    item === pagination.page
-                      ? "pointer-events-none border-[#aee9e8] bg-[#eaf9f8] text-[#008f96]"
-                      : "border-slate-200 text-slate-500 hover:border-[#00aeb5] hover:text-[#009ca4]"
-                  }`}
-                >
-                  {item}
-                </Link>
-              ),
-            )}
-            <Link
-              href={hrefFor(pagination.page + 1)}
-              prefetch={false}
-              aria-label="Next page"
-              aria-disabled={!hasNext}
-              tabIndex={hasNext ? undefined : -1}
-              className={stepClass(hasNext)}
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-            <span className="ml-2 text-xs font-semibold text-slate-500">
-              Page {pagination.page} of {pagination.totalPages}
-            </span>
-          </nav>
-        </div>
-      ) : null}
-    </section>
+      <Pager
+        pagination={pagination}
+        summary={`Showing ${range.start.toLocaleString("en-US")}–${range.end.toLocaleString("en-US")} of ${countLabel(pagination.total, "proposal")}`}
+        label="Proposal pagination"
+        hrefFor={hrefFor}
+      />
+    </ContentCard>
   );
 }

@@ -1,20 +1,9 @@
-import GrantsList from "@/components/supportAccess/GrantsList";
-import SupportAccessHeader from "@/components/supportAccess/SupportAccessHeader";
-import { isAccessNotice } from "@/lib/supportAccess/grants";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Support access" };
-export const dynamic = "force-dynamic";
+import { supportAccessRedirect } from "@/lib/organizationContent/content";
 
-type SupportAccessPageProps = {
-  searchParams?: Promise<{ notice?: string }>;
-};
-
-export default async function SupportAccessPage({ searchParams }: SupportAccessPageProps) {
-  const params = await searchParams;
-  return (
-    <div className="mx-auto w-full max-w-[1540px] space-y-6">
-      <SupportAccessHeader />
-      <GrantsList notice={isAccessNotice(params?.notice) ? params.notice : undefined} />
-    </div>
-  );
+// The grant workspace is gone (owner decision, 2026-11-17): this old address goes to its place
+// in the organization content browser. Nothing is read to decide.
+export default async function SupportAccessRedirect() {
+  redirect(supportAccessRedirect());
 }

@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 
-import { SUPPORT_ACCESS_PATH } from "@/lib/supportAccess/grants";
+import { ORGANIZATIONS_PATH } from "@/lib/organizationAccount";
 
-// ORG-406: an RFP is opened from the organization that granted access to it, never by id alone.
-export default function LegacyRfpPage() {
-  redirect(SUPPORT_ACCESS_PATH);
+// The all-organization proposal directory is gone. A proposal is opened from its organization
+// (Organizations, then the organization, then Proposals), never by its id alone.
+export default function ProposalsRedirect() {
+  redirect(ORGANIZATIONS_PATH);
 }

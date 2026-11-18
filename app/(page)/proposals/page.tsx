@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 
-import { SUPPORT_ACCESS_PATH } from "@/lib/supportAccess/grants";
+import { ORGANIZATIONS_PATH } from "@/lib/organizationAccount";
 
-// ORG-406: the all-organization RFP directory is gone. A customer organization's RFPs are
-// reachable only through a support access grant, so old links land on "Granted to me".
-export default function LegacyRfpDirectoryPage() {
-  redirect(SUPPORT_ACCESS_PATH);
+// The all-organization proposal directory is gone. A proposal is opened from its organization
+// (Organizations, then the organization, then Proposals), never by its id alone.
+export default function ProposalsRedirect() {
+  redirect(ORGANIZATIONS_PATH);
 }
