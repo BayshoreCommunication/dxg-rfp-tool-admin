@@ -5,7 +5,7 @@ import OrganizationPicker from "@/components/legacyCustomers/OrganizationPicker"
 import { cardClass, FailureNote, inputClass, linkClass, primaryButton, secondaryButton } from "@/components/legacyCustomers/PlacementChrome";
 import { focusRing } from "@/components/organizations/content/ContentChrome";
 import { createConfirmedSubmit, type SubmitState } from "@/lib/legacyCustomers/confirmedSubmit";
-import { draftStorageKey, emptyDraft, parseDraft, requestOfDraft, type PlacementDraft } from "@/lib/legacyCustomers/draft";
+import { draftStorageKey, emptyDraft, parseDraft, requestOfDraft, teamAfterListing, type PlacementDraft } from "@/lib/legacyCustomers/draft";
 import {
   customerLabel,
   LEGACY_CUSTOMERS_PATH,
@@ -95,8 +95,12 @@ function Flow({ customer }: { customer: LegacyCustomer }) {
   const formHeading = useRef<HTMLHeadingElement>(null);
   const focusAfter = useRef<"errors" | "form" | null>(null);
 
+  // The draft as last written. A change that arrives after a wait (the teams list) is applied to
+  // this, not to the draft of the render that started the wait.
+  const latest = useRef(draft);
   const setDraft = (change: Partial<PlacementDraft>) => {
-    const next = { ...draft, ...change };
+    const next = { ...latest.current, ...change };
+    latest.current = next;
     writeDraft(customer.userId, next);
     setDraftState(next);
   };
@@ -205,7 +209,7 @@ function Flow({ customer }: { customer: LegacyCustomer }) {
       </fieldset>
 
       {draft.target === "new" ? <NewOrganizationFields draft={draft} errors={errors} edit={edit} /> : null}
-      {draft.target === "existing" ? <ExistingOrganizationFields draft={draft} errors={errors} edit={edit} /> : null}
+      {draft.target === "existing" ? <ExistingOrganizationFields draft={draft} errors={errors} edit={edit} latest={() => latest.current} /> : null}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
         <button type="submit" className={primaryButton}>
@@ -363,15 +367,18 @@ const NewOrganizationFields = ({ draft, errors, edit }: FieldsProps) => {
 
 type TeamsState = { phase: "idle" } | { phase: "loading" } | { phase: "ready"; teams: PlacementTeam[] } | { phase: "failed"; failure: PlacementFailure; retryAfterSeconds?: number };
 
-const ExistingOrganizationFields = ({ draft, errors, edit }: FieldsProps) => {
+const ExistingOrganizationFields = ({ draft, errors, edit, latest }: FieldsProps & { latest: () => PlacementDraft }) => {
   // A team saved with the draft is shown by name until the list is asked for again.
   const [teams, setTeams] = useState<TeamsState>({ phase: "idle" });
+  // The name of a saved team that the fresh list no longer has, and that was taken out of the draft.
+  const [droppedTeam, setDroppedTeam] = useState<string | null>(null);
   const asked = useRef(0);
   const chosen = draft.organizationId ? { organizationId: draft.organizationId, name: draft.organizationName || "The organization you chose" } : null;
 
   const loadTeams = async () => {
     if (!draft.organizationId || teams.phase === "loading") return;
     const mine = ++asked.current;
+    setDroppedTeam(null);
     setTeams({ phase: "loading" });
     let result: PlacementResult<PlacementTeam[]>;
     try {
@@ -381,10 +388,17 @@ const ExistingOrganizationFields = ({ draft, errors, edit }: FieldsProps) => {
     }
     // The organization was changed while the teams were on their way.
     if (mine !== asked.current) return;
+    if (result.ok) {
+      // A saved team the organization no longer lists is taken out of the request, and said.
+      const after = teamAfterListing(latest(), result.data);
+      if (after.change) edit(after.change, "teamId");
+      setDroppedTeam(after.dropped);
+    }
     setTeams(result.ok ? { phase: "ready", teams: result.data } : { phase: "failed", failure: result.failure, retryAfterSeconds: result.retryAfterSeconds });
   };
   const forgetTeams = () => {
     asked.current += 1;
+    setDroppedTeam(null);
     setTeams({ phase: "idle" });
   };
 
@@ -418,6 +432,11 @@ const ExistingOrganizationFields = ({ draft, errors, edit }: FieldsProps) => {
 
       <div className="space-y-2">
         <p className="text-sm font-bold text-[#20304b]">Team (optional)</p>
+        {droppedTeam && draft.organizationId ? (
+          <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+            <span className="font-bold">{droppedTeam}</span> is no longer an active team of this organization, so it has been taken out of this placement. The customer joins without a team unless you choose one.
+          </p>
+        ) : null}
         {!draft.organizationId ? (
           <p className="text-xs text-slate-600">Choose the organization first.</p>
         ) : teams.phase === "ready" ? (
@@ -433,7 +452,10 @@ const ExistingOrganizationFields = ({ draft, errors, edit }: FieldsProps) => {
                   value={teams.teams.some((team) => team.id === draft.teamId) ? draft.teamId : ""}
                   aria-describedby={describedBy}
                   aria-invalid={invalid}
-                  onChange={(event) => edit({ teamId: event.target.value, teamName: teams.teams.find((team) => team.id === event.target.value)?.name ?? "" }, "teamId")}
+                  onChange={(event) => {
+                    setDroppedTeam(null);
+                    edit({ teamId: event.target.value, teamName: teams.teams.find((team) => team.id === event.target.value)?.name ?? "" }, "teamId");
+                  }}
                   className={inputClass}
                 >
                   <option value="">No team</option>

@@ -192,6 +192,15 @@ describe("the Legacy customers screen", () => {
     expect(placement).toMatch(/return number <= 1 \? LEGACY_CUSTOMERS_PATH : `\$\{LEGACY_CUSTOMERS_PATH\}\?page=\$\{number\}`;/);
   });
 
+  it("takes a saved team the organization no longer lists out of the request, and says so", () => {
+    const flow = read(`${COMPONENTS}/PlaceCustomerFlow.tsx`);
+    // Decided when the teams arrive, against the draft as last written (not the one that started the wait).
+    expect(flow).toMatch(/if \(result\.ok\) \{\s*(\/\/[^\n]*\n\s*)?const after = teamAfterListing\(latest\(\), result\.data\);\s*if \(after\.change\) edit\(after\.change, "teamId"\);\s*setDroppedTeam\(after\.dropped\);/);
+    expect(flow).toMatch(/const next = \{ \.\.\.latest\.current, \.\.\.change \};\s*latest\.current = next;/);
+    // Said on screen, as an alert, while the organization is still the chosen one.
+    expect(flow).toMatch(/\{droppedTeam && draft\.organizationId \? \(\s*<p role="alert"[^>]*>\s*<span className="font-bold">\{droppedTeam\}<\/span> is no longer an active team of this organization, so it has been taken out of this placement\./);
+  });
+
   it("searches organizations only through the debounced search", () => {
     const picker = read(`${COMPONENTS}/OrganizationPicker.tsx`);
     expect(picker).toMatch(/createTypeahead\(\{ search: searchPlacementTargetsAction, onChange: setState \}\)/);

@@ -1,4 +1,4 @@
-import { draftStorageKey, emptyDraft, parseDraft, requestOfDraft } from "@/lib/legacyCustomers/draft";
+import { draftStorageKey, emptyDraft, parseDraft, requestOfDraft, teamAfterListing } from "@/lib/legacyCustomers/draft";
 
 const ORG = "6b0000000000000000000002";
 const KEY = "3f1c9a52-7d7e-4b9e-9a51-0f6f6c1d2e3f";
@@ -46,5 +46,34 @@ describe("the place flow's saved choices", () => {
       request: { target: "existing", organizationId: ORG, role: "planner" },
     });
     expect(requestOfDraft(emptyDraft())).toMatchObject({ ok: false, errors: { target: expect.any(String) } });
+  });
+});
+
+describe("a saved team against the organization's teams as they are now", () => {
+  const TEAM = "6c0000000000000000000003";
+  const OTHER = "6c0000000000000000000004";
+  const saved = { ...emptyDraft(), target: "existing" as const, organizationId: ORG, role: "planner", teamId: TEAM, teamName: "East" };
+
+  it("takes a team that is no longer listed out of the draft, and names it", () => {
+    expect(teamAfterListing(saved, [{ id: OTHER, name: "West" }])).toEqual({ change: { teamId: "", teamName: "" }, dropped: "East" });
+    expect(teamAfterListing(saved, [])).toEqual({ change: { teamId: "", teamName: "" }, dropped: "East" });
+    expect(teamAfterListing({ teamId: TEAM, teamName: "  " }, [])).toEqual({ change: { teamId: "", teamName: "" }, dropped: "The team chosen earlier" });
+  });
+
+  it("no longer sends the old team once the change is applied", () => {
+    expect(requestOfDraft(saved)).toMatchObject({ ok: true, request: { teamId: TEAM } });
+    const after = teamAfterListing(saved, [{ id: OTHER, name: "West" }]);
+    const cleared = requestOfDraft({ ...saved, ...after.change });
+    expect(cleared).toEqual({ ok: true, request: { target: "existing", organizationId: ORG, role: "planner" } });
+  });
+
+  it("keeps a team that is still listed, with its name as it is now", () => {
+    expect(teamAfterListing(saved, [{ id: OTHER, name: "West" }, { id: TEAM, name: "East" }])).toEqual({ change: null, dropped: null });
+    expect(teamAfterListing(saved, [{ id: TEAM, name: "East Coast" }])).toEqual({ change: { teamId: TEAM, teamName: "East Coast" }, dropped: null });
+  });
+
+  it("has nothing to do when no team was saved", () => {
+    expect(teamAfterListing({ teamId: "", teamName: "" }, [{ id: TEAM, name: "East" }])).toEqual({ change: null, dropped: null });
+    expect(teamAfterListing({ teamId: "", teamName: "stale" }, [])).toEqual({ change: null, dropped: null });
   });
 });

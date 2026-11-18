@@ -88,3 +88,17 @@ export const requestOfDraft = (draft: PlacementDraft): { ok: true; request: Plac
         ? { target: "existing", organizationId: draft.organizationId, role: draft.role, teamId: draft.teamId }
         : {},
   );
+
+/* The saved team against the organization's teams as they are now. A team that is no longer
+   listed (archived or deleted since it was chosen) must leave the draft: the select would show
+   "No team" while the request still sent the old team's id. `dropped` is the name to say so with. */
+export const teamAfterListing = (
+  draft: Pick<PlacementDraft, "teamId" | "teamName">,
+  teams: ReadonlyArray<{ id: string; name: string }>,
+): { change: Pick<PlacementDraft, "teamId" | "teamName"> | null; dropped: string | null } => {
+  if (!draft.teamId) return { change: null, dropped: null };
+  const listed = teams.find((team) => team.id === draft.teamId);
+  if (!listed) return { change: { teamId: "", teamName: "" }, dropped: draft.teamName.trim() || "The team chosen earlier" };
+  // Still there: the review shows its name as it is now.
+  return { change: listed.name === draft.teamName ? null : { teamId: draft.teamId, teamName: listed.name }, dropped: null };
+};
