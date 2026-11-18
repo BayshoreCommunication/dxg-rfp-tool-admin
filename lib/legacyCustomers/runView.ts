@@ -31,7 +31,9 @@ export const showsOrganizationLink = (run: PlacementRun): boolean => run.status 
    only where the backend's API document says it (docs/API.md, "Legacy customer placement"):
 
    - the task could not be started, never started, or was lost before it moved anything, and
-     PLACEMENT_FAILED without rollbackRequired: "nothing moved and the request can be made again";
+     PLACEMENT_FAILED without rollbackRequired: "nothing moved and the request can be made again".
+     That is all it says. It does not say the customer is still waiting, and this page can be
+     opened days later, so the page sends staff to the list to look before they ask again;
    - a request-time refusal met again when the task ran (the data changed in between): the
      customer may no longer be waiting (NOT_A_LEGACY_CUSTOMER), may have no account
      (USER_NOT_FOUND), or the target no longer takes them (ALREADY_A_MEMBER,
@@ -41,7 +43,7 @@ export const showsOrganizationLink = (run: PlacementRun): boolean => run.status 
 const PLACEABLE_AGAIN = ["PLACEMENT_TASK_START_FAILED", "PLACEMENT_TASK_NOT_STARTED", "PLACEMENT_TASK_LOST", "PLACEMENT_FAILED"];
 
 const nothingMovedDetail = (code: string | null): string => {
-  if (code !== null && PLACEABLE_AGAIN.includes(code)) return "The customer is still waiting in the Legacy customers list and can be placed again.";
+  if (code !== null && PLACEABLE_AGAIN.includes(code)) return "This run moved nothing. The request can be made again; check the Legacy customers list first.";
   switch (code) {
     case "NOT_A_LEGACY_CUSTOMER":
       return "This run moved nothing. The customer was no longer waiting to be placed when the task ran: another run may have placed them. Look for them in the Legacy customers list before doing anything else.";
@@ -69,7 +71,9 @@ const nothingMovedDetail = (code: string | null): string => {
    - running placement: state started (moving), done (moved; Postgres commit, checks and audit
      still to come), rolling_back (the checks failed and the placement task is undoing its own
      move) or failed (part of the move did not commit and the task has not finished).
-   - running rollback: the rollback task is moving the records back. */
+   - running rollback: the rollback task is moving the records back.
+
+   None of these says how long a run takes: the backend documents no duration. */
 export const runHeadline = (run: PlacementRun): { title: string; detail: string; tone: RunTone } => {
   const rollback = run.operation === "rollback";
   switch (run.status) {
@@ -77,16 +81,16 @@ export const runHeadline = (run: PlacementRun): { title: string; detail: string;
       return rollback
         ? {
             title: "Rollback waiting to start",
-            detail: "The rollback is recorded and its task is starting. That normally takes about a minute. Until it runs, the customer's records are still in the organization.",
+            detail: "The rollback is recorded and its task is starting. Until it runs, the customer's records are still in the organization.",
             tone: "working",
           }
         : {
             title: "Placement waiting to start",
-            detail: "The request is recorded and its task is starting. That normally takes about a minute. Nothing has moved yet.",
+            detail: "The request is recorded and its task is starting. Nothing has moved yet.",
             tone: "working",
           };
     case "running":
-      if (rollback) return { title: "Rollback running", detail: "The customer's records are being moved back. A large customer takes a few minutes.", tone: "working" };
+      if (rollback) return { title: "Rollback running", detail: "The customer's records are being moved back.", tone: "working" };
       if (run.state === "done") {
         return { title: "Placement running: checking the move", detail: "The records have moved. The task is now finishing the move, running its checks and writing the audit record. It can't be rolled back until that is done.", tone: "working" };
       }
@@ -104,7 +108,7 @@ export const runHeadline = (run: PlacementRun): { title: string; detail: string;
           tone: "warning",
         };
       }
-      return { title: "Placement running", detail: "The customer's records are being moved. A large customer takes a few minutes.", tone: "working" };
+      return { title: "Placement running", detail: "The customer's records are being moved.", tone: "working" };
     case "succeeded":
       if (run.task?.operation === "rollback" && run.task.status === "failed") {
         return { title: "Placed. The rollback did not happen", detail: "A rollback of this run was asked for and failed, so the placement stands as it was.", tone: "warning" };
@@ -159,7 +163,7 @@ const TASK_CODES: Record<string, string> = {
   ROLLBACK_TASK_LOST: "The rollback task stopped reporting before it finished.",
   PLACEMENT_TASK_ERROR: "The placement task failed unexpectedly. The engineering team can find the reason in the task's log.",
   ROLLBACK_TASK_ERROR: "The rollback task failed unexpectedly. The engineering team can find the reason in the task's log.",
-  PLACEMENT_FAILED: "The placement failed part way.",
+  PLACEMENT_FAILED: "The placement failed.",
   ROLLBACK_FAILED: "The rollback was given up on before it finished.",
   PLACEMENT_VERIFICATION_FAILED: "The checks after the move did not pass.",
   PLACEMENT_REQUEST_INVALID: "The task did not accept the request: the staff account that asked is no longer an active staff account, or the organizations in the request do not match the customer. Nothing was moved.",
@@ -173,9 +177,15 @@ const TASK_CODES: Record<string, string> = {
   ROLLBACK_CONFLICT: placementFailureCopy("rollback_conflict").message,
 };
 
-/** The failure a task reported, in this screen's words; the code itself is shown beside it. */
-export const taskFailureText = (code: string | null): string | null =>
-  code === null ? null : (TASK_CODES[code] ?? "The task reported a failure this screen has no description for. Give the code to the engineering team.");
+/* The failure a task reported, in this screen's words; the code itself is shown beside it.
+   PLACEMENT_FAILED means nothing moved unless the run must be rolled back (docs/API.md), so the
+   sentence under "Failed: nothing was moved" says so, and the one under "this run must be rolled
+   back" does not. */
+export const taskFailureText = (code: string | null, rollbackRequired = false): string | null => {
+  if (code === null) return null;
+  if (code === "PLACEMENT_FAILED" && !rollbackRequired) return "The placement failed before anything was moved.";
+  return TASK_CODES[code] ?? "The task reported a failure this screen has no description for. Give the code to the engineering team.";
+};
 
 export const verificationLines = (run: PlacementRun): { passed: boolean | null; lines: string[] } => {
   const checks = run.verification;

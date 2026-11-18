@@ -78,6 +78,35 @@ describe("the run page's words", () => {
     expect(taskFailureText("SOMETHING_NEW")).toMatch(/no description/);
   });
 
+  it("says a placement failed before anything moved only under the headline that says nothing moved", () => {
+    const nothingMoved = run("failed", { state: "aborted", task: task({ status: "failed", code: "PLACEMENT_FAILED" }) });
+    expect(runHeadline(nothingMoved).title).toBe("Failed: nothing was moved");
+    expect(taskFailureText("PLACEMENT_FAILED", nothingMoved.rollbackRequired)).toBe("The placement failed before anything was moved.");
+    expect(taskFailureText("PLACEMENT_FAILED")).toBe("The placement failed before anything was moved.");
+    // PLACEMENT_FAILED on a run that must be rolled back: records did move.
+    expect(taskFailureText("PLACEMENT_FAILED", true)).toBe("The placement failed.");
+    for (const required of [true, false]) expect(taskFailureText("PLACEMENT_FAILED", required)).not.toMatch(/part way/);
+    // No other code's sentence depends on it.
+    for (const code of ["PLACEMENT_TASK_LOST", "PLACEMENT_VERIFICATION_FAILED", "ROLLBACK_FAILED", "SOMETHING_NEW"]) expect(taskFailureText(code, true)).toBe(taskFailureText(code, false));
+  });
+
+  it("gives no duration for any run: the backend documents none", () => {
+    for (const status of ["queued", "running", "succeeded", "failed", "rolled_back"] as const) {
+      for (const operation of ["placement", "rollback"] as const) {
+        for (const state of ["queued", "started", "done", "rolling_back", "failed", "rolled_back", "aborted", null] as const) {
+          for (const rollbackRequired of [false, true]) {
+            const headline = runHeadline(run(status, { operation, state, rollbackRequired }));
+            expect(`${headline.title} ${headline.detail}`).not.toMatch(/\b(second|minute|hour)s?\b|normally|usually|takes about|a large customer/i);
+          }
+        }
+      }
+    }
+    expect(runHeadline(run("queued")).detail).toBe("The request is recorded and its task is starting. Nothing has moved yet.");
+    expect(runHeadline(run("queued", { operation: "rollback" })).detail).toBe("The rollback is recorded and its task is starting. Until it runs, the customer's records are still in the organization.");
+    expect(runHeadline(run("running", { state: "started" })).detail).toBe("The customer's records are being moved.");
+    expect(runHeadline(run("running", { operation: "rollback" })).detail).toBe("The customer's records are being moved back.");
+  });
+
   it("says what the checks found", () => {
     expect(verificationLines(run("running"))).toEqual({ passed: null, lines: ["The checks run after the move. No result yet."] });
     expect(verificationLines(run("failed")).lines).toEqual(["This run has no check result."]);
@@ -196,7 +225,7 @@ describe("the review names exactly what the request names", () => {
 // task code, and the sentence the page says for it. The page must never say more than the
 // backend's API document does (docs/API.md, "Legacy customer placement").
 describe("the run headline says only what the backend has said", () => {
-  const AGAIN = "The customer is still waiting in the Legacy customers list and can be placed again.";
+  const AGAIN = "This run moved nothing. The request can be made again; check the Legacy customers list first.";
   const failedTask = (code: string | null) => task({ status: "failed", code });
   const detailOf = (value: PlacementRun) => runHeadline(value).detail;
 
@@ -224,10 +253,10 @@ describe("the run headline says only what the backend has said", () => {
 
   it.each([
     // The four the API document says can be made again.
-    ["PLACEMENT_TASK_START_FAILED", true, /can be placed again/],
-    ["PLACEMENT_TASK_NOT_STARTED", true, /can be placed again/],
-    ["PLACEMENT_TASK_LOST", true, /can be placed again/],
-    ["PLACEMENT_FAILED", true, /can be placed again/],
+    ["PLACEMENT_TASK_START_FAILED", true, /The request can be made again; check the Legacy customers list first\.$/],
+    ["PLACEMENT_TASK_NOT_STARTED", true, /The request can be made again; check the Legacy customers list first\.$/],
+    ["PLACEMENT_TASK_LOST", true, /The request can be made again; check the Legacy customers list first\.$/],
+    ["PLACEMENT_FAILED", true, /The request can be made again; check the Legacy customers list first\.$/],
     // The customer may not be waiting any more.
     ["NOT_A_LEGACY_CUSTOMER", false, /no longer waiting to be placed.*another run may have placed them/],
     ["USER_NOT_FOUND", false, /account was not found/],
@@ -246,10 +275,10 @@ describe("the run headline says only what the backend has said", () => {
     expect(headline).toMatchObject({ title: "Failed: nothing was moved", tone: "neutral" });
     expect(headline.detail === AGAIN).toBe(again);
     expect(headline.detail).toMatch(says);
-    if (!again) {
-      expect(headline.detail).toMatch(/^This run moved nothing\./);
-      expect(headline.detail).not.toMatch(/can be placed again|still waiting in the Legacy customers list and/);
-    }
+    expect(headline.detail).toMatch(/^This run moved nothing\./);
+    // The backend says nothing moved, not that the customer is still waiting: the page may be days old.
+    expect(headline.detail).not.toMatch(/can be placed again|still waiting in the Legacy customers list and|is still waiting in/);
+    if (!again) expect(headline.detail).not.toMatch(/can be made again/);
   });
 
   it("says the same for a failed run with no task at all (a server that places inside the request)", () => {
@@ -261,7 +290,7 @@ describe("the run headline says only what the backend has said", () => {
     (code) => {
       const headline = runHeadline(run("failed", { state: "failed", rollbackRequired: true, task: failedTask(code) }));
       expect(headline).toMatchObject({ title: "Failed: this run must be rolled back", tone: "danger" });
-      expect(headline.detail).not.toMatch(/nothing|placed again|still waiting/i);
+      expect(headline.detail).not.toMatch(/nothing|placed again|made again|still waiting/i);
     },
   );
 

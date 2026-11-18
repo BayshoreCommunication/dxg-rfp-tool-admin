@@ -120,7 +120,7 @@ export default function PlacementRunView({ initial }: { initial: PlacementRun })
   const tone = TONES[headline.tone];
   const instructions = runInstructions(run);
   const checks = verificationLines(run);
-  const failureText = run.task?.status === "failed" ? taskFailureText(run.task.code) : null;
+  const failureText = run.task?.status === "failed" ? taskFailureText(run.task.code, run.rollbackRequired) : null;
   const line = pollLine(poll);
 
   return (
