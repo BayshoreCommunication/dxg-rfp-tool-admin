@@ -155,7 +155,7 @@ describe("legacy customer placement actions", () => {
     it("sends exactly the fields of an existing-organization placement, with the key as a header", async () => {
       placed();
       const sent = { ...EXISTING, teamId: TEAM, userId: "6f0000000000000000000009", runId: RUN, admin: true, __proto__: { polluted: true }, organization: { name: "Sneaky" }, plan: "full_access" };
-      expect(await placeLegacyCustomerAction(USER, sent, KEY)).toEqual({ ok: true, data: { runId: RUN, replayed: false } });
+      expect(await placeLegacyCustomerAction(USER, sent, KEY)).toMatchObject({ ok: true, data: { runId: RUN, replayed: false, run: { runId: RUN, status: "queued" } } });
       expect(bodyOf()).toEqual({ target: "existing", organizationId: ORG, role: "planner", teamId: TEAM });
       expect(initOf().headers).toMatchObject({ "Idempotency-Key": KEY, "Content-Type": "application/json" });
     });
@@ -234,7 +234,7 @@ describe("legacy customer placement actions", () => {
 
     it("sends a rollback with no body of the caller's and the key as a header", async () => {
       mockedFetch.mockResolvedValue(jsonResponse(202, { success: true, data: { placement: RUN_VIEW, replayed: true } }));
-      expect(await rollbackPlacementRunAction(RUN, KEY)).toEqual({ ok: true, data: { runId: RUN, replayed: true } });
+      expect(await rollbackPlacementRunAction(RUN, KEY)).toMatchObject({ ok: true, data: { runId: RUN, replayed: true } });
       expect(bodyOf()).toEqual({});
       expect(initOf().headers).toMatchObject({ "Idempotency-Key": KEY });
     });
@@ -282,11 +282,11 @@ describe("legacy customer placement actions", () => {
 
     it("a 202 names the run; so do a 201 and a 200 from a server that places inside the request", async () => {
       mockedFetch.mockResolvedValueOnce(jsonResponse(202, { success: true, data: { placement: RUN_VIEW, replayed: true } }));
-      expect(await placeLegacyCustomerAction(USER, NEW, KEY)).toEqual({ ok: true, data: { runId: RUN, replayed: true } });
+      expect(await placeLegacyCustomerAction(USER, NEW, KEY)).toMatchObject({ ok: true, data: { runId: RUN, replayed: true, run: { status: "queued", operation: "placement" } } });
       mockedFetch.mockResolvedValueOnce(jsonResponse(201, { success: true, data: { placement: { runId: RUN, userId: USER } } }));
-      expect(await placeLegacyCustomerAction(USER, NEW, KEY)).toEqual({ ok: true, data: { runId: RUN, replayed: false } });
+      expect(await placeLegacyCustomerAction(USER, NEW, KEY)).toEqual({ ok: true, data: { runId: RUN, replayed: false, run: null } });
       mockedFetch.mockResolvedValueOnce(jsonResponse(200, { success: true, data: { rollback: { runId: RUN, state: "rolled_back" } } }));
-      expect(await rollbackPlacementRunAction(RUN, KEY)).toEqual({ ok: true, data: { runId: RUN, replayed: false } });
+      expect(await rollbackPlacementRunAction(RUN, KEY)).toEqual({ ok: true, data: { runId: RUN, replayed: false, run: null } });
     });
 
     it("reads a run as an allowlist and never keeps the backend's sentences", async () => {

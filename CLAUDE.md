@@ -1,7 +1,7 @@
 # CLAUDE.md — dxg-rfp-tool-admin
 
 Back-office app for RFPilot: clients, users, organizations (plans, account detail and a read-only
-browser of each organization's content), support desk and AI operations (Next.js 16 App Router, React 19, NextAuth v5, Tailwind CSS 4).
+browser of each organization's content), legacy customer placement, support desk and AI operations (Next.js 16 App Router, React 19, NextAuth v5, Tailwind CSS 4).
 Knowledge and pricing screens were removed on 2026-10-25. This repo is one of
 three (with `dxg-rfp-tool-backend` and `dxg-rfp-tool-dashboard`). The backend owns
 the API and the shared project docs.
@@ -55,6 +55,30 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
   `ChangePlanButton`'s `router.refresh()` can each re-render the page). The page's backend reads
   are decided in `loadOrganizationPage`. A 404 without `ORGANIZATION_NOT_FOUND` means the API does
   not have the route yet.
+- **Legacy customers** (`/legacy-customers`, backend ORG-110): staff place a legacy customer, with
+  their proposals, into a new or an existing organization. It moves tenant data and is the most
+  consequential action in this app. Pages: the list, `/[userId]/place` (form, then a review with an
+  explicit confirmation) and `/placements/[runId]` (the run, followed until it finishes; rollback).
+  Code: `app/actions/legacyCustomers.ts` (the five routes under `/api/admin/legacy-customers`, not
+  `/api/v1/admin`), `lib/legacyCustomers/` (pure, tested code) and `components/legacyCustomers/`.
+  - On production the API answers 202 and a one-off task does the move; the run page polls
+    `GET /placements/:runId`. **Never faster than 3 seconds** (`MIN_POLL_INTERVAL_MS` in
+    `pollController.ts`, which is the only loop: one read at a time, stops on a finished run, a
+    404 and repeated errors, waits while the tab is hidden, backs off on 429).
+  - Allowances per staff member per 15 minutes: 1,500 run reads, 600 list and search reads
+    together, 120 placements and rollbacks. Links into the place and run pages opt out of prefetch.
+  - **Two different "busy" answers, both 429:** `PLACEMENT_RATE_LIMITED` (this account used an
+    allowance: wait) and `PLACEMENT_CAPACITY_REACHED` (another placement or rollback is running:
+    one at a time). And two 409s: `PLACEMENT_IN_PROGRESS` (this customer is being placed, or on a
+    rollback the run has not finished) and `NOT_A_LEGACY_CUSTOMER` (already placed).
+    503 `PLACEMENT_REQUIRES_MIGRATION_ROLE` means the server cannot start placements.
+  - Every action: staff check, ids checked (24 lower-case hex, or the `placement-<ISO>-<8 hex>` run
+    id), the body rebuilt field by field, then one request. Place and rollback send an
+    `Idempotency-Key` made when the confirmation opens, so a repeat returns the same run. Backend
+    message text (`message`, `error`, `task.message`) is never shown: codes map to wording in
+    `placement.ts` and `runView.ts`.
+  - The optional team comes from the content browser's teams read (recorded, and counted in that
+    browser's allowance), asked only when staff press "Choose a team".
 - Config comes from `BACKEND_URL`, `NEXTAUTH_URL`, `AUTH_SECRET` and `BFF_SHARED_SECRET`
   (see `.env.example`). The build needs none of them.
 

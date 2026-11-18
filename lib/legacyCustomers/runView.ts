@@ -172,10 +172,11 @@ export const reviewLines = (
   ];
 };
 
-/** "18 Nov 2026, 14:03:22", or a dash for a time that is not set. */
+/** "18 Nov 2026, 14:03:22 UTC", or a dash for a time that is not set. Always UTC, so the server
+    and every browser write the same text. */
 export const formatInstant = (iso: string | null): string => {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return `${date.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC" })} UTC`;
 };

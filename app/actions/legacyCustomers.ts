@@ -19,6 +19,7 @@ import {
   type PlacementFailure,
   type PlacementResult,
   type PlacementRun,
+  type StartedRun,
   type TargetOrganization,
 } from "@/lib/legacyCustomers/placement";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
@@ -143,7 +144,7 @@ export async function placeLegacyCustomerAction(
   userId: string,
   request: unknown,
   idempotencyKey: string,
-): Promise<PlacementResult<{ runId: string; replayed: boolean }>> {
+): Promise<PlacementResult<StartedRun>> {
   const denied = await staffRefusal();
   if (denied) return denied;
   if (!isPlacementId(userId)) return refused("invalid_id");
@@ -165,7 +166,7 @@ export async function getPlacementRunAction(runId: string): Promise<PlacementRes
 
 /* POST /placements/:runId/rollback. The rollback is a second task on the same run: the answer
    names that run, and the run page goes on following it. No body is sent. */
-export async function rollbackPlacementRunAction(runId: string, idempotencyKey: string): Promise<PlacementResult<{ runId: string; replayed: boolean }>> {
+export async function rollbackPlacementRunAction(runId: string, idempotencyKey: string): Promise<PlacementResult<StartedRun>> {
   const denied = await staffRefusal();
   if (denied) return denied;
   if (!isRunId(runId)) return refused("invalid_id");

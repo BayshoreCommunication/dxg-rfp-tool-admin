@@ -304,11 +304,13 @@ export const parsePlacementRun = (value: unknown): PlacementRun | null => {
   };
 };
 
-/** The run id a 202 (task) or a 201 / 200 (a server that places inside the request) names. */
-export const startedRunOf = (data: unknown): { runId: string; replayed: boolean } | null => {
+export type StartedRun = { runId: string; replayed: boolean; run: PlacementRun | null };
+
+/** The run a 202 (task) names, or the run id a 201 / 200 names (a server that places inside the request). */
+export const startedRunOf = (data: unknown): StartedRun | null => {
   const raw = record(data);
   const placement = record(raw?.placement) ?? record(raw?.rollback);
-  return placement && isRunId(placement.runId) ? { runId: placement.runId, replayed: raw?.replayed === true } : null;
+  return placement && isRunId(placement.runId) ? { runId: placement.runId, replayed: raw?.replayed === true, run: parsePlacementRun(placement) } : null;
 };
 
 // ── Refusals ────────────────────────────────────────────────────────────────────────────────
