@@ -213,7 +213,17 @@ describe("the review names exactly what the request names", () => {
   });
 
   it("always shows the id, and says so when a name or slug was not kept", () => {
-    expect(text(reviewIdentities(existing(ORG, TEAM)))).toEqual([`Organization | Name not on file | Slug: No slug on file | Organization id: ${ORG}`, `Team | Name not on file | Team id: ${TEAM}`]);
+    expect(text(reviewIdentities(existing(ORG, TEAM)))).toEqual([`Organization | Name not on file | Slug: Slug not shown | Organization id: ${ORG}`, `Team | Name not on file | Team id: ${TEAM}`]);
+  });
+
+  it("says the slug is not shown when the draft has none, never that the organization has none", () => {
+    // The draft keeps "" both for an organization without a slug and for a draft saved without one.
+    for (const organizationSlug of ["", "   ", null, undefined]) {
+      const [organization] = reviewIdentities(existing(ORG), { organizationName: "Acme Events", organizationSlug });
+      expect(organization.details[0]).toEqual({ label: "Slug", value: "Slug not shown" });
+    }
+    expect(reviewIdentities(existing(ORG), { organizationName: "Acme Events", organizationSlug: "acme-events" })[0].details[0]).toEqual({ label: "Slug", value: "acme-events" });
+    expect(JSON.stringify(reviewIdentities(existing(ORG, TEAM)))).not.toMatch(/No slug on file/);
   });
 
   it("has nothing to add for a new organization, which has no id yet", () => {

@@ -284,7 +284,10 @@ export const reviewIdentities = (
       label: "Organization",
       name: names.organizationName?.trim() || "Name not on file",
       details: [
-        { label: "Slug", value: names.organizationSlug?.trim() || "No slug on file" },
+        // The draft keeps a slug as text, and "" both for an organization that has none and for
+        // a draft saved without one: an empty slug says the review has none to show, not that
+        // the organization has none.
+        { label: "Slug", value: names.organizationSlug?.trim() || "Slug not shown" },
         { label: "Organization id", value: request.organizationId },
       ],
     },

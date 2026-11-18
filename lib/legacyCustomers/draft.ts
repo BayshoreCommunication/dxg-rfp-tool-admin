@@ -15,7 +15,9 @@ export type PlacementDraft = {
   eventsPerYear: string;
   organizationId: string;
   organizationName: string;
-  /** Kept with the name so the review can tell two organizations of the same name apart. */
+  /** Kept with the name so the review can tell two organizations of the same name apart. "" when
+      none was saved, which does not say the organization has no slug: the review says "Slug not
+      shown", never "No slug on file". */
   organizationSlug: string;
   role: string;
   teamId: string;
