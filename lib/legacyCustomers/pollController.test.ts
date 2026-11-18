@@ -485,6 +485,38 @@ describe("recheck: one more read of a run the loop had finished with", () => {
     await advance(60_000);
     expect(closed.startedAt).toHaveLength(0);
   });
+  it("leaves a 429 backoff in place: a recheck while a read is already scheduled does not read sooner", async () => {
+    const limited: PlacementResult<PlacementRun> = { ok: false, failure: "rate_limited", retryAfterSeconds: 120 };
+    const h = harness(run("running"), { answers: [limited, rollback("running")] });
+    h.controller.start();
+    await advance(3000);
+    expect(h.startedAt).toHaveLength(1);
+    expect(h.controller.getState()).toMatchObject({ phase: "checking", lastFailure: "rate_limited" });
+    // A rollback is refused 10 seconds into the two minutes the backend asked for.
+    await advance(10_000);
+    h.controller.recheck();
+    await advance(110_000 - 1);
+    expect(h.startedAt).toHaveLength(1);
+    expect(h.controller.getState()).toMatchObject({ phase: "checking", lastFailure: "rate_limited" });
+    // The read that was already scheduled happens when the backoff ends, after the question.
+    await advance(1);
+    expect(h.startedAt).toHaveLength(2);
+    expect(h.gaps()).toEqual([120_000]);
+    expect(h.controller.getState()).toMatchObject({ phase: "checking", run: { status: "running", operation: "rollback" }, lastFailure: null });
+    h.controller.dispose();
+  });
+
+  it("keeps the count of 429s through a recheck: the next one waits longer, not from the start", async () => {
+    const limited: PlacementResult<PlacementRun> = { ok: false, failure: "rate_limited" };
+    const h = harness(run("running"), { answers: [limited] });
+    h.controller.start();
+    await advance(3000 + 6000);
+    expect(h.startedAt).toHaveLength(2);
+    h.controller.recheck();
+    await advance(60 * 60_000);
+    expect(h.gaps()).toEqual([6000, 12_000, 24_000, 48_000]);
+    expect(h.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "rate_limited" });
+  });
 });
 
 // A tab left open on a run that never finishes must not read for ever.

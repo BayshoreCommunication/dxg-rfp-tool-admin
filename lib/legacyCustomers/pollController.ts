@@ -7,7 +7,8 @@
 // - it ends when the run reaches a status that is not queued or running, on a 404, on a refusal
 //   that cannot change by asking again, and after repeated errors;
 // - a rollback answer that leaves the run unknown (a refusal, a lost answer) is followed by one
-//   more read, at the floor, even of a run that had finished (recheck);
+//   more read, at the floor, even of a run that had finished (recheck); a read that is already
+//   scheduled is that read, and keeps its wait (a 429's backoff is not cut short);
 // - it ends after 30 minutes of a run that is still queued or running (a tab left open must not
 //   read for ever); the manual refresh starts it again;
 // - it waits while the tab is hidden;
@@ -214,6 +215,11 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
         recheckPending = true;
         return;
       }
+      /* A read is already scheduled, and it will begin after this question: it is the recheck.
+         Its wait is left as it is. It may be a 429's backoff (at least what Retry-After asked
+         for), and reading sooner, or forgetting how many 429s there have been, would be asking
+         again while the backend has said to wait. */
+      if (timer !== null) return;
       errors = 0;
       rateLimits = 0;
       followingSince = now();
