@@ -18,7 +18,6 @@ import {
   validatePlacementRequest,
   type CustomerListState,
   type CustomerPage,
-  type LegacyCustomer,
   type PlacementAction,
   type PlacementFailure,
   type PlacementResult,
@@ -96,14 +95,12 @@ const staffRefusal = async (): Promise<Refused | null> => {
   return staff === "staff" ? null : refused(staff === "signed_out" ? "session_ended" : "forbidden");
 };
 
-/** GET /api/admin/legacy-customers: every legacy customer not yet placed, with a proposal count. */
-export async function listLegacyCustomersAction(): Promise<PlacementResult<LegacyCustomer[]>> {
-  const denied = await staffRefusal();
-  if (denied) return denied;
-  return ask("list", "", { method: "GET" }, parseLegacyCustomers);
-}
+/* GET /api/admin/legacy-customers answers with every legacy customer not yet placed. No action
+   here returns that answer whole: the list page gets one page of it, the search one page of its
+   matches, and the place page's one customer comes from a server-only helper
+   (lib/server/legacyCustomerForPlacement.ts), not from an action a browser could call.
 
-/* One page of the list, for the list page. The backend has no paging: this reads the whole list
+   One page of the list, for the list page. The backend has no paging: this reads the whole list
    once and returns at most 50 rows of it, so the rest never leaves the server. */
 export async function listLegacyCustomersPageAction(page: unknown): Promise<PlacementResult<CustomerPage>> {
   const denied = await staffRefusal();

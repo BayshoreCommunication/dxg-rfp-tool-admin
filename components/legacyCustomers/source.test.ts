@@ -55,7 +55,7 @@ describe("the Legacy customers screen", () => {
     for (const path of imported) expect(path).toBe("@/app/actions/legacyCustomers");
     const actions = [...new Set(source.match(/\b\w+Action\b/g) ?? [])].filter((name) => name !== "PlacementAction");
     for (const action of actions) {
-      expect(action).toMatch(/^(listLegacyCustomers|listLegacyCustomersPage|searchLegacyCustomers|searchPlacementTargets|listPlacementTeams|placeLegacyCustomer|getPlacementRun|rollbackPlacementRun)Action$/);
+      expect(action).toMatch(/^(listLegacyCustomersPage|searchLegacyCustomers|searchPlacementTargets|listPlacementTeams|placeLegacyCustomer|getPlacementRun|rollbackPlacementRun)Action$/);
     }
     // The pure code under lib/ calls nothing at all: what it sends is handed to it.
     if (file.startsWith(LIB)) expect(imported).toEqual([]);
@@ -76,7 +76,7 @@ describe("the Legacy customers screen", () => {
     expect(source.match(/authenticatedBackendFetch\(/g)).toHaveLength(1);
     // Every exported action asks who is signed in before anything else.
     const bodies = source.split(/\nexport async function /).slice(1);
-    expect(bodies).toHaveLength(8);
+    expect(bodies).toHaveLength(7);
     for (const body of bodies) {
       const firstStatement = body.slice(body.indexOf("{\n") + 2).trimStart();
       expect(firstStatement.startsWith("const denied = await staffRefusal();\n  if (denied) return denied;")).toBe(true);
@@ -229,8 +229,18 @@ describe("the Legacy customers screen", () => {
     expect(page).toMatch(/const result = await listLegacyCustomersPageAction\(\(await searchParams\)\?\.page\);/);
     expect(page.match(/searchParams/g)).toHaveLength(3);
     expect(page).not.toMatch(/listLegacyCustomersAction\b/);
-    // The whole list is asked for only by the place page, which keeps one customer of it.
-    expect(screenFiles.filter((file) => /listLegacyCustomersAction\b/.test(read(file)))).toEqual([`${PAGES}/[userId]/place/page.tsx`]);
+    // No action returns the whole list any more, and nothing asks for one.
+    const everywhere = [...sourceFiles("app"), ...sourceFiles("components"), ...sourceFiles("lib")];
+    expect(everywhere.filter((file) => /listLegacyCustomersAction\b/.test(read(file)))).toEqual([]);
+    // The place page's one customer comes from a server-only helper, which no client file imports.
+    const place = read(`${PAGES}/[userId]/place/page.tsx`);
+    expect(place).toMatch(/const result = await loadLegacyCustomerForPlacement\(userId\);\s*const customer = result\.ok \? result\.data : null;/);
+    expect(place).not.toMatch(/@\/app\/actions\//);
+    const helper = read("lib/server/legacyCustomerForPlacement.ts");
+    expect(helper.startsWith('import "server-only";')).toBe(true);
+    expect(helper).not.toMatch(/"use server"/);
+    expect(helper.match(/authenticatedBackendFetch\(/g)).toHaveLength(1);
+    expect(everywhere.filter((file) => /legacyCustomerForPlacement"/.test(read(file)))).toEqual([`${PAGES}/[userId]/place/page.tsx`]);
     // The list gets its rows from the server and has no list of its own to narrow.
     expect(list).toMatch(/export default function LegacyCustomersList\(\{ initial \}: \{ initial: CustomerPage \}\)/);
     expect(list).not.toMatch(/filterCustomers|useMemo|LegacyCustomer\[\]/);

@@ -10,7 +10,6 @@ import * as actions from "./legacyCustomers";
 
 const {
   getPlacementRunAction,
-  listLegacyCustomersAction,
   listLegacyCustomersPageAction,
   listPlacementTeamsAction,
   placeLegacyCustomerAction,
@@ -52,7 +51,6 @@ const NO_LIST = { ok: true as const, data: { customers: [], total: 0, matching: 
 
 /** Every action with valid arguments, the request it makes and an answer that satisfies it. */
 const ALL: Array<{ name: string; run: () => Promise<{ ok: boolean }>; method: string; url: RegExp; answer: () => Response }> = [
-  { name: "list", run: () => listLegacyCustomersAction(), method: "GET", url: new RegExp(`${API}$`), answer: () => jsonResponse(200, { success: true, data: { customers: [] } }) },
   { name: "list page", run: () => listLegacyCustomersPageAction("1"), method: "GET", url: new RegExp(`${API}$`), answer: () => jsonResponse(200, { success: true, data: { customers: [] } }) },
   { name: "list search", run: () => searchLegacyCustomersAction(NO_LIST, new FormData()), method: "GET", url: new RegExp(`${API}$`), answer: () => jsonResponse(200, { success: true, data: { customers: [] } }) },
   { name: "search", run: () => searchPlacementTargetsAction("acme"), method: "GET", url: new RegExp(`${API}/target-organizations\\?q=acme$`), answer: () => jsonResponse(200, { success: true, data: { organizations: [] } }) },
@@ -74,7 +72,6 @@ describe("legacy customer placement actions", () => {
   it("covers every action the file exports", () => {
     expect(Object.keys(actions).sort()).toEqual([
       "getPlacementRunAction",
-      "listLegacyCustomersAction",
       "listLegacyCustomersPageAction",
       "listPlacementTeamsAction",
       "placeLegacyCustomerAction",
@@ -82,7 +79,7 @@ describe("legacy customer placement actions", () => {
       "searchLegacyCustomersAction",
       "searchPlacementTargetsAction",
     ]);
-    expect(ALL).toHaveLength(8);
+    expect(ALL).toHaveLength(7);
   });
 
   it.each(ALL)("$name: one request to its own route, uncached, through the signed-in session", async ({ run, method, url, answer }) => {
@@ -116,7 +113,7 @@ describe("legacy customer placement actions", () => {
     it.each(["admin", "superadmin", "super_admin", "SUPER_ADMIN"])("lets the staff role %s through", async (role) => {
       mockedAuth.mockResolvedValue({ user: { role } });
       mockedFetch.mockResolvedValue(jsonResponse(200, { success: true, data: { customers: [] } }));
-      expect(await listLegacyCustomersAction()).toEqual({ ok: true, data: [] });
+      expect(await listLegacyCustomersPageAction("1")).toEqual(NO_LIST);
     });
 
     it("checks the session before it looks at the arguments", async () => {
@@ -285,7 +282,8 @@ describe("legacy customer placement actions", () => {
           data: { customers: [{ userId: USER, name: "Ada", email: "ada@example.com", company: null, holdingOrganizationId: ORG, proposalCount: 3, passwordHash: "x" }, { userId: "bad" }, "x"] },
         }),
       );
-      expect(await listLegacyCustomersAction()).toEqual({ ok: true, data: [{ userId: USER, name: "Ada", email: "ada@example.com", company: null, proposalCount: 3 }] });
+      expect(await listLegacyCustomersPageAction("1")).toMatchObject({ ok: true, data: { customers: [{ userId: USER, name: "Ada", email: "ada@example.com", company: null, proposalCount: 3 }], total: 1 } });
+      expect(JSON.stringify(await listLegacyCustomersPageAction("1"))).not.toMatch(/holdingOrganizationId|passwordHash/);
     });
 
     it("a 202 names the run; so do a 201 and a 200 from a server that places inside the request", async () => {
