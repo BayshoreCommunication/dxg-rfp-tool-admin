@@ -5,6 +5,7 @@ import {
   CONTENT_SECTION_LABELS,
   contentFailureCopy,
   organizationSectionPath,
+  sessionRenewPath,
   type ContentFailure,
   type ContentKind,
   type ContentSection,
@@ -122,7 +123,7 @@ const RETRY: ContentFailure[] = ["unavailable", "rate_limited"];
 type FailureProps = {
   failure: ContentFailure;
   kind: ContentKind;
-  /** Where "Try again" leads: this same page. Left out when trying again can't help. */
+  /** This same page: where "Try again" leads, and where signing in again returns to. Left out when the address names no page. */
   retryHref?: string;
   /** Where to go instead, when the organization itself is fine. */
   back?: { href: string; label: string };
@@ -153,7 +154,7 @@ export const ContentFailureState = ({ failure, kind, retryHref, back }: FailureP
           </Link>
         )}
         {failure === "session_ended" ? (
-          <Link href="/sign-in" className={linkClass}>
+          <Link href={sessionRenewPath(retryHref)} prefetch={false} className={linkClass}>
             Sign in
           </Link>
         ) : null}

@@ -43,6 +43,15 @@ export const organizationTemplatePath = (organizationId: string, templateId: str
   `${organizationTemplatesPath(organizationId)}/${encodeURIComponent(templateId)}`;
 export const organizationVendorsPath = (organizationId: string) => organizationSectionPath(organizationId, "vendors");
 
+/* Where "Sign in" leads when a read answers that the session has ended. Not /sign-in itself: the
+   page was rendered, so the admin session can still look signed in (a page render cannot rewrite
+   the session cookie), and proxy.ts sends a signed-in admin from /sign-in straight to the
+   dashboard. The session refresh route is where proxy.ts sends an ended backend session: it
+   renews the session and returns to the page, or marks it ended and goes on to sign-in, which
+   then leads back to the page. */
+export const sessionRenewPath = (returnTo: string = ORGANIZATIONS_PATH): string =>
+  `/api/auth/refresh-session?returnTo=${encodeURIComponent(returnTo)}`;
+
 /** A list address with only the query values that are set, so page 1 with no filter is the bare path. */
 export const withQuery = (path: string, query: Record<string, string | number | undefined>): string => {
   const params = new URLSearchParams();

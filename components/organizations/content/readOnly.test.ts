@@ -116,6 +116,26 @@ describe("the organization content pages are view-only", () => {
     expect(contentFiles.flatMap((file) => read(file).match(/<ProposalViewTabs\b/g) ?? [])).toHaveLength(2);
   });
 
+  it("offers a way to sign in again that cannot lead straight back into the app", () => {
+    // proxy.ts sends a signed-in admin from /sign-in to the dashboard, and a page render cannot
+    // mark the session cookie as ended. So no content page links to /sign-in itself.
+    for (const file of contentFiles) expect({ file, signIn: /["'`]\/sign-in/.test(read(file)) }).toEqual({ file, signIn: false });
+    const chrome = read(`${COMPONENTS}/ContentChrome.tsx`);
+    expect(chrome).toMatch(
+      /failure === "session_ended" \? \(\s*<Link href=\{sessionRenewPath\(retryHref\)\} prefetch=\{false\} className=\{linkClass\}>\s*Sign in\s*<\/Link>/,
+    );
+    // The route it goes through is the one proxy.ts uses for an ended backend session; it is
+    // outside the proxy's sign-in redirect and ends at /sign-in with the way back.
+    expect(read("lib/organizationContent/content.ts")).toMatch(/`\/api\/auth\/refresh-session\?returnTo=\$\{encodeURIComponent\(returnTo\)\}`/);
+    const route = read("app/api/auth/refresh-session/route.ts");
+    expect(route).toMatch(/searchParams\.get\("returnTo"\)/);
+    expect(route).toMatch(/callbackUrl: returnTo,\s*reason: "session-expired"/);
+    expect(route).toMatch(/Location: `\/sign-in\?\$\{signIn\.toString\(\)\}`/);
+    const proxy = read("proxy.ts");
+    expect(proxy).toMatch(/pathname\.startsWith\("\/api\/auth\/"\)/);
+    expect(proxy).toMatch(/new URL\("\/api\/auth\/refresh-session", request\.url\)/);
+  });
+
   it("links out of the app only for an address the planner typed, never for a file", () => {
     const anchors = contentFiles.flatMap((file) => (read(file).match(/<a\b[^>]*>/g) ?? []).map((anchor) => ({ file, anchor })));
     expect(anchors.map(({ file }) => file)).toEqual([`${COMPONENTS}/ProposalDetail.tsx`, `${COMPONENTS}/ProposalDetail.tsx`]);

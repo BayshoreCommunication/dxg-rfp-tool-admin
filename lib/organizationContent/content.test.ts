@@ -43,6 +43,7 @@ import {
   type ContentFailure,
   type ContentKind,
   type ContentReads,
+  sessionRenewPath,
 } from "./content";
 
 const ORG = "6a0000000000000000000001";
@@ -208,6 +209,19 @@ describe("why a page can't show its content", () => {
     expect(contentFailure(404, "TEMPLATE_NOT_FOUND")).toBe("record_not_found");
     expect(contentFailure(404, null)).toBe("not_available");
     expect(contentFailure(404, "SOMETHING_ELSE")).toBe("not_available");
+  });
+
+  it("sends an ended session through the session refresh route, with the way back to the page", () => {
+    expect(sessionRenewPath("/organizations/6a0000000000000000000001/proposals?page=2&search=summit+%26+more")).toBe(
+      "/api/auth/refresh-session?returnTo=%2Forganizations%2F6a0000000000000000000001%2Fproposals%3Fpage%3D2%26search%3Dsummit%2B%2526%2Bmore",
+    );
+    // The whole page address comes back as one value, so nothing in it can add a parameter.
+    const sent = new URL(sessionRenewPath("/organizations/6a0000000000000000000001/vendors?status=active&returnTo=//elsewhere.example"), "https://admin.example");
+    expect([...sent.searchParams.keys()]).toEqual(["returnTo"]);
+    expect(sent.searchParams.get("returnTo")).toBe("/organizations/6a0000000000000000000001/vendors?status=active&returnTo=//elsewhere.example");
+    // With no page to return to (an address that names no organization), back to the list.
+    expect(sessionRenewPath()).toBe("/api/auth/refresh-session?returnTo=%2Forganizations");
+    expect(sessionRenewPath(undefined)).toBe(sessionRenewPath("/organizations"));
   });
 
   it("maps each refusal to its own state", () => {
