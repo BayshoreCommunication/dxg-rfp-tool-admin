@@ -17,6 +17,7 @@ import {
   canRollBack,
   formatInstant,
   rollbackEffects,
+  rollbackFollowUp,
   runHeadline,
   runInstructions,
   showsOrganizationLink,
@@ -87,6 +88,9 @@ export default function PlacementRunView({ initial }: { initial: PlacementRun })
   const runId = initial.runId;
   const [poll, setPoll] = useState<PollState>({ run: initial, phase: "checking", reading: false, stopReason: null, lastFailure: null });
   const controller = useRef<PollController | null>(null);
+  // The last rollback request's refusal. It is kept here, not in the panel, so it is still on
+  // the page when the run read after it shows there is nothing left to roll back.
+  const [rollbackRefusal, setRollbackRefusal] = useState<Extract<RollbackResult, { ok: false }> | null>(null);
 
   // Exactly one loop for the page: made when it opens, ended when it closes.
   useEffect(() => {
@@ -232,17 +236,31 @@ export default function PlacementRunView({ initial }: { initial: PlacementRun })
         </dl>
       </section>
 
+      {rollbackRefusal ? (
+        <section aria-label="The rollback request">
+          <FailureNote failure={rollbackRefusal.failure} retryAfterSeconds={rollbackRefusal.retryAfterSeconds}>
+            {rollbackRefusal.failure === "session_ended" ? (
+              <Link href={sessionRenewPath(placementRunPath(runId))} prefetch={false} className={linkClass}>
+                Sign in
+              </Link>
+            ) : null}
+          </FailureNote>
+        </section>
+      ) : null}
+
       {canRollBack(run) ? (
         <RollbackPanel
           key={`${run.status}:${run.task?.requestedAt ?? ""}`}
           run={run}
-          onStarted={(started) => {
-            if (started.runId !== runId) {
-              router.push(placementRunPath(started.runId));
-              return;
-            }
+          onOpen={() => setRollbackRefusal(null)}
+          onAnswer={(result) => {
+            setRollbackRefusal(result.ok ? null : result);
+            const next = rollbackFollowUp(runId, result);
+            if (next.action === "open") router.push(placementRunPath(next.runId));
             // The same run, now with a rollback task: carry on following it here.
-            controller.current?.adopt(started.run ?? { ...run, status: "queued", operation: "rollback", rollbackRequired: false });
+            else if (next.action === "follow") controller.current?.adopt(next.run);
+            // A refusal, or no usable answer: the run may not be what is shown. Read it again.
+            else controller.current?.recheck();
           }}
         />
       ) : null}
@@ -260,9 +278,8 @@ const newKey = (): string => {
 
 /* Rollback, offered only for a run the API will roll back (canRollBack). It has its own
    confirmation, which says what rollback does before anything is sent. */
-function RollbackPanel({ run, onStarted }: { run: PlacementRun; onStarted: (started: StartedRun) => void }) {
+function RollbackPanel({ run, onOpen, onAnswer }: { run: PlacementRun; onOpen: () => void; onAnswer: (result: RollbackResult) => void }) {
   const [open, setOpen] = useState(false);
-  const [refusal, setRefusal] = useState<Extract<RollbackResult, { ok: false }> | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
   return (
@@ -275,17 +292,6 @@ function RollbackPanel({ run, onStarted }: { run: PlacementRun; onStarted: (star
           ? "This run did not finish cleanly. Rolling it back returns the customer's records to where they were."
           : "Undoes this placement: the customer's records go back to where they were before it."}
       </p>
-      {refusal ? (
-        <div className="mt-3">
-          <FailureNote failure={refusal.failure} retryAfterSeconds={refusal.retryAfterSeconds}>
-            {refusal.failure === "session_ended" ? (
-              <Link href={sessionRenewPath(placementRunPath(run.runId))} prefetch={false} className={linkClass}>
-                Sign in
-              </Link>
-            ) : null}
-          </FailureNote>
-        </div>
-      ) : null}
       {open ? (
         <RollbackConfirmation
           run={run}
@@ -293,18 +299,17 @@ function RollbackPanel({ run, onStarted }: { run: PlacementRun; onStarted: (star
             setOpen(false);
             trigger.current?.focus();
           }}
-          onRefused={(result) => {
-            setRefusal(result);
-            setOpen(false);
+          onAnswer={(result) => {
+            if (!result.ok) setOpen(false);
+            onAnswer(result);
           }}
-          onStarted={onStarted}
         />
       ) : (
         <button
           ref={trigger}
           type="button"
           onClick={() => {
-            setRefusal(null);
+            onOpen();
             setOpen(true);
           }}
           className={`mt-4 ${run.rollbackRequired ? dangerButton : secondaryButton}`}
@@ -320,13 +325,11 @@ function RollbackPanel({ run, onStarted }: { run: PlacementRun; onStarted: (star
 function RollbackConfirmation({
   run,
   onCancel,
-  onRefused,
-  onStarted,
+  onAnswer,
 }: {
   run: PlacementRun;
   onCancel: () => void;
-  onRefused: (result: Extract<RollbackResult, { ok: false }>) => void;
-  onStarted: (started: StartedRun) => void;
+  onAnswer: (result: RollbackResult) => void;
 }) {
   const confirmId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -352,9 +355,7 @@ function RollbackConfirmation({
 
   const rollBack = async () => {
     const outcome = await gate.submit();
-    if (!outcome.sent) return;
-    if (outcome.result.ok) onStarted(outcome.result.data);
-    else onRefused(outcome.result);
+    if (outcome.sent) onAnswer(outcome.result);
   };
   const busy = gateState.inFlight || gateState.done;
 

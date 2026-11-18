@@ -372,3 +372,116 @@ describe("the run poll controller", () => {
     h.controller.dispose();
   });
 });
+
+// A rollback that was refused, or whose answer was lost, leaves a finished run on the page that
+// may no longer be true: recheck reads it once more.
+describe("recheck: one more read of a run the loop had finished with", () => {
+  const rollback = (status: RunStatus): PlacementResult<PlacementRun> => ({ ok: true, data: run(status, { operation: "rollback" }) });
+
+  it.each(["succeeded", "failed"] as const)("reads a %s run again, once, and ends again when nothing has changed", async (status) => {
+    const h = harness(run(status), { answers: [ok(status)] });
+    h.controller.start();
+    await advance(60_000);
+    expect(h.startedAt).toHaveLength(0);
+    expect(h.controller.getState().phase).toBe("finished");
+
+    h.controller.recheck();
+    expect(h.controller.getState().phase).toBe("checking");
+    await advance(60_000);
+    expect(h.startedAt).toHaveLength(1);
+    expect(h.controller.getState()).toMatchObject({ phase: "finished", run: { status } });
+  });
+
+  it("never reads sooner than the floor after the last read", async () => {
+    const h = harness(run("succeeded"), { answers: [ok("succeeded")] });
+    h.controller.start();
+    await advance(1000);
+    h.controller.recheck();
+    await advance(1999);
+    expect(h.startedAt).toHaveLength(0);
+    await advance(1);
+    expect(h.startedAt).toHaveLength(1);
+  });
+
+  it("resumes the loop when the fresh run is a queued or running rollback, and follows it to its end", async () => {
+    const h = harness(run("succeeded"), { answers: [rollback("queued"), rollback("running"), rollback("rolled_back")] });
+    h.controller.start();
+    await advance(10_000);
+    h.controller.recheck();
+    await advance(0);
+    expect(h.startedAt).toHaveLength(1);
+    expect(h.controller.getState()).toMatchObject({ phase: "checking", run: { status: "queued", operation: "rollback" } });
+    await advance(60_000);
+    expect(h.startedAt).toHaveLength(3);
+    for (const gap of h.gaps()) expect(gap).toBeGreaterThanOrEqual(MIN_POLL_INTERVAL_MS);
+    expect(h.controller.getState()).toMatchObject({ phase: "finished", run: { status: "rolled_back" } });
+  });
+
+  it("shows a run a colleague already rolled back", async () => {
+    const h = harness(run("succeeded"), { answers: [rollback("rolled_back")] });
+    h.controller.start();
+    await advance(10_000);
+    h.controller.recheck();
+    await advance(0);
+    expect(h.startedAt).toHaveLength(1);
+    expect(h.controller.getState()).toMatchObject({ phase: "finished", run: { status: "rolled_back" } });
+  });
+
+  it("stops and says so when the run is gone or cannot be read", async () => {
+    const gone = harness(run("succeeded"), { answers: [{ ok: false, failure: "run_not_found" }] });
+    gone.controller.start();
+    await advance(10_000);
+    gone.controller.recheck();
+    await advance(0);
+    expect(gone.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "not_found" });
+
+    const silent = harness(run("succeeded"), { answers: [{ ok: false, failure: "unavailable" }] });
+    silent.controller.start();
+    await advance(10_000);
+    silent.controller.recheck();
+    await advance(10 * 60_000);
+    expect(silent.startedAt).toHaveLength(MAX_CONSECUTIVE_ERRORS);
+    expect(silent.controller.getState()).toMatchObject({ phase: "stopped", stopReason: "errors" });
+  });
+
+  it("asks once more when a read was already in flight: that read began before the question", async () => {
+    const h = harness(run("succeeded"));
+    h.controller.start();
+    await advance(10_000);
+    h.controller.refresh();
+    await advance(0);
+    expect(h.pending).toHaveLength(1);
+    h.controller.recheck();
+    h.pending[0].resolve(ok("succeeded"));
+    await advance(MIN_POLL_INTERVAL_MS - 1);
+    expect(h.startedAt).toHaveLength(1);
+    await advance(1);
+    expect(h.startedAt).toHaveLength(2);
+    h.pending[1].resolve(rollback("running"));
+    await advance(0);
+    expect(h.controller.getState()).toMatchObject({ phase: "checking", run: { status: "running", operation: "rollback" } });
+    expect(h.maxInFlight()).toBe(1);
+    h.controller.dispose();
+  });
+
+  it("waits for the tab when it is hidden, and reads nothing after the page has closed", async () => {
+    const h = harness(run("succeeded"), { answers: [rollback("rolled_back")] });
+    h.controller.start();
+    await advance(10_000);
+    h.setVisible(false);
+    h.controller.recheck();
+    await advance(60_000);
+    expect(h.startedAt).toHaveLength(0);
+    expect(h.controller.getState().phase).toBe("paused");
+    h.setVisible(true);
+    await advance(0);
+    expect(h.startedAt).toHaveLength(1);
+
+    const closed = harness(run("succeeded"), { answers: [ok("succeeded")] });
+    closed.controller.start();
+    closed.controller.dispose();
+    closed.controller.recheck();
+    await advance(60_000);
+    expect(closed.startedAt).toHaveLength(0);
+  });
+});

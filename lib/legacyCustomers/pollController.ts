@@ -6,6 +6,8 @@
 // - one read at a time: the next is scheduled only when the last has answered;
 // - it ends when the run reaches a status that is not queued or running, on a 404, on a refusal
 //   that cannot change by asking again, and after repeated errors;
+// - a rollback answer that leaves the run unknown (a refusal, a lost answer) is followed by one
+//   more read, at the floor, even of a run that had finished (recheck);
 // - it waits while the tab is hidden;
 // - a 429 makes it wait longer each time (at least what Retry-After says).
 //
@@ -74,6 +76,9 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
   let disposed = false;
   // Bumped whenever the loop is replaced (dispose, a new run adopted): a late answer is dropped.
   let generation = 0;
+  // A recheck asked for while a read was in flight: that read began before the question, so its
+  // answer does not settle it.
+  let recheckPending = false;
 
   const emit = (change: Partial<PollState>) => {
     state = { ...state, ...change };
@@ -133,7 +138,10 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
       errors = 0;
       rateLimits = 0;
       state = { ...state, run: result.data, lastFailure: null };
-      if (finished()) {
+      if (recheckPending) {
+        recheckPending = false;
+        schedule(interval);
+      } else if (finished()) {
         cancelTimer();
         emit({ phase: "finished", stopReason: null });
       } else schedule(interval);
@@ -186,10 +194,26 @@ export const createPollController = (initial: PlacementRun | null, dependencies:
       state = { ...state, lastFailure: null };
       schedule(0);
     },
+    /* The run may have changed without this page being told: a rollback was refused (a colleague
+       may have rolled it back, or a rollback may be running), or its answer was lost after the
+       backend queued it. Reads the run once more, at the floor, even when the loop had ended on a
+       finished run; if what comes back is queued or running the loop carries on from there. */
+    recheck: () => {
+      if (disposed) return;
+      if (state.reading || busy) {
+        recheckPending = true;
+        return;
+      }
+      errors = 0;
+      rateLimits = 0;
+      state = { ...state, lastFailure: null };
+      schedule(0);
+    },
     /** A run this page just changed (a rollback was asked for): follow it from here. */
     adopt: (run: PlacementRun) => {
       if (disposed) return;
       generation += 1;
+      recheckPending = false;
       cancelTimer();
       // What was just returned counts as a read: the next one waits the full interval.
       lastReadAt = now();

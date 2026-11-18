@@ -141,6 +141,19 @@ describe("the Legacy customers screen", () => {
     expect(view.match(/<RollbackPanel\b/g)).toHaveLength(1);
   });
 
+  it("reads the run again after every rollback answer it cannot take as it stands", () => {
+    const view = read(`${COMPONENTS}/PlacementRunView.tsx`);
+    // One place decides, from the answer alone (rollbackFollowUp), and nothing else adopts a run.
+    expect(view).toMatch(/const next = rollbackFollowUp\(runId, result\);/);
+    expect(view.match(/controller\.current\?\.adopt\(/g)).toHaveLength(1);
+    expect(view).toMatch(/else if \(next\.action === "follow"\) controller\.current\?\.adopt\(next\.run\);/);
+    expect(view).toMatch(/else controller\.current\?\.recheck\(\);/);
+    // The view makes no run status up for an answer that carried none.
+    expect(view).not.toMatch(/status: "(queued|running|succeeded|failed|rolled_back)"/);
+    // The confirmation hands every sent answer on, refused or accepted.
+    expect(view).toMatch(/if \(outcome\.sent\) onAnswer\(outcome\.result\);/);
+  });
+
   it("searches organizations only through the debounced search", () => {
     const picker = read(`${COMPONENTS}/OrganizationPicker.tsx`);
     expect(picker).toMatch(/createTypeahead\(\{ search: searchPlacementTargetsAction, onChange: setState \}\)/);

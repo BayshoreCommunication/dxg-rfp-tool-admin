@@ -1,5 +1,5 @@
-import type { LegacyCustomer, PlacementRun, RunStatus, RunTask } from "@/lib/legacyCustomers/placement";
-import { canRollBack, reviewLines, rollbackEffects, runHeadline, runInstructions, showsOrganizationLink, taskFailureText, verificationLines } from "@/lib/legacyCustomers/runView";
+import type { LegacyCustomer, PlacementFailure, PlacementRun, RunStatus, RunTask } from "@/lib/legacyCustomers/placement";
+import { canRollBack, reviewLines, rollbackEffects, rollbackFollowUp, runHeadline, runInstructions, showsOrganizationLink, taskFailureText, verificationLines } from "@/lib/legacyCustomers/runView";
 
 const ORG = "6b0000000000000000000002";
 const TEAM = "6c0000000000000000000003";
@@ -122,5 +122,39 @@ describe("the review step", () => {
     const lines = reviewLines({ ...customer, proposalCount: 0 }, { target: "existing", organizationId: ORG, role: "planner" }, { organizationName: "Acme" });
     expect(lines[1]).toBe("They join as Planner, in no team.");
     expect(lines[2]).toBe("They have no proposals, so only their account moves.");
+  });
+});
+
+describe("what the run page does with a rollback answer", () => {
+  const RUN_ID = run("succeeded").runId;
+  const OTHER = "placement-2026-11-18T11:00:00.000Z-9f8e7d6c";
+
+  it("follows the run an accepted answer returns", () => {
+    const queued = run("queued", { operation: "rollback", state: "rolling_back" });
+    expect(rollbackFollowUp(RUN_ID, { ok: true, data: { runId: RUN_ID, replayed: false, run: queued } })).toEqual({ action: "follow", run: queued });
+    expect(rollbackFollowUp(RUN_ID, { ok: true, data: { runId: RUN_ID, replayed: true, run: queued } })).toEqual({ action: "follow", run: queued });
+  });
+
+  it("opens the other run when the answer names one", () => {
+    expect(rollbackFollowUp(RUN_ID, { ok: true, data: { runId: OTHER, replayed: false, run: null } })).toEqual({ action: "open", runId: OTHER });
+  });
+
+  it("reads the run again when an accepted answer carries no run it can show: it makes no status up", () => {
+    expect(rollbackFollowUp(RUN_ID, { ok: true, data: { runId: RUN_ID, replayed: false, run: null } })).toEqual({ action: "recheck" });
+    expect(rollbackFollowUp(RUN_ID, { ok: true, data: { runId: RUN_ID, replayed: false, run: { ...run("queued"), runId: OTHER } } })).toEqual({ action: "recheck" });
+  });
+
+  const REFUSALS: PlacementFailure[] = [
+    // The run is not what the page showed.
+    "rollback_in_progress", "already_rolled_back", "run_still_running", "run_not_found", "nothing_to_roll_back",
+    // No answer, or one this screen cannot read: the backend may have queued the rollback.
+    "unavailable", "not_available", "start_failed",
+    // Refused for another reason. The page still does not know the run is as shown.
+    "organization_in_use", "user_is_owner", "rollback_conflict", "capacity_reached", "rate_limited", "session_ended", "forbidden",
+    "staff_organization_required", "not_configured", "misconfigured", "idempotency_conflict", "invalid_request", "invalid_id",
+  ];
+  it.each(REFUSALS)("reads the run again after %s", (failure) => {
+    expect(rollbackFollowUp(RUN_ID, { ok: false, failure })).toEqual({ action: "recheck" });
+    expect(rollbackFollowUp(RUN_ID, { ok: false, failure, retryAfterSeconds: 30, runId: RUN_ID })).toEqual({ action: "recheck" });
   });
 });

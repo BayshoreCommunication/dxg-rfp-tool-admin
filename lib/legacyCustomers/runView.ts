@@ -9,7 +9,9 @@ import {
   ORGANIZATION_TYPE_LABELS,
   type LegacyCustomer,
   type PlacementRequest,
+  type PlacementResult,
   type PlacementRun,
+  type StartedRun,
 } from "@/lib/legacyCustomers/placement";
 import { countLabel } from "@/lib/plural";
 
@@ -124,6 +126,25 @@ export const verificationLines = (run: PlacementRun): { passed: boolean | null; 
   if (run.task?.rolledBack === true) lines.push("The task rolled the placement back itself.");
   if (run.task?.rolledBack === false) lines.push("The task's own rollback did not complete.");
   return { passed: false, lines };
+};
+
+export type RollbackFollowUp =
+  /** The backend returned this run with its rollback task: follow it from what it returned. */
+  | { action: "follow"; run: PlacementRun }
+  /** The answer names another run: open that run's page. */
+  | { action: "open"; runId: string }
+  /** Anything else: what the page shows may no longer be true, so the run is read again. */
+  | { action: "recheck" };
+
+/* What the run page does with the answer to a rollback request. Only an accepted answer that
+   carries the run itself is taken as it stands. A refusal says the run is not what the page
+   showed (already rolled back, a rollback in progress, still running, gone), and a lost or
+   unreadable answer says nothing at all, while the backend may have queued the rollback: in every
+   such case the page reads the run again instead of going on showing "Placed". */
+export const rollbackFollowUp = (runId: string, result: PlacementResult<StartedRun>): RollbackFollowUp => {
+  if (!result.ok) return { action: "recheck" };
+  if (result.data.runId !== runId) return { action: "open", runId: result.data.runId };
+  return result.data.run && result.data.run.runId === runId ? { action: "follow", run: result.data.run } : { action: "recheck" };
 };
 
 /** What rollback does, said before it is asked for. */
