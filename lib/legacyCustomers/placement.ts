@@ -10,6 +10,8 @@
 import { countLabel } from "@/lib/plural";
 
 export const LEGACY_CUSTOMERS_PATH = "/legacy-customers";
+/** The Clients screen (the navigation's "Clients"): every customer account, the ones still in the shared organization included. */
+export const CLIENTS_PATH = "/clients";
 
 /** A MongoDB id as the backend writes it: 24 lower-case hex. */
 export const isPlacementId = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{24}$/.test(value);

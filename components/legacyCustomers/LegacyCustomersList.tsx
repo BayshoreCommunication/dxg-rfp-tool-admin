@@ -2,7 +2,7 @@
 
 import { searchLegacyCustomersAction } from "@/app/actions/legacyCustomers";
 import { focusRing } from "@/components/organizations/content/ContentChrome";
-import { cardClass, FailureNote, inputClass, linkClass, secondaryButton } from "@/components/legacyCustomers/PlacementChrome";
+import { cardClass, ClientsLink, FailureNote, inputClass, linkClass, secondaryButton } from "@/components/legacyCustomers/PlacementChrome";
 import {
   CUSTOMER_SEARCH_MAX_LENGTH,
   customerLabel,
@@ -43,8 +43,13 @@ export default function LegacyCustomersList({ initial }: { initial: CustomerPage
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
           <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
         </span>
-        <h2 className="mt-4 text-base font-bold text-[#12213a]">Every legacy customer is placed</h2>
-        <p className="mt-1 max-w-md text-sm leading-6 text-slate-600">No customer account is waiting for an organization.</p>
+        {/* An empty answer means two things this app cannot tell apart: nobody has been moved out of
+            the shared organization yet, or everyone who was moved has been placed. This says only
+            what is true of both. */}
+        <h2 className="mt-4 text-base font-bold text-[#12213a]">No customers are waiting to be placed</h2>
+        <p className="mt-1 max-w-md text-sm leading-6 text-slate-600">
+          A customer appears here once their account has been moved out of the shared organization. Accounts that have not been moved yet are listed under <ClientsLink />.
+        </p>
       </section>
     );
   }

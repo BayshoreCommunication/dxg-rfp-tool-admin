@@ -1,5 +1,5 @@
 import { focusRing } from "@/components/organizations/content/ContentChrome";
-import { LEGACY_CUSTOMERS_PATH, placementFailureCopy, type PlacementFailure } from "@/lib/legacyCustomers/placement";
+import { CLIENTS_PATH, LEGACY_CUSTOMERS_PATH, placementFailureCopy, type PlacementFailure } from "@/lib/legacyCustomers/placement";
 import { sessionRenewPath } from "@/lib/organizationContent/content";
 import { AlertCircle, ArrowLeft, Clock, FileQuestion } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +21,15 @@ export const secondaryButton = `inline-flex min-h-11 items-center justify-center
 export const inputClass =
   "h-11 w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-[#20304b] outline-none transition placeholder:text-slate-400 focus:border-[#00aeb5] focus:ring-4 focus:ring-cyan-500/20 aria-[invalid=true]:border-rose-500";
 export const cardClass = "rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
+
+/** The word "Clients" as a link to the Clients screen, where the accounts still in the shared
+    organization are listed. It takes nothing from its caller, so nothing can be added to the
+    address. Prefetched like the navigation's own link to the same screen. */
+export const ClientsLink = () => (
+  <Link href={CLIENTS_PATH} className={linkClass}>
+    Clients
+  </Link>
+);
 
 /** The page width, and the way back to the list on the two pages under it. */
 export const PlacementFrame = ({ back = true, children }: { back?: boolean; children: ReactNode }) => (

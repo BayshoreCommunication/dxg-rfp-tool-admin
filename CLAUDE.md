@@ -81,6 +81,10 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
     most 50 customers reaches the browser, `?page=` is a number only, and the search is a form
     POST to a server action, so a name or email is never in an address. One backend list read per
     page view or search; every link to `/legacy-customers` inside the feature opts out of prefetch.
+  - An empty list does not mean everyone is placed. A customer is in the backend's list only after
+    the tenancy cutover has moved their account out of the shared organization; before that the
+    list is empty while the accounts still show under Clients. The app cannot tell the two apart,
+    so the empty state says only "No customers are waiting to be placed" and links to `/clients`.
   - After any rollback answer that is not an accepted run, the run is read again
     (`rollbackFollowUp`, `recheck`). The loop also stops after 30 minutes of queued or running.
   - The optional team comes from the content browser's teams read (recorded, and counted in that

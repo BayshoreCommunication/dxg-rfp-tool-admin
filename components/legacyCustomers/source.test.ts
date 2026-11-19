@@ -260,6 +260,30 @@ describe("the Legacy customers screen", () => {
     expect(placement).toMatch(/return number <= 1 \? LEGACY_CUSTOMERS_PATH : `\$\{LEGACY_CUSTOMERS_PATH\}\?page=\$\{number\}`;/);
   });
 
+  it("says of an empty list only what is true before and after the cutover", () => {
+    // The backend's list is empty both when nobody has been moved out of the shared organization
+    // yet and when everyone who was moved has been placed. The screen cannot tell which.
+    const list = read(`${COMPONENTS}/LegacyCustomersList.tsx`);
+    const start = list.indexOf("if (page && page.total === 0) {");
+    const emptyState = withoutComments(list.slice(start, list.indexOf("</section>", start)));
+    expect(start).toBeGreaterThan(0);
+    expect(emptyState).toMatch(/<h2 className="[^"]*">No customers are waiting to be placed<\/h2>/);
+    expect(emptyState).toMatch(
+      /A customer appears here once their account has been moved out of the shared organization\. Accounts that have not been moved yet are listed under <ClientsLink \/>\./,
+    );
+    expect(emptyState).not.toMatch(/Every legacy customer is placed/);
+    expect(emptyState).not.toMatch(/is placed/);
+    expect(emptyState).not.toMatch(/waiting for an organization/);
+    // Nor does any other on-screen text of the list, the search's "no match" state included.
+    expect(withoutComments(list)).not.toMatch(/Every legacy customer|is placed|are placed|all placed/i);
+    expect(list).toMatch(/<p className="[^"]*">No customer matches<\/p>\s*<p className="[^"]*">Nothing in this list has that name, email or company\.<\/p>/);
+    // "Clients" is a link to the Clients screen, the address the navigation uses.
+    const chrome = read(`${COMPONENTS}/PlacementChrome.tsx`);
+    expect(chrome).toMatch(/export const ClientsLink = \(\) => \(\s*<Link href=\{CLIENTS_PATH\} className=\{linkClass\}>\s*Clients\s*<\/Link>\s*\);/);
+    expect(read(`${LIB}/placement.ts`)).toMatch(/export const CLIENTS_PATH = "\/clients";/);
+    expect(read("config/navigation.tsx")).toMatch(/id: "clients",\s*title: "Clients",\s*href: "\/clients",/);
+  });
+
   it("takes a saved team the organization no longer lists out of the request, and says so", () => {
     const flow = read(`${COMPONENTS}/PlaceCustomerFlow.tsx`);
     // Decided when the teams arrive, against the draft as last written (not the one that started the wait).
