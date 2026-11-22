@@ -21,6 +21,7 @@ import {
   blockedSinceLabel,
   checkDraft,
   confirmationPhrase,
+  currentOwnerLine,
   currentRoleLabel,
   emptyDraft,
   isMemberWrite,
@@ -444,20 +445,15 @@ const FormBody = ({
           ) : null}
         </div>
       );
-    case "transfer": {
-      const owner = organization.owner;
+    case "transfer":
       return (
         <div className="space-y-2 text-sm leading-6 text-slate-600">
           <p>
             <span className="break-words font-bold text-[#20304b]">{who}</span> becomes the Owner of <span className="break-words font-bold text-[#20304b]">{organizationLabel(organization)}</span>.
           </p>
-          <p>
-            The current Owner{owner ? `, ${memberLabel({ name: owner.name || null, email: owner.email || null })},` : ""} becomes an Admin and is signed out everywhere at once. An
-            organization has exactly one Owner.
-          </p>
+          <p className="break-words">{currentOwnerLine(organization)} An organization has exactly one Owner.</p>
         </div>
       );
-    }
     case "block":
       return (
         <div className="space-y-4">

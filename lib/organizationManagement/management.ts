@@ -622,6 +622,18 @@ export const checkDraft = (kind: WriteKind, draft: WriteDraft, member?: Pick<Mem
   };
 };
 
+/* Who a transfer makes an Admin. The request names only the new Owner (`toUserId` and that
+   member's version); the backend demotes whoever is the Owner when it commits. The Owner this page
+   read is therefore named as the Owner "when this page loaded", never as who will be demoted. The
+   organization is not read again after "Load the current member", so the wording has to hold then too. */
+export const currentOwnerLine = (organization: Pick<ManagedOrganization, "owner">): string => {
+  const owner = organization.owner;
+  const named = owner ? memberLabel({ name: owner.name || null, email: owner.email || null }) : null;
+  return named && (owner?.name || owner?.email)
+    ? `The organization's current Owner becomes an Admin and is signed out everywhere at once: ${named} when this page loaded, or whoever holds the role when the transfer is saved.`
+    : "The organization's current Owner, whoever holds the role when the transfer is saved, becomes an Admin and is signed out everywhere at once.";
+};
+
 export type ReviewContext = { organization: ManagedOrganization; member?: Member };
 
 /** The review, in plain words: who and what changes. The reason is shown beside it, as typed. */
@@ -647,15 +659,12 @@ export const reviewLines = (kind: WriteKind, context: ReviewContext, request: Wr
         `Every proposal ${who} owns in ${organization} moves to ${request.target ? memberLabel(request.target) : "the member you chose"}.`,
         "Only the owner of each proposal changes. The proposals themselves, their vendors and their responses are not changed.",
       ];
-    case "transfer": {
-      const owner = context.organization.owner;
-      const current = owner ? memberLabel({ name: owner.name || null, email: owner.email || null }) : "whoever holds the role now";
+    case "transfer":
       return [
         `${who} becomes the Owner of ${organization}. Their role changes from ${role} to Owner.`,
-        `The current Owner, ${current}, becomes an Admin and is signed out everywhere at once.`,
+        currentOwnerLine(context.organization),
         "An organization has exactly one Owner. This can only be undone by another transfer.",
       ];
-    }
     case "block":
       return [`${organization} is blocked.`, ...BLOCK_EFFECTS.does, ...BLOCK_EFFECTS.doesNot];
     default:

@@ -288,6 +288,14 @@ describe("the staff management screens", () => {
     expect(savedStep).not.toMatch(/Action\(|<button\b|<form\b|gate\./);
   });
 
+  it("names the Owner a transfer demotes only as the Owner when the page loaded, on the form and the review", () => {
+    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
+    expect(flow).toMatch(/\{currentOwnerLine\(organization\)\} An organization has exactly one Owner\./);
+    expect(flow).not.toMatch(/The current Owner\{owner|organization\.owner/);
+    // Loading the current member again reads the member only: the organization is not read again.
+    expect(actionsIn(`${COMPONENTS}/WriteFlow.tsx`)).not.toContain("getManagedOrganizationAction");
+  });
+
   it("shows the result from the API's answer, with the ways back, and makes no read to show it", () => {
     const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
     expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: review\.request, answer \}\)\}/);

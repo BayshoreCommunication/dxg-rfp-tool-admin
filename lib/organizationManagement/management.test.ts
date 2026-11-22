@@ -5,6 +5,7 @@ import {
   checkDraft,
   codeOf,
   confirmationPhrase,
+  currentOwnerLine,
   emptyDraft,
   isAssignableRole,
   isManagementId,
@@ -510,8 +511,16 @@ describe("the form, the review and the result", () => {
     );
     const transfer = reviewLines("transfer", context, { reason: REASON });
     expect(transfer[0]).toBe("Pat Planner (pat@acme.example) becomes the Owner of Acme Events. Their role changes from Planner to Owner.");
-    expect(transfer[1]).toBe("The current Owner, Olive Owner (olive@acme.example), becomes an Admin and is signed out everywhere at once.");
-    expect(reviewLines("transfer", { ...context, organization: organization({ owner: null }) }, { reason: REASON })[1]).toMatch(/^The current Owner, whoever holds the role now, becomes an Admin/);
+    // The request binds only the new Owner: the Owner read at page load is named as that, never as who is demoted.
+    expect(transfer[1]).toBe(
+      "The organization's current Owner becomes an Admin and is signed out everywhere at once: Olive Owner (olive@acme.example) when this page loaded, or whoever holds the role when the transfer is saved.",
+    );
+    expect(transfer.join(" ")).not.toMatch(/The current Owner, Olive Owner/);
+    for (const owner of [null, { name: "", email: "" }]) {
+      const line = reviewLines("transfer", { ...context, organization: organization({ owner }) }, { reason: REASON })[1];
+      expect(line).toBe("The organization's current Owner, whoever holds the role when the transfer is saved, becomes an Admin and is signed out everywhere at once.");
+    }
+    expect(currentOwnerLine(organization({ owner: { name: "", email: "olive@acme.example" } }))).toMatch(/: olive@acme\.example when this page loaded, or whoever/);
     // Nobody is named "null", and an unnamed organization still reads as one.
     const bare = { organization: organization({ name: "  " }), member: managed({ name: null, email: null }).member };
     expect(reviewLines("deactivate", bare, { reason: REASON })[0]).toBe("A member with no name or email on file in Unnamed organization is deactivated.");
