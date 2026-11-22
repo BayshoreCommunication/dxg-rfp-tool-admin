@@ -57,7 +57,7 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
   not have the route yet.
 - **Staff management** (owner decisions, 2026-11-18): staff change a member's role, deactivate and
   reactivate a member, reassign a member's proposals, transfer ownership, and block or reactivate
-  a whole customer organization. Team management is a separate ticket. Pages are under
+  a whole customer organization. Team management is the last sub-bullet here. Pages are under
   `/organization-management/[organizationId]/`: `members/[userId]` (the member and the writes
   their state offers), `members/[userId]/role`, `/deactivate`, `/reactivate`,
   `/reassign-proposals`, `/transfer-ownership`, and `block` and `reactivate` for the organization.
@@ -85,6 +85,31 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
     message text never is. A write with no readable answer is "may or may not have been saved",
     never "nothing happened". The staff routes return a deactivated member's status as
     `suspended`.
+  - **Team management** (same owner decision): staff create, rename and archive a team, add and
+    remove a team member, set or unset a team manager, and set which teams a member is on. Staff
+    never change which team a proposal is on. Pages: `teams/new`, `teams/[teamId]` (the team, its
+    listed members and what its state offers; an archived team offers nothing and can't be
+    un-archived), `teams/[teamId]/rename`, `/archive` (the team's name typed to confirm),
+    `/members/add`, `/members/[userId]/remove`, `/make-manager`, `/remove-manager`, and
+    `members/[userId]/teams` ("Change teams" on the member page). Code: the second half of
+    `app/actions/organizationManagement.ts`, `lib/organizationManagement/teams.ts` (paths, parsers,
+    state rules, loaders, wording) and the `Team*` components. `TeamWriteFlow` and
+    `TeamMemberPicker` are siblings of `WriteFlow` and `ReassignTargetPicker`, whose source is
+    pinned by the guard; they share the gate, the reason field, the review facts, the refusals
+    and the frame. Reads per page (each recorded): the team page 1 (`GET teams/:teamId`); create 1
+    (the organization); rename, archive and add 2 (team, organization) plus one members read per
+    page of the picker staff load; remove and manager pages 2 (the member, whose own `teams` say
+    whether they are on the team and manage it, then the organization); a member's teams 3 (the
+    member, the content browser's teams read for the active teams, the organization), and one more
+    member read on each press of "Review": `PUT members/:userId/teams` replaces the member's whole
+    active team set and a team-route change does not move the member's `version`, so the review
+    is built from the member as read on that press (`reviewMemberTeams`) and names what changed
+    since the page loaded. The lasting fix is the backend's. The backend
+    lists at most 200 members and 200 managers of a team: the count shown is `memberCount`, with
+    "Showing the first N" when the list is shorter and the count is above 200, and "The server
+    listed N of M members" when it is not (rows the backend or the parser left out). Removing a team member is a DELETE with
+    `{ reason }` in a JSON body. `MEMBER_NOT_FOUND` on add and make-manager means "not an active
+    member" and is worded so. The Teams list has "Create a team" and one "Manage" link per team.
 - **Legacy customers** (`/legacy-customers`, backend ORG-110): staff place a legacy customer, with
   their proposals, into a new or an existing organization. It moves tenant data and is the most
   consequential action in this app. Pages: the list, `/[userId]/place` (form, then a review with an

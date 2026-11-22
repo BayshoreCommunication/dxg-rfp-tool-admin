@@ -158,15 +158,25 @@ beforeEach(() => {
 describe("organization management actions", () => {
   it("covers every action the file exports", () => {
     expect(Object.keys(actions).sort()).toEqual([
+      "addTeamMemberAction",
+      "archiveTeamAction",
       "blockOrganizationAction",
       "changeMemberRoleAction",
+      "createTeamAction",
       "deactivateMemberAction",
       "getManagedMemberAction",
       "getManagedOrganizationAction",
+      "getManagedTeamAction",
+      "listActiveTeamsAction",
       "listReassignCandidatesAction",
+      "listTeamCandidatesAction",
       "reactivateMemberAction",
       "reactivateOrganizationAction",
       "reassignMemberProposalsAction",
+      "removeTeamMemberAction",
+      "renameTeamAction",
+      "setMemberTeamsAction",
+      "setTeamManagerAction",
       "transferOwnershipAction",
     ]);
     expect(ALL).toHaveLength(10);

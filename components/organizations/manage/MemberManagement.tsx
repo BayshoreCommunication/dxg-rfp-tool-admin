@@ -9,6 +9,7 @@ import {
   type ManagedMember,
   type MemberWrite,
 } from "@/lib/organizationManagement/management";
+import { memberTeamsOffered, memberTeamsPath, TEAM_WRITE_COPY } from "@/lib/organizationManagement/teams";
 import Link from "next/link";
 
 /* One member, from the one read this page makes, and the writes that member's state offers. Each
@@ -71,6 +72,14 @@ export default function MemberManagement({ organizationId, managed }: { organiza
             ))}
           </ul>
         )}
+        {memberTeamsOffered(member) ? (
+          <div className="flex flex-col gap-2 border-t border-slate-100 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+            <p className="min-w-0 text-sm leading-6 text-slate-600">Sets which of the organization&apos;s active teams this member is on.</p>
+            <Link href={memberTeamsPath(organizationId, member.userId)} prefetch={false} className={`shrink-0 ${linkButton}`}>
+              {TEAM_WRITE_COPY.memberTeams.title}
+            </Link>
+          </div>
+        ) : null}
         {notes.length ? (
           <ul className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm leading-6 text-slate-600">
             {notes.map((note) => (

@@ -1,6 +1,6 @@
 import { ContentBadge, focusRing } from "@/components/organizations/content/ContentChrome";
 import { ORGANIZATIONS_PATH, organizationAccountPath } from "@/lib/organizationAccount";
-import { formatContentDate, memberStatusBadge, organizationMembersPath, rolesLabel, sessionRenewPath, type Member } from "@/lib/organizationContent/content";
+import { formatContentDate, memberStatusBadge, organizationMembersPath, organizationTeamsPath, rolesLabel, sessionRenewPath, type Member } from "@/lib/organizationContent/content";
 import {
   managementFailureCopy,
   memberManagementPath,
@@ -9,6 +9,7 @@ import {
   type ManagementFailure,
   type ManagementRefusal,
 } from "@/lib/organizationManagement/management";
+import { teamManagementPath } from "@/lib/organizationManagement/teams";
 import { AlertCircle, ArrowLeft, Clock, FileQuestion, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -47,16 +48,23 @@ export const ManagementNote = () => (
   </p>
 );
 
-/** The page width and the ways back: the organization, its Members page and, under a member, the member. */
+/** The page width and the ways back: the organization, its Members page and, under a member, the
+    member. A team page also leads back to the Teams list and, under a team, to the team. */
 export const ManageFrame = ({
   organizationId,
   memberId,
+  teams = false,
+  teamId,
   children,
 }: {
   /** Null when the address does not name an organization: the way back is the list. */
   organizationId: string | null;
   /** Set on a page under a member, to lead back to the member's management page. */
   memberId?: string;
+  /** Set on a team page: the Teams list is a way back too. */
+  teams?: boolean;
+  /** Set on a page under a team, to lead back to the team's management page. */
+  teamId?: string;
   children: ReactNode;
 }) => (
   <div className="mx-auto w-full max-w-[1100px] space-y-5 pb-10">
@@ -69,6 +77,16 @@ export const ManageFrame = ({
           <Link href={organizationMembersPath(organizationId)} prefetch={false} className={backClass}>
             Members
           </Link>
+          {teams ? (
+            <Link href={organizationTeamsPath(organizationId)} prefetch={false} className={backClass}>
+              Teams
+            </Link>
+          ) : null}
+          {teamId ? (
+            <Link href={teamManagementPath(organizationId, teamId)} prefetch={false} className={backClass}>
+              This team
+            </Link>
+          ) : null}
           {memberId ? (
             <Link href={memberManagementPath(organizationId, memberId)} prefetch={false} className={backClass}>
               This member
