@@ -471,6 +471,9 @@ export const canReceiveProposals = (candidate: ReassignCandidate, fromUserId: st
   memberStanding(candidate.status) === "active" &&
   candidate.roles.some((role) => PROPOSAL_OWNER_ROLES.includes(role));
 
+/** What a write flow's client state belongs to: the write, the member and the version it was read at. */
+export const flowKey = (write: MemberWrite, managed: ManagedMember): string => `${write}:${managed.member.userId}:${managed.version}`;
+
 /* ---------- which backend reads each page makes ---------- */
 
 /** The two audited reads the management pages make. A page is handed only what it shows. */

@@ -303,6 +303,17 @@ describe("the staff management screens", () => {
     expect(flow).toMatch(/history=\{\{ \.\.\.done\.history, afterUnknownOutcome: everUnknown \}\}/);
   });
 
+  it("starts the flow again when the page reads the member again", () => {
+    // The flow's client state (the member, the open review, a refusal, the gate) is keyed by the member as read.
+    const writeScreen = read(`${COMPONENTS}/MemberWriteScreen.tsx`);
+    expect(writeScreen).toMatch(/<WriteFlow kind=\{write\} organization=\{load\.organization\} member=\{load\.member\} continueToDeactivate=\{continueToDeactivate\} key=\{flowKey\(write, load\.member\)\} \/>/);
+    // "Open this page again" after OWNER_CHANGED is a full load, not a same-route Link that keeps the state.
+    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
+    expect(flow).toMatch(/refusal\.failure === "owner_changed" && memberId \? \(\s*(\/\/.*\s*)*<a href=\{memberWritePath\(organization\.id, memberId, "transfer"\)\} className=\{linkClass\}>\s*Open this page again\s*<\/a>/);
+    expect(flow.match(/<a\b/g)).toHaveLength(1);
+    expect(flow).not.toMatch(/<Link[^>]*>\s*Open this page again/);
+  });
+
   it("shows the result from the API's answer, with the ways back, and makes no read to show it", () => {
     const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
     expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: review\.request, answer \}\)\}/);

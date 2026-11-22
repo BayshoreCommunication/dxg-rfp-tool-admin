@@ -7,6 +7,7 @@ import {
   confirmationPhrase,
   currentOwnerLine,
   emptyDraft,
+  flowKey,
   isAssignableRole,
   isManagementId,
   loadMemberPage,
@@ -449,6 +450,13 @@ describe("which backend reads each management page makes", () => {
     const bad = reads();
     await expect(loadMemberWritePage(bad.made, ORG, "nope", "role")).resolves.toEqual({ state: "failed", refusal: refused("invalid_id") });
     expect(bad.calls).toEqual([]);
+  });
+
+  it("keys a write flow by the write, the member and the version read, so a new read starts it again", () => {
+    expect(flowKey("transfer", managed({}, 4))).toBe(`transfer:${USER}:4`);
+    expect(flowKey("transfer", managed({}, 5))).not.toBe(flowKey("transfer", managed({}, 4)));
+    expect(flowKey("transfer", managed({ userId: OTHER }, 4))).not.toBe(flowKey("transfer", managed({}, 4)));
+    expect(flowKey("role", managed({}, 4))).not.toBe(flowKey("transfer", managed({}, 4)));
   });
 
   it("fails the write page when the organization can't be read", async () => {

@@ -2,6 +2,7 @@ import { getManagedMemberAction, getManagedOrganizationAction } from "@/app/acti
 import { linkClass, ManageFailureState, ManageFrame, MemberSummary, NotOfferedState } from "@/components/organizations/manage/ManageChrome";
 import WriteFlow from "@/components/organizations/manage/WriteFlow";
 import {
+  flowKey,
   isManagementId,
   loadMemberWritePage,
   memberLabel,
@@ -50,7 +51,9 @@ export default async function MemberWriteScreen({
       ) : (
         <>
           <MemberSummary member={load.member.member} eyebrow={WRITE_COPY[write].title} />
-          <WriteFlow kind={write} organization={load.organization} member={load.member} continueToDeactivate={continueToDeactivate} />
+          {/* Keyed by the member as read: a page that reads a different member, or the same member
+              at another version, starts the flow again and keeps nothing of the earlier one. */}
+          <WriteFlow kind={write} organization={load.organization} member={load.member} continueToDeactivate={continueToDeactivate} key={flowKey(write, load.member)} />
         </>
       )}
     </ManageFrame>

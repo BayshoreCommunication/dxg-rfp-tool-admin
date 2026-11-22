@@ -605,9 +605,11 @@ function ReviewStep({
               </Link>
             ) : null}
             {refusal.failure === "owner_changed" && memberId ? (
-              <Link href={memberWritePath(organization.id, memberId, "transfer")} prefetch={false} className={linkClass}>
+              // A plain anchor, not a Link: a same-route Link would keep this flow's state (the member
+              // as loaded, the open review, this refusal). A full load reads the member and the Owner again.
+              <a href={memberWritePath(organization.id, memberId, "transfer")} className={linkClass}>
                 Open this page again
-              </Link>
+              </a>
             ) : null}
             {!member && refusal.failure === "outcome_unknown" ? (
               <Link href={organizationAccountPath(organization.id)} prefetch={false} className={linkClass}>
