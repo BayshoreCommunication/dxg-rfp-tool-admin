@@ -100,7 +100,11 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
     (the organization); rename, archive and add 2 (team, organization) plus one members read per
     page of the picker staff load; remove and manager pages 2 (the member, whose own `teams` say
     whether they are on the team and manage it, then the organization); a member's teams 3 (the
-    member, the content browser's teams read for the active teams, the organization). The backend
+    member, the content browser's teams read for the active teams, the organization), and one more
+    member read on each press of "Review": `PUT members/:userId/teams` replaces the member's whole
+    active team set and a team-route change does not move the member's `version`, so the review
+    is built from the member as read on that press (`reviewMemberTeams`) and names what changed
+    since the page loaded. The lasting fix is the backend's. The backend
     lists at most 200 members and 200 managers of a team: the count shown is `memberCount`, with
     "Showing the first N" when the list is shorter. Removing a team member is a DELETE with
     `{ reason }` in a JSON body. `MEMBER_NOT_FOUND` on add and make-manager means "not an active

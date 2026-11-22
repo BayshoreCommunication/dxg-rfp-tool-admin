@@ -405,6 +405,13 @@ export const MEMBER_TEAMS_EFFECTS = [
   "Memberships of archived teams are left as they are, as history.",
 ] as const;
 
+/* `PUT members/:userId/teams` replaces the member's whole set of active teams, and the member's
+   version does not move when someone adds them to a team through the team routes: nothing on the
+   server refuses a set chosen against an older one. So the review says it in so many words. */
+export const MEMBER_TEAMS_EXACT =
+  "After this change the member is on exactly the teams listed under Joins and Stays on, and off every other active team, including any they join after this review was made.";
+export const MEMBER_TEAMS_EXACT_NONE = "After this change the member is on no active team: they are taken off every one, including any they join after this review was made.";
+
 /** What the form holds before the review. */
 export type TeamDraft = { reason: string; name: string; target: TeamCandidate | null; makeManager: boolean; teamIds: string[] };
 export const emptyTeamDraft = (teamIds: string[] = []): TeamDraft => ({ reason: "", name: "", target: null, makeManager: false, teamIds });
@@ -452,6 +459,71 @@ export const checkTeamDraft = (kind: TeamWrite, draft: TeamDraft, context: TeamD
 };
 
 const listOf = (names: string[]): string => names.join(", ");
+
+/* ---------- the review of a member's teams ---------- */
+
+/** The active teams a member is on now that they were not on when the form was filled in from them, and the ones they have left since. */
+export type TeamsChangedSince = { added: string[]; removed: string[] };
+
+export const teamsChangedSince = (basis: Pick<Member, "teams">, now: Pick<Member, "teams">): TeamsChangedSince => {
+  const before = currentTeams(basis).active;
+  const after = currentTeams(now).active;
+  return {
+    added: after.filter((team) => !before.some((other) => other.id === team.id)).map((team) => team.name),
+    removed: before.filter((team) => !after.some((other) => other.id === team.id)).map((team) => team.name),
+  };
+};
+
+/** Said on top of the review when the member's teams are no longer the ones the form was filled in from. Null when they are. */
+export const teamsChangedNotice = (who: string, changed: TeamsChangedSince): string | null => {
+  if (changed.added.length === 0 && changed.removed.length === 0) return null;
+  return [
+    `${who}'s teams changed after this page loaded them.`,
+    ...(changed.added.length ? [`Added to since: ${listOf(changed.added)}.`] : []),
+    ...(changed.removed.length ? [`Taken off since: ${listOf(changed.removed)}.`] : []),
+    "Joins, Leaves and Stays on below are worked out from the member as read when you pressed Review. Check them before you confirm, or go back and change the ticks.",
+  ].join(" ");
+};
+
+export type MemberTeamsReview =
+  /** The form cannot be reviewed as filled in: nothing was read. */
+  | { state: "invalid"; errors: TeamDraftErrors }
+  /** The member could not be read again: no review is shown. */
+  | { state: "read_failed"; refusal: ManagementRefusal }
+  /** The member was read, and their teams can no longer be set from this screen. */
+  | { state: "not_offered"; member: ManagedMember }
+  /** The member was read, and against their teams now the form no longer stands. */
+  | { state: "refused"; member: ManagedMember; errors: TeamDraftErrors }
+  | { state: "review"; member: ManagedMember; request: TeamRequest; changed: TeamsChangedSince };
+
+/* What a press of "Review" on a member's teams does. The request replaces the member's whole set
+   of active teams, so the review is never built from the member as the page loaded them: the
+   member is read again (`GET members/:userId`, one more recorded read, on this press only) and
+   Joins, Leaves and Stays on come from that read, whose version is the one sent. `basis` is the
+   member the ticks were filled in from: what changed since is named on the review. A form that
+   cannot be reviewed whoever the member is now (the reason, the teams ticked) makes no read. */
+export const reviewMemberTeams = async (
+  reads: Pick<TeamReads, "member">,
+  organizationId: string,
+  basis: ManagedMember,
+  draft: TeamDraft,
+  choices: TeamChoice[],
+): Promise<MemberTeamsReview> => {
+  const form = checkTeamDraft("memberTeams", draft, { choices });
+  if (!form.ok) return { state: "invalid", errors: form.errors };
+  let read: ManagementResult<ManagedMember>;
+  try {
+    read = await reads.member(organizationId, basis.member.userId);
+  } catch {
+    read = refused("unavailable");
+  }
+  if (!read.ok) return { state: "read_failed", refusal: read };
+  const member = read.data;
+  if (!memberTeamsOffered(member.member)) return { state: "not_offered", member };
+  const checked = checkTeamDraft("memberTeams", draft, { member: member.member, choices });
+  if (!checked.ok) return { state: "refused", member, errors: checked.errors };
+  return { state: "review", member, request: checked.request, changed: teamsChangedSince(basis.member, member.member) };
+};
 
 export type TeamReviewContext = {
   organization: ManagedOrganization;
@@ -501,6 +573,7 @@ export const teamReviewLines = (kind: TeamWrite, context: TeamReviewContext, req
         ...(change.joins.length ? [`Joins: ${listOf(change.joins)}.`] : []),
         ...(change.leaves.length ? [`Leaves: ${listOf(change.leaves)}.`] : []),
         ...(change.stays.length ? [`Stays on: ${listOf(change.stays)}.`] : []),
+        chosen.length ? MEMBER_TEAMS_EXACT : MEMBER_TEAMS_EXACT_NONE,
         ...MEMBER_TEAMS_EFFECTS.slice(0, archived.length ? 2 : 1),
         ...(archived.length ? [`Archived teams this member is on, not changed: ${listOf(archived)}.`] : []),
         `${MANAGER_REACH.replace("this team's", "a team's")} ${NO_SESSION_ENDED}`,

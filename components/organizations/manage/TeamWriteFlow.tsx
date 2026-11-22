@@ -43,6 +43,7 @@ import {
   memberTeamsOffered,
   memberTeamsPath,
   NO_SESSION_ENDED,
+  reviewMemberTeams,
   TEAM_NAME_RULE,
   TEAM_WRITE_COPY,
   teamCreatePath,
@@ -50,6 +51,7 @@ import {
   teamMemberWritePath,
   teamResultSummary,
   teamReviewLines,
+  teamsChangedNotice,
   teamWritePath,
   type TeamChoice,
   type TeamDraft,
@@ -138,7 +140,10 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
   const [managed, setManaged] = useState<ManagedMember | null>(member ?? null);
   const [draft, setDraft] = useState<TeamDraft>(() => emptyTeamDraft(kind === "memberTeams" && member ? initialTeamIds(member.member, choices) : []));
   const [errors, setErrors] = useState<TeamDraftErrors>({});
-  const [review, setReview] = useState<{ id: number; request: TeamRequest } | null>(null);
+  // The member the ticks were filled in from: what changed since is named on the review.
+  const [basis] = useState<ManagedMember | null>(member ?? null);
+  const [review, setReview] = useState<{ id: number; request: TeamRequest; notice: string | null } | null>(null);
+  const [reviewRead, setReviewRead] = useState<Reload>({ phase: "idle" });
   const [done, setDone] = useState<{ request: TeamRequest; answer: TeamWriteAnswer } | null>(null);
   const [reload, setReload] = useState<Reload>({ phase: "idle" });
   const errorSummary = useRef<HTMLDivElement>(null);
@@ -197,6 +202,7 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
         context={context}
         subject={subject}
         request={review.request}
+        notice={review.notice}
         reload={reload}
         onLoadCurrentMember={loadCurrentMember}
         onBack={() => {
@@ -218,7 +224,41 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
       });
     }
   };
+  /* A member's teams: the request replaces the whole set, so each press of Review reads the member
+     again (one more recorded read, on the press only) and the review is built from that read. A
+     read that fails shows no review. */
+  const toMemberTeamsReview = async (loaded: ManagedMember) => {
+    if (reviewRead.phase === "loading") return;
+    setReviewRead({ phase: "loading" });
+    const outcome = await reviewMemberTeams({ member: getManagedMemberAction }, organization.id, basis ?? loaded, draft, choices);
+    if (outcome.state === "read_failed") {
+      setReviewRead({ phase: "failed", refusal: outcome.refusal });
+      return;
+    }
+    setReviewRead({ phase: "idle" });
+    if (outcome.state === "invalid") {
+      setErrors(outcome.errors);
+      focusAfter.current = "errors";
+      return;
+    }
+    // The member as read now: what the form, the review and the request's version are about.
+    setManaged(outcome.member);
+    if (outcome.state === "not_offered") return;
+    if (outcome.state === "refused") {
+      setErrors(outcome.errors);
+      focusAfter.current = "errors";
+      return;
+    }
+    setErrors({});
+    setReload({ phase: "idle" });
+    const notice = teamsChangedNotice(memberLabel(outcome.member.member), outcome.changed);
+    setReview((current) => ({ id: (current?.id ?? 0) + 1, request: outcome.request, notice }));
+  };
   const toReview = () => {
+    if (kind === "memberTeams" && managed) {
+      void toMemberTeamsReview(managed);
+      return;
+    }
     const checked = checkTeamDraft(kind, draft, { teamName: team?.name, member: managed?.member, choices });
     if (!checked.ok) {
       setErrors(checked.errors);
@@ -228,7 +268,7 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
     setErrors({});
     setReload({ phase: "idle" });
     // A new review each time: its confirmation starts empty.
-    setReview((current) => ({ id: (current?.id ?? 0) + 1, request: checked.request }));
+    setReview((current) => ({ id: (current?.id ?? 0) + 1, request: checked.request, notice: null }));
   };
   const errorList = Object.values(errors);
 
@@ -273,11 +313,22 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
 
       <ReasonField value={draft.reason} error={errors.reason} onChange={(reason) => edit({ reason }, "reason")} />
 
+      {reviewRead.phase === "failed" ? (
+        <div className="space-y-2">
+          <RefusalNote refusal={reviewRead.refusal} />
+          <p className="text-sm text-slate-600">The member could not be read again, so there is no review to show. Nothing was changed. Press Review to try again.</p>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
-        <button type="submit" className={primaryButton}>
-          Review
+        <button type="submit" disabled={reviewRead.phase === "loading"} className={primaryButton}>
+          {reviewRead.phase === "loading" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+          {reviewRead.phase === "loading" ? "Reading the member" : "Review"}
         </button>
-        <p className="text-xs text-slate-600">Nothing is changed until you confirm on the next step.</p>
+        <p className="text-xs text-slate-600">
+          {kind === "memberTeams" ? "Review reads this member again, one more recorded view of them, so the review shows their teams as they are now. " : ""}
+          Nothing is changed until you confirm on the next step.
+        </p>
       </div>
     </form>
   );
@@ -413,7 +464,7 @@ const TeamFormBody = ({
         <fieldset className="space-y-3" aria-describedby={errors.teams ? `${groupId}-error` : undefined}>
           <legend className="text-sm font-bold text-[#20304b]">Teams {who} is on</legend>
           <p className="text-sm leading-6 text-slate-600">
-            The member&apos;s active teams become exactly the teams ticked here, at most {MEMBER_TEAMS_MAX}. The teams ticked now are the ones they are on. {MEMBER_TEAMS_EFFECTS[0]}
+            The member&apos;s active teams become exactly the teams ticked here, at most {MEMBER_TEAMS_MAX}. The ticks start as the teams they were on when this page loaded them; each team below says whether they are on it now. {MEMBER_TEAMS_EFFECTS[0]}
           </p>
           {errors.teams ? (
             <p id={`${groupId}-error`} className="text-xs font-semibold text-rose-700">
@@ -471,6 +522,7 @@ function TeamReviewStep({
   context,
   subject,
   request,
+  notice,
   reload,
   onLoadCurrentMember,
   onBack,
@@ -480,6 +532,8 @@ function TeamReviewStep({
   context: TeamReviewContext;
   subject: Subject;
   request: TeamRequest;
+  /** What changed about the member since the form was filled in from them. */
+  notice: string | null;
   reload: Reload;
   onLoadCurrentMember: () => void;
   onBack: () => void;
@@ -548,6 +602,11 @@ function TeamReviewStep({
       <h2 ref={heading} tabIndex={-1} className="text-lg font-bold text-[#12213a] outline-none">
         Review: {copy.title.toLowerCase()}
       </h2>
+      {notice ? (
+        <p role="alert" className="break-words rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-6 text-amber-900">
+          {notice}
+        </p>
+      ) : null}
       <ul className="space-y-2 text-sm leading-6 text-[#20304b]">
         {lines.map((line) => (
           <li key={line} className="break-words rounded-xl bg-slate-50 px-4 py-2.5">

@@ -636,6 +636,23 @@ describe("the team management screens", () => {
     expect(flow.match(/getManagedMemberAction\(/g)).toHaveLength(1);
     expect(flow).toMatch(/const loadCurrentMember = async \(\) => \{[\s\S]*?result = await getManagedMemberAction\(organization\.id, managed\.member\.userId\);/);
     expect(flow.match(/onClick=\{onLoadCurrentMember\}/g)).toHaveLength(1);
+    // And once per press of Review on a member's teams, through the tested view model: the review
+    // is built from that read, never from the member as the page loaded them.
+    expect(flow.match(/getManagedMemberAction/g)).toHaveLength(3);
+    expect(flow).toMatch(/const outcome = await reviewMemberTeams\(\{ member: getManagedMemberAction \}, organization\.id, basis \?\? loaded, draft, choices\);/);
+    expect(flow.match(/reviewMemberTeams\(/g)).toHaveLength(1);
+    expect(flow.match(/toMemberTeamsReview\(/g)).toHaveLength(1);
+    expect(flow).toMatch(/const toReview = \(\) => \{\s*if \(kind === "memberTeams" && managed\) \{\s*void toMemberTeamsReview\(managed\);\s*return;\s*\}/);
+    expect(flow.match(/\btoReview\(\)/g)).toHaveLength(1);
+    expect(flow).toMatch(/onSubmit=\{\(event\) => \{\s*event\.preventDefault\(\);\s*toReview\(\);/);
+    // A failed read shows the failure and no review; a second press while one is in flight reads nothing.
+    expect(flow).toMatch(/if \(outcome\.state === "read_failed"\) \{\s*setReviewRead\(\{ phase: "failed", refusal: outcome\.refusal \}\);\s*return;/);
+    expect(flow).toMatch(/if \(reviewRead\.phase === "loading"\) return;/);
+    expect(flow).toMatch(/<button type="submit" disabled=\{reviewRead\.phase === "loading"\} className=\{primaryButton\}>/);
+    // The member read on the press is the one the review and the request's version are about.
+    expect(flow).toMatch(/setManaged\(outcome\.member\);/);
+    expect(flow).toMatch(/const notice = teamsChangedNotice\(memberLabel\(outcome\.member\.member\), outcome\.changed\);/);
+    expect(flow).toMatch(/\{notice \? \(\s*<p role="alert"/);
     expect(flow).toMatch(/const offersReload = kind === "memberTeams" && Boolean\(member\) && failure !== undefined && \["stale_version", "version_required", "outcome_unknown"\]\.includes\(failure\);/);
     const picker = read(pickerFile);
     expect(actionsIn(pickerFile)).toEqual(["listTeamCandidatesAction"]);
@@ -752,5 +769,7 @@ describe("the team management screens", () => {
     expect(notes).toMatch(/\*\*Team management\*\*/);
     expect(notes).toMatch(/`lib\/organizationManagement\/teams\.ts`/);
     expect(notes).not.toMatch(/Team management is a separate ticket/);
+    // The recorded reads of the member-teams flow: three for the page, and one member read per press of Review.
+    expect(notes).toMatch(/a member's teams 3 \(the\s+member, the content browser's teams read for the active teams, the organization\), and one more\s+member read on each press of "Review"/);
   });
 });

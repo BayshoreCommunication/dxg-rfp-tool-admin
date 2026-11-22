@@ -31,6 +31,8 @@ import {
   managerNote,
   MANAGER_REACH,
   MEMBER_TEAMS_EFFECTS,
+  MEMBER_TEAMS_EXACT,
+  MEMBER_TEAMS_EXACT_NONE,
   memberListNote,
   memberTeamsNote,
   memberTeamsOffered,
@@ -38,6 +40,7 @@ import {
   NO_SESSION_ENDED,
   parseManagedTeam,
   parseTeamAnswer,
+  reviewMemberTeams,
   TEAM_WRITE_COPY,
   TEAM_WRITE_HINTS,
   TEAM_WRITES,
@@ -51,6 +54,8 @@ import {
   teamResultSummary,
   teamReviewLines,
   teamsChange,
+  teamsChangedNotice,
+  teamsChangedSince,
   teamWritePath,
   teamWritesFor,
   type ManagedTeam,
@@ -570,11 +575,18 @@ describe("the form, the review and the result", () => {
       "Pat Planner (pat@acme.example) in Acme Events: their active teams become exactly West, East.",
       "Joins: East.",
       "Stays on: West.",
+      MEMBER_TEAMS_EXACT,
       ...MEMBER_TEAMS_EFFECTS,
       "Archived teams this member is on, not changed: Old Guard.",
       `A Team Manager's reach over a team's proposals follows the change on their next request. ${NO_SESSION_ENDED}`,
     ]);
     expect(teamReviewLines("memberTeams", context, { reason: REASON, teamIds: [] })[0]).toBe("Pat Planner (pat@acme.example) in Acme Events is taken off every active team.");
+    // The request replaces the whole set: the review says so, whatever is chosen.
+    expect(MEMBER_TEAMS_EXACT).toBe(
+      "After this change the member is on exactly the teams listed under Joins and Stays on, and off every other active team, including any they join after this review was made.",
+    );
+    expect(teamReviewLines("memberTeams", context, { reason: REASON, teamIds: [] })).toContain(MEMBER_TEAMS_EXACT_NONE);
+    expect(MEMBER_TEAMS_EXACT_NONE).toMatch(/including any they join after this review was made\.$/);
     // Every line of a review is said once (they are drawn as a list).
     for (const kind of TEAM_WRITES) {
       const lines = teamReviewLines(kind, context, { reason: REASON, name: "North", teamIds: [TEAM_B], isManager: true, target: managed().member });
@@ -686,5 +698,100 @@ describe("the confirmation gate in front of a team write", () => {
     expect(h.gate.getState()).toMatchObject({ typedName: "", confirmed: false, done: false });
     await expect(h.gate.submit()).resolves.toEqual({ sent: false, reason: "not_confirmed" });
     expect(h.pending).toHaveLength(1);
+  });
+});
+
+describe("the review of a member's teams reads the member again", () => {
+  const TEAM_C = "6c0000000000000000000006";
+  const TEAM_D = "6c0000000000000000000007";
+  const ALL: TeamChoice[] = [
+    { id: TEAM, name: "A" },
+    { id: TEAM_B, name: "B" },
+    { id: TEAM_C, name: "C" },
+    { id: TEAM_D, name: "D" },
+  ];
+  const on = (...ids: string[]) => ids.map((id) => ({ id, name: ALL.find((choice) => choice.id === id)?.name ?? "?", archived: false, isManager: false }));
+  const reading = (answer: ManagementResult<ManagedMember> | "throws") => {
+    const calls: string[] = [];
+    const reads: Pick<TeamReads, "member"> = {
+      member: async (organizationId, userId) => {
+        calls.push(`member ${organizationId} ${userId}`);
+        if (answer === "throws") throw new Error("network");
+        return answer;
+      },
+    };
+    return { reads, calls };
+  };
+  const loaded = managed({ teams: on(TEAM, TEAM_B) }, 4);
+  const draft = (teamIds: string[], reason = REASON) => ({ ...emptyTeamDraft(teamIds), reason });
+
+  it("builds Joins, Leaves and Stays from the member as read on the press, and names what changed since the page loaded", async () => {
+    // The page showed A and B. Meanwhile someone added the member to C (their version did not move). Staff tick D.
+    const now = managed({ teams: on(TEAM, TEAM_B, TEAM_C) }, 4);
+    const { reads, calls } = reading({ ok: true, data: now });
+    const outcome = await reviewMemberTeams(reads, ORG, loaded, draft([TEAM, TEAM_B, TEAM_D]), ALL);
+    expect(calls).toEqual([`member ${ORG} ${USER}`]);
+    expect(outcome).toEqual({ state: "review", member: now, request: { reason: REASON, teamIds: [TEAM, TEAM_B, TEAM_D] }, changed: { added: ["C"], removed: [] } });
+    if (outcome.state !== "review") throw new Error("no review");
+    // The review is drawn from the member that read returned: C is named as left, not passed over.
+    const lines = teamReviewLines("memberTeams", { organization: organization(), member: outcome.member.member, choices: ALL }, outcome.request);
+    expect(lines).toEqual(expect.arrayContaining(["Joins: D.", "Leaves: C.", "Stays on: A, B.", MEMBER_TEAMS_EXACT]));
+    expect(teamsChangedNotice("Pat Planner (pat@acme.example)", outcome.changed)).toBe(
+      "Pat Planner (pat@acme.example)'s teams changed after this page loaded them. Added to since: C. Joins, Leaves and Stays on below are worked out from the member as read when you pressed Review. Check them before you confirm, or go back and change the ticks.",
+    );
+    // From the member as the page loaded them the review would not have named C at all.
+    expect(teamReviewLines("memberTeams", { organization: organization(), member: loaded.member, choices: ALL }, outcome.request).join(" ")).not.toMatch(/\bC\b/);
+  });
+
+  it.each([
+    ["nothing changed", on(TEAM, TEAM_B), { added: [], removed: [] }, null],
+    ["added to one", on(TEAM, TEAM_B, TEAM_C), { added: ["C"], removed: [] }, /Added to since: C\. Joins/],
+    ["taken off one", on(TEAM), { added: [], removed: ["B"] }, /them\. Taken off since: B\. Joins/],
+    ["both", on(TEAM, TEAM_C, TEAM_D), { added: ["C", "D"], removed: ["B"] }, /Added to since: C, D\. Taken off since: B\./],
+  ] as const)("what changed since the form was filled in: %s", (_name, teams, changed, notice) => {
+    expect(teamsChangedSince(loaded.member, { teams: [...teams] })).toEqual(changed);
+    const said = teamsChangedNotice("Pat", { added: [...changed.added], removed: [...changed.removed] });
+    if (notice === null) expect(said).toBeNull();
+    else expect(said).toMatch(notice);
+  });
+
+  it("ignores archived memberships when it says what changed", () => {
+    const archived = { id: TEAM_C, name: "C", archived: true, isManager: false };
+    expect(teamsChangedSince(loaded.member, { teams: [...on(TEAM, TEAM_B), archived] })).toEqual({ added: [], removed: [] });
+  });
+
+  it("makes exactly one read per press of Review, and sends the version that read returned", async () => {
+    const now = managed({ teams: on(TEAM, TEAM_B) }, 9);
+    const { reads, calls } = reading({ ok: true, data: now });
+    const first = await reviewMemberTeams(reads, ORG, loaded, draft([TEAM]), ALL);
+    expect(calls).toHaveLength(1);
+    expect(first).toMatchObject({ state: "review", member: { version: 9 }, changed: { added: [], removed: [] } });
+    await reviewMemberTeams(reads, ORG, loaded, draft([TEAM]), ALL);
+    expect(calls).toEqual([`member ${ORG} ${USER}`, `member ${ORG} ${USER}`]);
+  });
+
+  it("makes no read for a form that cannot be reviewed whoever the member is now", async () => {
+    const { reads, calls } = reading({ ok: true, data: loaded });
+    await expect(reviewMemberTeams(reads, ORG, loaded, draft([TEAM], "short"), ALL)).resolves.toMatchObject({ state: "invalid", errors: { reason: expect.any(String) } });
+    await expect(reviewMemberTeams(reads, ORG, loaded, draft([TEAM_OLD]), ALL)).resolves.toMatchObject({ state: "invalid", errors: { teams: "Choose only from the organization's active teams." } });
+    expect(calls).toEqual([]);
+  });
+
+  it.each([["a refusal", refused("rate_limited"), "rate_limited"], ["no answer", "throws", "unavailable"]] as const)("shows no review when the read fails (%s)", async (_name, answer, failure) => {
+    const { reads, calls } = reading(answer);
+    await expect(reviewMemberTeams(reads, ORG, loaded, draft([TEAM]), ALL)).resolves.toEqual({ state: "read_failed", refusal: refused(failure) });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("shows no review when the member as read now is already on exactly the teams ticked, or can't have teams set", async () => {
+    // Someone added them to D meanwhile: the ticks A, B, D are their teams now.
+    const same = reading({ ok: true, data: managed({ teams: on(TEAM, TEAM_B, TEAM_D) }) });
+    await expect(reviewMemberTeams(same.reads, ORG, loaded, draft([TEAM, TEAM_B, TEAM_D]), ALL)).resolves.toMatchObject({
+      state: "refused",
+      member: { member: { teams: on(TEAM, TEAM_B, TEAM_D) } },
+      errors: { teams: "These are the member's teams now. Choose a different set." },
+    });
+    const removed = reading({ ok: true, data: managed({ status: "removed" }) });
+    await expect(reviewMemberTeams(removed.reads, ORG, loaded, draft([TEAM]), ALL)).resolves.toMatchObject({ state: "not_offered", member: { member: { status: "removed" } } });
   });
 });
