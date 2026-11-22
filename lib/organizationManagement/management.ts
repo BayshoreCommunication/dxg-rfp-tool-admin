@@ -1,6 +1,8 @@
 // Staff management of a customer organization (owner decisions, 2026-11-18): RFPilot staff change
 // a member's role, deactivate and reactivate a member, reassign a member's proposals, transfer
-// ownership, and block or reactivate the whole organization. Team management is a separate ticket.
+// ownership, and block or reactivate the whole organization. Team management is the sibling of
+// this file, lib/organizationManagement/teams.ts: it shares the ids, the reason, the refusals and
+// their wording below.
 //
 // The backend routes are under /api/v1/admin/organizations/:organizationId (docs/API.md, "Staff
 // member management" and "Staff organization block"). Every request, the single-member read
@@ -206,7 +208,21 @@ export type ManagementFailure =
   | "organization_not_manageable"
   | "reassign_target_ineligible"
   | "reassign_to_self"
-  | "proposals_not_owned";
+  | "proposals_not_owned"
+  // Team management (lib/organizationManagement/teams.ts).
+  | "invalid_team_id"
+  | "invalid_team_name"
+  | "invalid_teams"
+  | "unknown_teams"
+  | "team_not_found"
+  | "team_member_not_found"
+  /** MEMBER_NOT_FOUND on adding a team member or setting a manager: not an active member of the organization. */
+  | "member_not_active"
+  | "team_name_taken"
+  | "team_archived"
+  | "team_member_exists"
+  | "team_manager_role_required"
+  | "teams_unavailable";
 
 const BY_CODE: Record<string, ManagementFailure> = {
   // 400
@@ -242,6 +258,21 @@ const BY_CODE: Record<string, ManagementFailure> = {
   // 500: the change may already be saved (the session revocation runs after it).
   STAFF_MEMBERS_INTERNAL_ERROR: "outcome_unknown",
   STAFF_ORGANIZATION_BLOCK_INTERNAL_ERROR: "outcome_unknown",
+  // Staff team management (docs/API.md, "Staff team management").
+  INVALID_TEAM_ID: "invalid_team_id",
+  INVALID_TEAM_NAME: "invalid_team_name",
+  INVALID_TEAM_MANAGER: "invalid_request",
+  INVALID_TEAMS: "invalid_teams",
+  UNKNOWN_TEAMS: "unknown_teams",
+  TEAM_NOT_FOUND: "team_not_found",
+  TEAM_MEMBER_NOT_FOUND: "team_member_not_found",
+  TEAM_NAME_TAKEN: "team_name_taken",
+  TEAM_ARCHIVED: "team_archived",
+  TEAM_MEMBER_EXISTS: "team_member_exists",
+  TEAM_MANAGER_ROLE_REQUIRED: "team_manager_role_required",
+  // 503, answered before anything is written.
+  TEAMS_UNAVAILABLE: "teams_unavailable",
+  STAFF_TEAMS_INTERNAL_ERROR: "outcome_unknown",
 };
 
 export type RequestMode = "read" | "write";
@@ -282,6 +313,8 @@ export type ManagementRefusal = {
   standing?: string;
   /** RFPS_NOT_OWNED_BY_MEMBER. */
   notOwnedCount?: number;
+  /** UNKNOWN_TEAMS: the ids, of those sent, that are not active teams of the organization. */
+  unknownTeamIds?: string[];
   retryAfterSeconds?: number;
 };
 
@@ -297,6 +330,7 @@ export const refusalOf = (status: number, body: unknown, retryAfter: string | nu
   const owned = wholeNumber(raw?.ownedRfpCount);
   const notOwned = wholeNumber(raw?.notOwnedCount);
   const retryAfterSeconds = status === 429 ? retryAfterSecondsOf(retryAfter) : null;
+  const unknownTeamIds = Array.isArray(raw?.unknownTeamIds) ? raw.unknownTeamIds.filter(isManagementId).slice(0, 100) : [];
   return {
     ok: false,
     failure,
@@ -305,6 +339,7 @@ export const refusalOf = (status: number, body: unknown, retryAfter: string | nu
     ...(failure === "owner_has_proposals" && raw?.reverted === true ? { reverted: true as const } : {}),
     ...(failure === "organization_not_manageable" && typeof raw?.standing === "string" && /^[a-z_]{1,40}$/.test(raw.standing) ? { standing: raw.standing } : {}),
     ...(failure === "proposals_not_owned" && notOwned !== null ? { notOwnedCount: notOwned } : {}),
+    ...(failure === "unknown_teams" && unknownTeamIds.length > 0 ? { unknownTeamIds } : {}),
     ...(retryAfterSeconds ? { retryAfterSeconds } : {}),
   };
 };
@@ -404,6 +439,34 @@ export const managementFailureCopy = (refusal: Pick<ManagementRefusal, "failure"
         tone: "problem",
       };
     }
+    case "invalid_team_id":
+      return { title: "This link doesn't point to a team", message: "The address is incomplete or mistyped. Open it from the organization's Teams page.", tone: "calm" };
+    case "invalid_team_name":
+      return { title: "The team name was not accepted", message: "A team name must be 1 to 120 characters. Nothing was changed.", tone: "problem" };
+    case "invalid_teams":
+      return { title: "The list of teams was not accepted", message: "It must be a list of up to 100 teams. Nothing was changed.", tone: "problem" };
+    case "unknown_teams":
+      return {
+        title: "Some of the teams are not active teams of this organization",
+        message: "A team that is archived, missing or in another organization can't be chosen. Nothing was changed, not even the teams that are active.",
+        tone: "problem",
+      };
+    case "team_not_found":
+      return { title: "Team not found", message: "This team doesn't exist in this organization. Nothing was changed.", tone: "calm" };
+    case "team_member_not_found":
+      return { title: "This member is not on the team", message: "Only a member who is on the team can be taken off it or have their manager setting changed. Nothing was changed.", tone: "calm" };
+    case "member_not_active":
+      return { title: "Not an active member of this organization", message: "Only an active member of the organization can be added to a team or made its manager. Nothing was changed.", tone: "problem" };
+    case "team_name_taken":
+      return { title: "An active team already has this name", message: "Active team names are unique in an organization, ignoring case. Nothing was changed. Choose another name.", tone: "problem" };
+    case "team_archived":
+      return { title: "This team is archived", message: "An archived team can't be renamed, archived again or have its members changed, and there is no un-archive. Nothing was changed.", tone: "calm" };
+    case "team_member_exists":
+      return { title: "This member is already on the team", message: "There is nothing to add. Nothing was changed.", tone: "calm" };
+    case "team_manager_role_required":
+      return { title: "A team manager must hold the Team Manager role", message: "Only a member with the Team Manager role can manage a team. Nothing was changed.", tone: "problem" };
+    case "teams_unavailable":
+      return { title: "Teams aren't available on the server right now", message: "The server could not check the teams, so it changed nothing. Try again in a moment.", tone: "problem" };
     default:
       return { title: "Unable to load this page", message: "The server couldn't be reached or didn't answer as expected. Try again in a moment.", tone: "problem" };
   }
