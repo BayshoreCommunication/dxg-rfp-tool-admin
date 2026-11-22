@@ -55,6 +55,8 @@ export default function ReassignTargetPicker({
   };
 
   const loading = list.phase === "loading";
+  // The page a first load, or another try, asks for.
+  const firstOrSame = list.phase === "loading" || list.phase === "failed" ? list.page : 1;
   const ready = list.phase === "ready" ? list.page : null;
   const eligible = ready ? ready.candidates.filter((candidate) => canReceiveProposals(candidate, fromUserId)) : [];
   const others = ready ? ready.candidates.length - eligible.length : 0;
@@ -115,7 +117,7 @@ export default function ReassignTargetPicker({
 
       <div className="flex flex-wrap items-center gap-3">
         {list.phase === "idle" || list.phase === "failed" || loading ? (
-          <button type="button" onClick={() => load(list.phase === "idle" ? 1 : list.page)} disabled={loading} className={secondaryButton}>
+          <button type="button" onClick={() => load(firstOrSame)} disabled={loading} className={secondaryButton}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             {loading ? "Loading members" : list.phase === "failed" ? "Try loading again" : chosen ? "Choose a different member" : "Load members to choose from"}
           </button>
