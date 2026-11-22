@@ -32,6 +32,31 @@ const WRITE_ACTIONS = [
   "blockOrganizationAction",
   "reactivateOrganizationAction",
 ];
+// Team management (the second half of the feature): its reads, its writes, its files.
+const TEAM_READ_ACTIONS = ["getManagedTeamAction", "listActiveTeamsAction", "listTeamCandidatesAction"];
+const TEAM_WRITE_ACTIONS = [
+  "createTeamAction",
+  "renameTeamAction",
+  "archiveTeamAction",
+  "addTeamMemberAction",
+  "setTeamManagerAction",
+  "removeTeamMemberAction",
+  "setMemberTeamsAction",
+];
+const ALL_ACTIONS = [...READ_ACTIONS, ...WRITE_ACTIONS, ...TEAM_READ_ACTIONS, ...TEAM_WRITE_ACTIONS];
+const TEAM_PAGES = [
+  `${ROOT}/members/[userId]/teams/page.tsx`,
+  `${ROOT}/teams/[teamId]/archive/page.tsx`,
+  `${ROOT}/teams/[teamId]/members/[userId]/make-manager/page.tsx`,
+  `${ROOT}/teams/[teamId]/members/[userId]/remove-manager/page.tsx`,
+  `${ROOT}/teams/[teamId]/members/[userId]/remove/page.tsx`,
+  `${ROOT}/teams/[teamId]/members/add/page.tsx`,
+  `${ROOT}/teams/[teamId]/page.tsx`,
+  `${ROOT}/teams/[teamId]/rename/page.tsx`,
+  `${ROOT}/teams/new/page.tsx`,
+];
+const TEAM_COMPONENTS = [`${COMPONENTS}/TeamManagement.tsx`, `${COMPONENTS}/TeamMemberPicker.tsx`, `${COMPONENTS}/TeamWriteFlow.tsx`, `${COMPONENTS}/TeamWriteScreens.tsx`];
+const TEAM_FILES = [...TEAM_PAGES, ...TEAM_COMPONENTS, `${LIB}/teams.ts`];
 const actionsIn = (file: string) => [...new Set(withoutComments(read(file)).match(/\b\w+Action\b/g) ?? [])].sort();
 
 describe("the staff management screens", () => {
@@ -55,6 +80,7 @@ describe("the staff management screens", () => {
         `${COMPONENTS}/WriteFlow.tsx`,
         `${LIB}/confirmGate.ts`,
         `${LIB}/management.ts`,
+        ...TEAM_FILES,
       ].sort(),
     );
   });
@@ -65,8 +91,12 @@ describe("the staff management screens", () => {
     }
     const lib = read(`${LIB}/management.ts`);
     expect(lib).toMatch(/export const MANAGEMENT_PATH = "\/organization-management";/);
-    // No team management here: that is a separate ticket.
-    for (const file of [...screenFiles, ACTIONS]) expect({ file, teams: /\/teams\b|TeamAction|team-management/.test(withoutComments(read(file))) }).toEqual({ file, teams: false });
+    // Team management lives in its own files of the feature. The member, ownership and block
+    // files call none of its actions: they reach it only by its addresses (the member page's
+    // "Change teams", the frame's ways back) and hand it the reason field and the review facts.
+    for (const file of screenFiles.filter((path) => !TEAM_FILES.includes(path))) {
+      expect({ file, teams: /\b\w*Teams?\w*Action\b|team-management/.test(withoutComments(read(file))) }).toEqual({ file, teams: false });
+    }
   });
 
   it("is the only caller of the management actions", () => {
@@ -77,10 +107,14 @@ describe("the staff management screens", () => {
       `${COMPONENTS}/MemberWriteScreen.tsx`,
       `${COMPONENTS}/OrganizationWriteScreen.tsx`,
       `${COMPONENTS}/ReassignTargetPicker.tsx`,
+      `${COMPONENTS}/TeamMemberPicker.tsx`,
+      `${COMPONENTS}/TeamWriteFlow.tsx`,
+      `${COMPONENTS}/TeamWriteScreens.tsx`,
       `${COMPONENTS}/WriteFlow.tsx`,
-    ]);
+      `${ROOT}/teams/[teamId]/page.tsx`,
+    ].sort());
     // And no file outside the feature names one of them in any other way.
-    const names = new RegExp(`\\b(${[...READ_ACTIONS, ...WRITE_ACTIONS].join("|")})\\b`);
+    const names = new RegExp(`\\b(${ALL_ACTIONS.join("|")})\\b`);
     for (const file of everywhere) {
       if (file === ACTIONS || file.startsWith(PAGES) || file.startsWith(COMPONENTS)) continue;
       expect({ file, names: names.test(read(file)) }).toEqual({ file, names: false });
@@ -94,7 +128,7 @@ describe("the staff management screens", () => {
     expect(source).not.toMatch(/\/api\/admin\/|\/api\/v1\//);
     const imported = [...source.matchAll(/from "(@\/app\/actions\/[^"]+)"/g)].map((match) => match[1]);
     for (const path of imported) expect(path).toBe("@/app/actions/organizationManagement");
-    for (const action of actionsIn(file)) expect([...READ_ACTIONS, ...WRITE_ACTIONS]).toContain(action);
+    for (const action of actionsIn(file)) expect(ALL_ACTIONS).toContain(action);
     // The pure code under lib/ calls nothing at all: what it sends is handed to it.
     if (file.startsWith(LIB)) expect(imported).toEqual([]);
     // Nothing is cached, polled or refreshed behind the page.
@@ -111,14 +145,18 @@ describe("the staff management screens", () => {
     expect(source).not.toMatch(/revalidatePath|unstable_cache|force-cache|"use cache"/);
     // Every exported action asks who is signed in before anything else.
     const bodies = source.split(/\nexport async function /).slice(1);
-    expect(bodies).toHaveLength(10);
+    expect(bodies).toHaveLength(20);
     for (const body of bodies) {
       const firstStatement = body.slice(body.indexOf("{\n") + 2).trimStart();
       expect(firstStatement.startsWith("const denied = await staffRefusal();\n  if (denied) return denied;")).toBe(true);
     }
     // The only methods, and the only routes.
-    expect([...new Set(source.match(/method: "[A-Z]+"/g))].sort()).toEqual(['method: "GET"', 'method: "PATCH"', 'method: "POST"']);
-    expect(source).not.toMatch(/DELETE|PUT\b/);
+    expect([...new Set(source.match(/method: "[A-Z]+"/g))].sort()).toEqual(['method: "DELETE"', 'method: "GET"', 'method: "PATCH"', 'method: "POST"', 'method: "PUT"']);
+    // One DELETE (a member off a team, its reason in a JSON body) and one PUT (a member's teams): nothing else deletes or replaces.
+    expect(source.match(/method: "DELETE"/g)).toHaveLength(1);
+    expect(source.match(/method: "PUT"/g)).toHaveLength(1);
+    expect(source).toMatch(/ask\("write", `\/\$\{organizationId\}\/teams\/\$\{teamId\}\/members\/\$\{userId\}`, \{ method: "DELETE", body: \{ reason \} \}/);
+    expect(source).toMatch(/ask\("write", `\/\$\{organizationId\}\/members\/\$\{userId\}\/teams`, \{ method: "PUT", body: \{ teamIds, version, reason \} \}/);
     const routes = [...source.matchAll(/ask\("(read|write)", `([^`]+)`/g)].map((match) => `${match[1]} ${match[2]}`);
     expect(routes.sort()).toEqual(
       [
@@ -128,6 +166,15 @@ describe("the staff management screens", () => {
         "write /${organizationId}/members/${userId}/reassign-rfps",
         "write /${organizationId}/ownership/transfer",
         'write /${organizationId}/${write === "block" ? "block" : "reactivate"}',
+        // Team management. The same address is asked twice: PATCH sets the manager, DELETE takes the member off.
+        "read /${organizationId}/teams/${teamId}",
+        "write /${organizationId}/teams",
+        "write /${organizationId}/teams/${teamId}",
+        "write /${organizationId}/teams/${teamId}/archive",
+        "write /${organizationId}/teams/${teamId}/members",
+        "write /${organizationId}/teams/${teamId}/members/${userId}",
+        "write /${organizationId}/teams/${teamId}/members/${userId}",
+        "write /${organizationId}/members/${userId}/teams",
       ].sort(),
     );
     // A body is never the caller's object: every one is written out field by field.
@@ -140,8 +187,9 @@ describe("the staff management screens", () => {
     expect(actions).not.toMatch(/\/proposals|\/templates|\/vendors|vendor-responses/);
     for (const file of screenFiles) {
       const source = withoutComments(read(file));
-      // No route, path helper, component or action of customer content, except the Members list's address.
-      expect({ file, content: /organization(Proposals?|VendorResponses|Templates?|Vendors|Teams|Section)Path|organizationContent"|@\/components\/organizations\/content\/(?!ContentChrome")/.test(source) }).toEqual({ file, content: false });
+      // No route, path helper, component or action of customer content, except the Members list's
+      // address and, for the team pages' way back, the Teams list's.
+      expect({ file, content: /organization(Proposals?|VendorResponses|Templates?|Vendors|Section)Path|organizationContent"|@\/components\/organizations\/content\/(?!ContentChrome")/.test(source) }).toEqual({ file, content: false });
       expect({ file, list: /(list|get)Organization\w+Action/.test(source) }).toEqual({ file, list: false });
       // No icon and no label of an edit or delete control.
       expect({ file, icons: /\b(Pencil|PencilLine|Edit|Edit2|Edit3|SquarePen|Trash|Trash2|Share|Share2|Download|Upload|FileDown|Copy|Printer|Send|Save)\b,?/.test(source) }).toEqual({ file, icons: false });
@@ -154,7 +202,7 @@ describe("the staff management screens", () => {
   });
 
   it("never prefetches a recorded read: every Link into an organization page or a management page opts out", () => {
-    const recorded = /organizationAccountPath\(|organization\w+Path\(|memberManagementPath\(|memberWritePath\(|reassignBeforeDeactivatePath\(|sessionRenewPath\(|retryHref|["'`{]\/organizations\/|["'`{]\/organization-management/;
+    const recorded = /organizationAccountPath\(|organization\w+Path\(|memberManagementPath\(|memberWritePath\(|reassignBeforeDeactivatePath\(|sessionRenewPath\(|retryHref|team(Create|Management|Write|MemberWrite)Path\(|memberTeamsPath\(|["'`{]\/organizations\/|["'`{]\/organization-management/;
     let found = 0;
     for (const file of everywhere.filter((path) => /\.tsx$/.test(path))) {
       const inFeature = file.startsWith(PAGES) || file.startsWith(COMPONENTS);
@@ -200,7 +248,7 @@ describe("the staff management screens", () => {
     expect(organizationScreen.match(/getManagedOrganizationAction/g)).toHaveLength(2);
     expect(organizationScreen).toMatch(/\{organizationLabel\(organization\)\}/);
     // Every other page file only hands its address to one of those two screens.
-    const thin = sourceFiles(PAGES).filter((file) => /\/page\.tsx$/.test(file) && file !== `${ROOT}/members/[userId]/page.tsx`);
+    const thin = sourceFiles(PAGES).filter((file) => /\/page\.tsx$/.test(file) && file !== `${ROOT}/members/[userId]/page.tsx` && !TEAM_PAGES.includes(file));
     expect(thin).toHaveLength(7);
     for (const file of thin) {
       const source = read(file);
@@ -232,7 +280,7 @@ describe("the staff management screens", () => {
 
   it("renders each page for every request", () => {
     const pages = sourceFiles(PAGES).filter((file) => /\/page\.tsx$/.test(file));
-    expect(pages).toHaveLength(8);
+    expect(pages).toHaveLength(8 + TEAM_PAGES.length);
     for (const page of pages) {
       expect({ page, dynamic: /export const dynamic = "force-dynamic";/.test(read(page)) }).toEqual({ page, dynamic: true });
       expect(read(page)).not.toMatch(/"use client"|revalidate|unstable_cache|generateStaticParams/);
