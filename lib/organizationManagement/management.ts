@@ -569,16 +569,22 @@ export const WRITE_COPY: Record<WriteKind, WriteCopy> = {
   unblock: { title: "Reactivate organization", confirm: "Reactivate organization", sending: "Reactivating the organization", danger: false },
 };
 
-/** What a block does and does not do, as both the block and the reactivate page state it. */
+/* What a block does and does not do, as both the block and the reactivate page state it. The
+   exceptions are the backend's own (docs/API.md, "Staff organization block": the background work
+   table and "Known limits" 1, 2 and 7). Nothing is claimed here that those do not say. */
 export const BLOCK_EFFECTS = {
   does: [
     "Ends every member's session at once.",
     "Closes sign-in for every member of the organization.",
     "Closes vendor links, shared proposal pages and invitation links: they answer like a link that does not exist.",
-    "Pauses the organization's background work until it is reactivated.",
+    "Pauses background work that has not started, until the organization is reactivated.",
   ],
   doesNot: [
     "Deletes nothing: all of the organization's data is kept.",
+    "Does not stop a background job that is already running when the block lands: it runs to the end and may save its result.",
+    "Does not cut a notification connection or a response that is already open when the block lands: it ends with that request, and no new one can be opened.",
+    "Does not close files kept under the old /uploads address: they are served by file name, with no organization in the address.",
+    "Does not pause the escalation of the organization's support tickets to RFPilot staff.",
     "Does not stop RFPilot staff: staff can still view and manage the organization.",
     "Is not shown to the customer as a staff change: it is recorded on the RFPilot side only.",
   ],

@@ -524,9 +524,18 @@ describe("the form, the review and the result", () => {
     expect(text).toMatch(/Closes sign-in for every member/);
     expect(text).toMatch(/vendor links, shared proposal pages and invitation links/);
     expect(text).toMatch(/all of the organization's data is kept/);
-    expect(text).toMatch(/Pauses the organization's background work/);
     expect(text).toMatch(/staff can still view and manage the organization/);
     expect(BLOCK_EFFECTS.does).toHaveLength(4);
+    // The backend's known limits: a block is not described as more complete than it is.
+    expect(text).toMatch(/Pauses background work that has not started/);
+    expect(text).not.toMatch(/Pauses the organization's background work/);
+    expect(text).toMatch(/already running when the block lands: it runs to the end and may save its result/);
+    expect(text).toMatch(/notification connection or a response that is already open when the block lands/);
+    expect(text).toMatch(/old \/uploads address/);
+    expect(text).toMatch(/Does not pause the escalation of the organization's support tickets to RFPilot staff/);
+    expect(BLOCK_EFFECTS.doesNot).toHaveLength(7);
+    // Only what the backend documents: file links are not mentioned beyond the /uploads address.
+    expect(text).not.toMatch(/expire/);
     expect(reviewLines("unblock", { organization: organization() }, { reason: REASON })[0]).toBe("Acme Events is reactivated.");
   });
 
