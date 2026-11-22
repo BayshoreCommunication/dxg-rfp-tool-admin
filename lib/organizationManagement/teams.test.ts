@@ -44,6 +44,7 @@ import {
   NO_SESSION_ENDED,
   parseManagedTeam,
   parseTeamAnswer,
+  reloadedTeamDraft,
   reviewMemberTeams,
   TEAM_WRITE_COPY,
   TEAM_WRITE_HINTS,
@@ -853,6 +854,17 @@ describe("the review of a member's teams reads the member again", () => {
   it("ignores archived memberships when it says what changed", () => {
     const archived = { id: TEAM_C, name: "C", archived: true, isManager: false };
     expect(teamsChangedSince(loaded.member, { teams: [...on(TEAM, TEAM_B), archived] })).toEqual({ added: [], removed: [] });
+  });
+
+  it("sets the ticks to the reloaded member's teams after 'Load the current member', and keeps the reason", () => {
+    // Loaded on A and B; staff ticked D as well; the member loaded again is on A and C.
+    const ticked = draft([TEAM, TEAM_B, TEAM_D]);
+    const now = managed({ teams: [...on(TEAM, TEAM_C), { id: TEAM_OLD, name: "Old Guard", archived: true, isManager: false }] });
+    expect(reloadedTeamDraft(ticked, now.member, ALL)).toEqual({ ...ticked, teamIds: [TEAM, TEAM_C] });
+    expect(reloadedTeamDraft(ticked, now.member, ALL).reason).toBe(REASON);
+    // The form then stands as "no change yet": the old ticks are not sent by a review pressed at once.
+    expect(checkTeamDraft("memberTeams", reloadedTeamDraft(ticked, now.member, ALL), { member: now.member, choices: ALL })).toMatchObject({ ok: false, errors: { teams: "These are the member's teams now. Choose a different set." } });
+    expect(reloadedTeamDraft(ticked, { teams: [] }, ALL).teamIds).toEqual([]);
   });
 
   it("makes exactly one read per press of Review, and sends the version that read returned", async () => {

@@ -45,6 +45,7 @@ import {
   memberTeamsPath,
   memberTeamsTooMany,
   NO_SESSION_ENDED,
+  reloadedTeamDraft,
   reviewMemberTeams,
   TEAM_NAME_RULE,
   TEAM_WRITE_COPY,
@@ -145,7 +146,7 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
   const [draft, setDraft] = useState<TeamDraft>(() => emptyTeamDraft(kind === "memberTeams" && member ? initialTeamIds(member.member, choices) : []));
   const [errors, setErrors] = useState<TeamDraftErrors>({});
   // The member the ticks were filled in from: what changed since is named on the review.
-  const [basis] = useState<ManagedMember | null>(member ?? null);
+  const [basis, setBasis] = useState<ManagedMember | null>(member ?? null);
   const [review, setReview] = useState<{ id: number; request: TeamRequest; notice: string | null } | null>(null);
   const [reviewRead, setReviewRead] = useState<Reload>({ phase: "idle" });
   const [done, setDone] = useState<{ request: TeamRequest; answer: TeamWriteAnswer } | null>(null);
@@ -182,6 +183,10 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
       return;
     }
     setManaged(result.data);
+    // The ticks start again from the member as they are now, and so does what the review compares against.
+    setBasis(result.data);
+    setDraft((current) => reloadedTeamDraft(current, result.data.member, choices));
+    setErrors({});
     setReview(null);
     setReload({ phase: "loaded" });
     focusAfter.current = "form";
@@ -305,7 +310,7 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
 
       {reload.phase === "loaded" ? (
         <p role="status" className="rounded-xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm leading-6 text-cyan-900">
-          The member was loaded again and is shown as they are now. Check their teams, then review the change again.
+          The member was loaded again and is shown as they are now. The ticks were set back to the teams they are on now: tick the change again, then review it.
         </p>
       ) : null}
 
@@ -489,7 +494,7 @@ const TeamFormBody = ({
         <fieldset className="space-y-3" aria-describedby={errors.teams ? `${groupId}-error` : undefined}>
           <legend className="text-sm font-bold text-[#20304b]">Teams {who} is on</legend>
           <p className="text-sm leading-6 text-slate-600">
-            The member&apos;s active teams become exactly the teams ticked here, at most {MEMBER_TEAMS_MAX}. The ticks start as the teams they were on when this page loaded them; each team below says whether they are on it now. {MEMBER_TEAMS_EFFECTS[0]}
+            The member&apos;s active teams become exactly the teams ticked here, at most {MEMBER_TEAMS_MAX}. The ticks start as the teams they were on when this page last loaded them; each team below says whether they are on it now. {MEMBER_TEAMS_EFFECTS[0]}
           </p>
           {errors.teams ? (
             <p id={`${groupId}-error`} className="text-xs font-semibold text-rose-700">

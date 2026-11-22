@@ -636,6 +636,10 @@ describe("the team management screens", () => {
     expect(flow.match(/getManagedMemberAction\(/g)).toHaveLength(1);
     expect(flow).toMatch(/const loadCurrentMember = async \(\) => \{[\s\S]*?result = await getManagedMemberAction\(organization\.id, managed\.member\.userId\);/);
     expect(flow.match(/onClick=\{onLoadCurrentMember\}/g)).toHaveLength(1);
+    // The member loaded again replaces the ticks: none of the member as first loaded is kept.
+    expect(flow).toMatch(/setManaged\(result\.data\);\s*(\/\/.*\s*)*setBasis\(result\.data\);\s*setDraft\(\(current\) => reloadedTeamDraft\(current, result\.data\.member, choices\)\);/);
+    expect(flow).not.toMatch(/The teams ticked now are the ones they are on/);
+    expect(flow).toMatch(/The ticks were set back to the teams they are on now/);
     // And once per press of Review on a member's teams, through the tested view model: the review
     // is built from that read, never from the member as the page loaded them.
     expect(flow.match(/getManagedMemberAction/g)).toHaveLength(3);

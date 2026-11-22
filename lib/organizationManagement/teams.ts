@@ -466,6 +466,12 @@ export const MEMBER_TEAMS_EXACT_NONE = "After this change the member is on no ac
 export type TeamDraft = { reason: string; name: string; target: TeamCandidate | null; makeManager: boolean; teamIds: string[] };
 export const emptyTeamDraft = (teamIds: string[] = []): TeamDraft => ({ reason: "", name: "", target: null, makeManager: false, teamIds });
 
+/* The form after "Load the current member": the ticks are set to the teams the member is on now.
+   The ticks of the member as first loaded are not kept: the request replaces the whole set, and
+   an old tick would add or remove a team staff never chose against the member as they are. The
+   reason typed is kept. */
+export const reloadedTeamDraft = (draft: TeamDraft, member: Pick<Member, "teams">, choices: TeamChoice[]): TeamDraft => ({ ...draft, teamIds: initialTeamIds(member, choices) });
+
 export type TeamDraftField = "reason" | "name" | "target" | "teams";
 export type TeamDraftErrors = Partial<Record<TeamDraftField, string>>;
 
