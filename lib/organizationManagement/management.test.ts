@@ -305,6 +305,9 @@ describe("the refusal of every status and code", () => {
     expect(titles.size).toBe(failures.length);
     expect(managementFailureCopy(refused("not_available")).title).toBe("Not available yet");
     expect(managementFailureCopy(refused("stale_version")).message).toMatch(/Load the current member/);
+    // The API says only that the version moved, not who moved it.
+    expect(managementFailureCopy(refused("stale_version")).message).toMatch(/^This member changed after this page loaded it, so the change was not made\./);
+    expect(managementFailureCopy(refused("stale_version")).message).not.toMatch(/Someone else/);
     expect(managementFailureCopy(refused("rate_limited")).message).toMatch(/60 per 15 minutes/);
     expect(managementFailureCopy({ failure: "rate_limited", retryAfterSeconds: 45 }).message).toMatch(/Try again in about 45 seconds\./);
     expect(managementFailureCopy({ failure: "rate_limited", retryAfterSeconds: 600 }).message).toMatch(/Try again in about 10 minutes\./);
@@ -572,7 +575,17 @@ describe("the form, the review and the result", () => {
       "1 proposal moved from Pat Planner (pat@acme.example) to Vic Vendor-Lead (vic@acme.example) in Acme Events.",
     ]);
     expect(resultSummary("reassign", context, { reason: REASON, target }, { answer: "reassign", reassignedCount: 12 }).lines[0]).toMatch(/^12 proposals moved/);
-    expect(resultSummary("reassign", context, { reason: REASON, target }, { answer: "reassign", reassignedCount: 0 }).title).toBe("No proposals to move");
+    const none = { answer: "reassign" as const, reassignedCount: 0 };
+    expect(resultSummary("reassign", context, { reason: REASON, target }, none)).toEqual({
+      title: "No proposals to move",
+      lines: ["Pat Planner (pat@acme.example) owns no proposals in Acme Events. Nothing was moved."],
+    });
+    // After an attempt whose outcome was unknown, "nothing was moved" is only true of this request.
+    expect(resultSummary("reassign", context, { reason: REASON, target }, none, { afterUnknownOutcome: true }).lines).toEqual([
+      "Pat Planner (pat@acme.example) owns no proposals in Acme Events now. This request moved nothing.",
+      "An earlier attempt from this page was not confirmed by the server and may already have moved them to the member chosen then.",
+    ]);
+    expect(resultSummary("reassign", context, { reason: REASON, target }, { answer: "reassign", reassignedCount: 2 }, { afterUnknownOutcome: true }).lines[0]).toMatch(/^2 proposals moved/);
     const transferred = resultSummary("transfer", context, request, {
       answer: "transfer",
       owner: { member: managed({ roles: ["owner"] }).member, version: 5 },
@@ -595,7 +608,21 @@ describe("the form, the review and the result", () => {
       "Acme Events: Blocked (the date is not recorded).",
       "7 sessions ended.",
     ]);
-    expect(resultSummary("block", context, request, { answer: "organization", changed: false, blocked: true, blockedAt: "2026-11-20T23:30:00.000Z", sessionsEnded: 0 }).title).toBe("Already blocked");
+    // No count in the answer: nothing is claimed about sessions.
+    expect(resultSummary("block", context, request, { answer: "organization", changed: true, blocked: true, blockedAt: "2026-11-20T23:30:00.000Z", sessionsEnded: null }).lines).toEqual([
+      "Acme Events: Blocked since Nov 20, 2026 UTC.",
+      "The block is in place.",
+    ]);
+    const again = (sessionsEnded: number | null) => resultSummary("block", context, request, { answer: "organization", changed: false, blocked: true, blockedAt: "2026-11-20T23:30:00.000Z", sessionsEnded });
+    expect(again(0)).toEqual({
+      title: "Already blocked",
+      lines: ["Acme Events was already blocked: Blocked since Nov 20, 2026 UTC. The block itself did not change; the request is still recorded on the RFPilot side."],
+    });
+    expect(again(null).lines).toHaveLength(1);
+    // A repeated block also ends sessions that began meanwhile: the answer's count is shown.
+    expect(again(2).lines[1]).toBe("2 sessions ended with this request.");
+    expect(again(1).lines[1]).toBe("1 session ended with this request.");
+    for (const count of [0, 2, null]) expect(again(count).lines.join(" ")).not.toMatch(/Nothing changed|Every member's session/);
     expect(resultSummary("unblock", context, request, { answer: "organization", changed: true, blocked: false, blockedAt: null, sessionsEnded: null }).title).toBe("Organization reactivated");
     expect(resultSummary("unblock", context, request, { answer: "organization", changed: false, blocked: false, blockedAt: null, sessionsEnded: null }).title).toBe("Not blocked");
   });

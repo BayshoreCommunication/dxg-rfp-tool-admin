@@ -357,7 +357,7 @@ export const managementFailureCopy = (refusal: Pick<ManagementRefusal, "failure"
     case "stale_version":
       return {
         title: "This member changed in the meantime",
-        message: "Someone else changed this member after this page loaded it, so the change was not made. Load the current member, check it and review again.",
+        message: "This member changed after this page loaded it, so the change was not made. Load the current member, check it and review again.",
         tone: "calm",
       };
     case "ownership_transfer_required":
@@ -760,6 +760,8 @@ export const unknownOutcomeFollowUp = (kind: WriteKind, context: ReviewContext, 
 export type ResultHistory = {
   /** The answer is to the resend offered after an unknown outcome. */
   finishingSignOut?: boolean;
+  /** An earlier attempt from this page got no confirmed answer: it may have been saved. */
+  afterUnknownOutcome?: boolean;
 };
 
 export type ResultSummary = { title: string; lines: string[] };
@@ -791,7 +793,15 @@ export const resultSummary = (kind: WriteKind, context: ReviewContext, request: 
     const from = context.member ? memberLabel(context.member) : "the member";
     const to = request.target ? memberLabel(request.target) : "the member you chose";
     return answer.reassignedCount === 0
-      ? { title: "No proposals to move", lines: [`${from} owns no proposals in ${organization}. Nothing was moved.`] }
+      ? {
+          title: "No proposals to move",
+          lines: history.afterUnknownOutcome
+            ? [
+                `${from} owns no proposals in ${organization} now. This request moved nothing.`,
+                `An earlier attempt from this page was not confirmed by the server and may already have moved them to the member chosen then.`,
+              ]
+            : [`${from} owns no proposals in ${organization}. Nothing was moved.`],
+        }
       : { title: "Proposals reassigned", lines: [`${countLabel(answer.reassignedCount, "proposal")} moved from ${from} to ${to} in ${organization}.`] };
   }
   if (answer.answer === "transfer") {
@@ -808,9 +818,17 @@ export const resultSummary = (kind: WriteKind, context: ReviewContext, request: 
     return answer.changed
       ? {
           title: "Organization blocked",
-          lines: [`${organization}: ${since}.`, answer.sessionsEnded === null ? "Every member's session was ended." : `${countLabel(answer.sessionsEnded, "session")} ended.`],
+          // Without a count in the answer nothing is said about sessions.
+          lines: [`${organization}: ${since}.`, answer.sessionsEnded === null ? "The block is in place." : `${countLabel(answer.sessionsEnded, "session")} ended.`],
         }
-      : { title: "Already blocked", lines: [`${organization} was already blocked: ${since}. Nothing changed; the request is still recorded on the RFPilot side.`] };
+      : {
+          title: "Already blocked",
+          // A repeated block also ends sessions that began while the first block committed: the count is the answer's.
+          lines: [
+            `${organization} was already blocked: ${since}. The block itself did not change; the request is still recorded on the RFPilot side.`,
+            ...(answer.sessionsEnded !== null && answer.sessionsEnded > 0 ? [`${countLabel(answer.sessionsEnded, "session")} ended with this request.`] : []),
+          ],
+        };
   }
   return answer.changed
     ? { title: "Organization reactivated", lines: [`${organization} is no longer blocked. Members can sign in again.`] }

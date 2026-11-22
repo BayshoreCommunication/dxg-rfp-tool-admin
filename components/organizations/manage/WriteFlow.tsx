@@ -111,6 +111,13 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
   const [unknownRequest, setUnknownRequest] = useState<WriteRequest | null>(null);
   // Set when the member, loaded again after that, already shows what the request asked for.
   const [saved, setSaved] = useState<{ id: number; request: WriteRequest } | null>(null);
+  // Whether any attempt from this page got no confirmed answer. Never forgotten: a later result
+  // (a reassignment that finds nothing to move) must say the earlier attempt may have been saved.
+  const [everUnknown, setEverUnknown] = useState(false);
+  const outcomeUnknown = (request: WriteRequest) => {
+    setUnknownRequest(request);
+    setEverUnknown(true);
+  };
   const [reload, setReload] = useState<{ phase: "idle" | "loading" | "loaded" } | { phase: "failed"; refusal: ManagementRefusal }>({ phase: "idle" });
   const errorSummary = useRef<HTMLDivElement>(null);
   const formHeading = useRef<HTMLHeadingElement>(null);
@@ -126,7 +133,7 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
 
   if (done) {
     return (
-      <ResultStep kind={kind} organization={organization} member={managed} request={done.request} answer={done.answer} history={done.history} continueToDeactivate={continueToDeactivate} />
+      <ResultStep kind={kind} organization={organization} member={managed} request={done.request} answer={done.answer} history={{ ...done.history, afterUnknownOutcome: everUnknown }} continueToDeactivate={continueToDeactivate} />
     );
   }
 
@@ -169,7 +176,7 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
         finish={followUp}
         reload={reload}
         onLoadCurrentMember={loadCurrentMember}
-        onUnknownOutcome={() => setUnknownRequest(saved.request)}
+        onUnknownOutcome={() => outcomeUnknown(saved.request)}
         onBack={() => undefined}
         onDone={(answer) => setDone({ request: saved.request, answer, history: { finishingSignOut: true } })}
       />
@@ -199,7 +206,7 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
         request={review.request}
         reload={reload}
         onLoadCurrentMember={loadCurrentMember}
-        onUnknownOutcome={() => setUnknownRequest(review.request)}
+        onUnknownOutcome={() => outcomeUnknown(review.request)}
         onBack={() => {
           focusAfter.current = "form";
           setReview(null);

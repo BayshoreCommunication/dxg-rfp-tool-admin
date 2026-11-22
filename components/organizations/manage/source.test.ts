@@ -296,6 +296,13 @@ describe("the staff management screens", () => {
     expect(actionsIn(`${COMPONENTS}/WriteFlow.tsx`)).not.toContain("getManagedOrganizationAction");
   });
 
+  it("remembers an unconfirmed attempt for as long as the page lives, and tells the result", () => {
+    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
+    expect(flow).toMatch(/const outcomeUnknown = \(request: WriteRequest\) => \{\s*setUnknownRequest\(request\);\s*setEverUnknown\(true\);/);
+    expect(flow.match(/setEverUnknown\(/g)).toHaveLength(1);
+    expect(flow).toMatch(/history=\{\{ \.\.\.done\.history, afterUnknownOutcome: everUnknown \}\}/);
+  });
+
   it("shows the result from the API's answer, with the ways back, and makes no read to show it", () => {
     const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
     expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: review\.request, answer \}\)\}/);
