@@ -30,8 +30,10 @@ const absentNotes = (member: ManagedMember["member"]): string[] => {
   if (isOwnerMember(member)) {
     notes.push("This member is the Owner. The Owner's role is never changed and the Owner is never deactivated directly: transfer ownership to another active member, from that member's page.");
   }
-  if (standing === "removed") notes.push("This member has been removed from the organization, so nothing about them can be changed.");
-  if (standing === "invited") notes.push("This member has not joined yet, so they can't be deactivated, receive ownership or have proposals reassigned.");
+  if (standing === "removed") {
+    notes.push("This member has been removed from the organization. A change of role or status is not offered here for a removed member; proposals they still own can be reassigned.");
+  }
+  if (standing === "invited") notes.push("This member has not joined yet. Deactivating them is not offered here, and ownership can only go to an active member.");
   if (standing === "deactivated" && !isOwnerMember(member)) notes.push("A deactivated member can't receive ownership. Reactivate them first.");
   if (standing === "other") notes.push("This member's status is not one this screen knows, so no change is offered.");
   return notes;
@@ -51,7 +53,7 @@ export default function MemberManagement({ organizationId, managed }: { organiza
         </h2>
         {writes.length === 0 ? (
           <p className="mt-2 text-sm leading-6 text-slate-600" role="status">
-            Nothing can be changed for this member as they are now.
+            No change is offered here for this member as they are now.
           </p>
         ) : (
           <ul className="mt-3 divide-y divide-slate-100">

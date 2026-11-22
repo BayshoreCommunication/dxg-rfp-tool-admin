@@ -431,8 +431,13 @@ export const currentRoleLabel = (member: Pick<Member, "roles">): string => {
   return role ? roleLabel(role) : "No role";
 };
 
-/** The writes offered for a member, by status and whether they are the Owner. The Owner is
-    changed only by a transfer to someone else: never a role change, never a deactivation. */
+/* The writes offered for a member, by status and whether they are the Owner. The Owner is
+   changed only by a transfer to someone else: never a role change, never a deactivation.
+   Reassigning proposals is offered for every known status, a removed or an invited member
+   included: the backend's reassignment asks only that the source is a member of the organization
+   (`decideReassignment` checks the receiver's status, never the source's), and the one path that
+   marks a membership removed does not move the proposals it owns, so a removed member can still
+   own some. */
 export const memberWritesFor = (member: Pick<Member, "roles" | "status">): MemberWrite[] => {
   const standing = memberStanding(member.status);
   const owner = isOwnerMember(member);
@@ -440,7 +445,7 @@ export const memberWritesFor = (member: Pick<Member, "roles" | "status">): Membe
   if (!owner && (standing === "active" || standing === "deactivated" || standing === "invited")) writes.push("role");
   if (!owner && standing === "active") writes.push("deactivate");
   if (standing === "deactivated") writes.push("reactivate");
-  if (standing === "active" || standing === "deactivated") writes.push("reassign");
+  if (standing !== "other") writes.push("reassign");
   if (!owner && standing === "active") writes.push("transfer");
   return writes;
 };

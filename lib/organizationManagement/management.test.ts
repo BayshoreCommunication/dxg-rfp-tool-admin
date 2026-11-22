@@ -343,10 +343,13 @@ describe("which writes a member's state offers", () => {
     [["planner"], "deactivated", ["role", "reactivate", "reassign"]],
     [["organization_admin"], "suspended", ["role", "reactivate", "reassign"]],
     [["owner"], "suspended", ["reactivate", "reassign"]],
-    [["planner"], "invited", ["role"]],
-    [["owner"], "invited", []],
-    [["planner"], "removed", []],
-    [["owner"], "removed", []],
+    // The backend's reassignment does not look at the source member's status, and a removed
+    // member can still own proposals: reassigning is offered for an invited and a removed member too.
+    [["planner"], "invited", ["role", "reassign"]],
+    [["owner"], "invited", ["reassign"]],
+    [["planner"], "removed", ["reassign"]],
+    [["viewer"], "removed", ["reassign"]],
+    [["owner"], "removed", ["reassign"]],
     [["planner"], "", []],
     [["planner"], "pending", []],
     [["planner"], "ACTIVE", []],

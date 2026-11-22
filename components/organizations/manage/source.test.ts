@@ -383,6 +383,14 @@ describe("the staff management screens", () => {
     expect(page).not.toMatch(/<button\b|<form\b|<input\b|onClick=|"use client"|Action\b/);
   });
 
+  it("says of a write it leaves out that it is not offered here, never that it is impossible", () => {
+    const page = read(`${COMPONENTS}/MemberManagement.tsx`);
+    expect(page).not.toMatch(/nothing about them can be changed|have proposals reassigned|Nothing can be changed/);
+    expect(page).toMatch(/A change of role or status is not offered here for a removed member; proposals they still own can be reassigned\./);
+    expect(page).toMatch(/Deactivating them is not offered here, and ownership can only go to an active member\./);
+    expect(page).toMatch(/No change is offered here for this member as they are now\./);
+  });
+
   it("gives every control a name and a visible keyboard focus", () => {
     const elements = (source: string, open: RegExp, close: (name: string) => string) =>
       [...source.matchAll(open)].map((match) => {
