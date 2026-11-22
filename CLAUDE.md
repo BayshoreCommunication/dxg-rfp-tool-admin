@@ -55,6 +55,36 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
   `ChangePlanButton`'s `router.refresh()` can each re-render the page). The page's backend reads
   are decided in `loadOrganizationPage`. A 404 without `ORGANIZATION_NOT_FOUND` means the API does
   not have the route yet.
+- **Staff management** (owner decisions, 2026-11-18): staff change a member's role, deactivate and
+  reactivate a member, reassign a member's proposals, transfer ownership, and block or reactivate
+  a whole customer organization. Team management is a separate ticket. Pages are under
+  `/organization-management/[organizationId]/`: `members/[userId]` (the member and the writes
+  their state offers), `members/[userId]/role`, `/deactivate`, `/reactivate`,
+  `/reassign-proposals`, `/transfer-ownership`, and `block` and `reactivate` for the organization.
+  Code: `app/actions/organizationManagement.ts`, `lib/organizationManagement/` (pure, tested) and
+  `components/organizations/manage/`.
+  - **Why outside `/organizations/[organizationId]/`:** everything under that address, and
+    `components/organizations/content/`, is the view-only browser, which `readOnly.test.ts` keeps
+    free of any control. The Members list there has one plain "Manage" link per member; the
+    detail page shows "Blocked since" with "Reactivate organization", or a danger area with
+    "Block organization".
+  - **Every request is recorded on the RFPilot side, the single-member read
+    (`GET members/:userId`) included:** no caching, no prefetch, one member read per page view,
+    and once more only when staff press "Load the current member", which is offered after a
+    `STALE_VERSION`, a `VERSION_REQUIRED` and a write whose outcome is unknown. A
+    member write page reads the member and then the organization (its name is in the review, and
+    typed to confirm a transfer or a block); `loadMemberWritePage` decides the reads. The list of
+    members to receive proposals is the content browser's members read, loaded only on a press.
+  - **One shared write allowance:** member, team and block writes together, 60 per 15 minutes per
+    staff account; the reads count toward the content browser's 300.
+  - Every write: form, review in plain words, explicit confirmation (`confirmGate.ts`; a
+    transfer and a block need the organization's name typed), a reason of 10 to 500 characters,
+    then one request. Every action: staff check, ids, body rebuilt field by field. The Owner is
+    changed only by a transfer. Reassignment never sends `rfpIds` (the API then moves all).
+    Refusal codes map to fixed wording in `management.ts` and are shown beside it; backend
+    message text never is. A write with no readable answer is "may or may not have been saved",
+    never "nothing happened". The staff routes return a deactivated member's status as
+    `suspended`.
 - **Legacy customers** (`/legacy-customers`, backend ORG-110): staff place a legacy customer, with
   their proposals, into a new or an existing organization. It moves tenant data and is the most
   consequential action in this app. Pages: the list, `/[userId]/place` (form, then a review with an

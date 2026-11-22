@@ -23,11 +23,14 @@ import {
   type BadgeTone,
   type OrganizationAccount as Account,
 } from "@/lib/organizationAccount";
+import { formatContentDate } from "@/lib/organizationContent/content";
+import { organizationWritePath, organizationWritesFor } from "@/lib/organizationManagement/management";
 import type { PlanOption } from "@/lib/organizationPlans";
-import { Building2, Eye } from "lucide-react";
+import { Building2, Eye, ShieldAlert } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import ChangePlanButton from "./ChangePlanButton";
-import { OrganizationSectionNav } from "./content/ContentChrome";
+import { focusRing, OrganizationSectionNav } from "./content/ContentChrome";
 import { Features, PlanBadge, Usage } from "./OrganizationsDirectory";
 
 type Props = {
@@ -80,6 +83,9 @@ export default function OrganizationAccount({ account, plans }: Props) {
   const teams = teamCountLabels(counts.teams);
   const planItem = accountPlanItem(account);
   const lastChange = lastPlanChangeLabel(plan.lastChange);
+  // Only a customer organization can be blocked: not RFPilot's own, and not one awaiting placement.
+  // The rule is the management pages' own, so the link and the page it opens can't disagree.
+  const canBlock = organizationWritesFor({ standing: organization.standing, blocked: organization.blocked ?? null }).includes("block");
 
   return (
     <div className="space-y-6">
@@ -100,6 +106,7 @@ export default function OrganizationAccount({ account, plans }: Props) {
                 {standing.label}
               </Badge>
               {plan.exempt ? <Badge tone="neutral">{accountPlanLabel(plan)}</Badge> : <PlanBadge plan={plan.plan} />}
+              {organization.blocked ? <Badge tone="danger">Blocked</Badge> : null}
             </div>
             {organization.standing !== "active" ? (
               <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{standing.description}</p>
@@ -112,6 +119,32 @@ export default function OrganizationAccount({ account, plans }: Props) {
           </div>
         ) : null}
       </header>
+
+      {organization.blocked ? (
+        <section
+          aria-label="This organization is blocked"
+          className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm leading-6 text-rose-900 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="flex min-w-0 items-start gap-3">
+            <ShieldAlert className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              <span className="block font-bold">
+                {organization.blocked.at ? `Blocked since ${formatContentDate(organization.blocked.at)}` : "Blocked (the date is not recorded)"}
+              </span>
+              RFPilot staff blocked this organization. Its members can&apos;t sign in, and its vendor links, shared proposal pages and
+              invitation links are closed. All of its data is kept, and staff can still view and manage it.
+            </span>
+          </p>
+          {/* The reactivate page reads the organization when it opens: never fetched ahead of the click. */}
+          <Link
+            href={organizationWritePath(organization.id, "unblock")}
+            prefetch={false}
+            className={`inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-800 transition hover:border-rose-500 ${focusRing}`}
+          >
+            Reactivate organization
+          </Link>
+        </section>
+      ) : null}
 
       <aside
         aria-label="Viewing this organization's content"
@@ -218,6 +251,28 @@ export default function OrganizationAccount({ account, plans }: Props) {
           </Row>
         </Card>
       </div>
+
+      {canBlock ? (
+        <section aria-labelledby="danger-area" className="rounded-2xl border border-rose-200 bg-white p-5 sm:p-6">
+          <h2 id="danger-area" className="text-base font-bold tracking-[-0.01em] text-rose-800">
+            Danger area
+          </h2>
+          <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-3xl text-sm leading-6 text-slate-600">
+              Blocking ends every member&apos;s session and closes sign-in, vendor links, shared proposal pages and invitation links until
+              the organization is reactivated. All of its data is kept. The next page explains it, asks for a reason and asks you to
+              confirm.
+            </p>
+            <Link
+              href={organizationWritePath(organization.id, "block")}
+              prefetch={false}
+              className={`inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 transition hover:border-rose-500 hover:bg-rose-50 ${focusRing}`}
+            >
+              Block organization
+            </Link>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

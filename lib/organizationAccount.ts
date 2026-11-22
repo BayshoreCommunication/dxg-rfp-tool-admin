@@ -47,6 +47,9 @@ export type OrganizationAccount = {
     status: string;
     kind: string;
     standing: OrganizationStanding;
+    /** Present only while RFPilot staff have the organization blocked (the API sends `blocked: true`
+        and `blockedAt` only then; no key means not blocked). `at` is null if the date is unusable. */
+    blocked?: { at: string | null };
   };
   /** The account contact, and the only person the page names. */
   owner: { name: string; email: string } | null;
@@ -145,6 +148,7 @@ export const parseOrganizationAccount = (data: unknown): OrganizationAccount | n
       status,
       kind: text(organization.kind),
       standing,
+      ...(organization.blocked === true ? { blocked: { at: instant(organization.blockedAt) } } : {}),
     },
     owner: owner && (textOrNull(owner.name) || textOrNull(owner.email)) ? { name: text(owner.name), email: text(owner.email) } : null,
     plan: {
