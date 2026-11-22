@@ -95,7 +95,11 @@ describe("the staff management screens", () => {
     // files call none of its actions: they reach it only by its addresses (the member page's
     // "Change teams", the frame's ways back) and hand it the reason field and the review facts.
     for (const file of screenFiles.filter((path) => !TEAM_FILES.includes(path))) {
-      expect({ file, teams: /\b\w*Teams?\w*Action\b|team-management/.test(withoutComments(read(file))) }).toEqual({ file, teams: false });
+      const source = withoutComments(read(file));
+      expect({ file, teams: /\b\w*Teams?\w*Action\b|team-management/.test(source) }).toEqual({ file, teams: false });
+      // Nor do they spell a team address or a team route themselves: the one "/teams" they may
+      // hold is the name of the module the address helpers are imported from.
+      expect({ file, address: /\/teams\b/.test(source.replace(/from "@\/lib\/organizationManagement\/teams";/g, "")) }).toEqual({ file, address: false });
     }
   });
 
@@ -155,6 +159,12 @@ describe("the staff management screens", () => {
     // One DELETE (a member off a team, its reason in a JSON body) and one PUT (a member's teams): nothing else deletes or replaces.
     expect(source.match(/method: "DELETE"/g)).toHaveLength(1);
     expect(source.match(/method: "PUT"/g)).toHaveLength(1);
+    // The quoted word itself is in the one type union and the one call, and nowhere else: a
+    // method held in a variable, or picked by a condition, in any other action fails here.
+    for (const method of ["DELETE", "PUT"]) expect({ method, quoted: (source.match(new RegExp(`["'\`]${method}["'\`]`, "g")) ?? []).length }).toEqual({ method, quoted: 2 });
+    expect(source).toMatch(/init: \{ method: "GET" \} \| \{ method: "POST" \| "PATCH" \| "PUT" \| "DELETE"; body: /);
+    // Every method is written out where it is asked: the one that is not is the signed fetch being handed the action's own.
+    expect(source.match(/\bmethod:(?! "[A-Z]+")[^\n]*/g)).toEqual(["method: init.method,"]);
     expect(source).toMatch(/ask\("write", `\/\$\{organizationId\}\/teams\/\$\{teamId\}\/members\/\$\{userId\}`, \{ method: "DELETE", body: \{ reason \} \}/);
     expect(source).toMatch(/ask\("write", `\/\$\{organizationId\}\/members\/\$\{userId\}\/teams`, \{ method: "PUT", body: \{ teamIds, version, reason \} \}/);
     const routes = [...source.matchAll(/ask\("(read|write)", `([^`]+)`/g)].map((match) => `${match[1]} ${match[2]}`);
@@ -190,6 +200,9 @@ describe("the staff management screens", () => {
       // No route, path helper, component or action of customer content, except the Members list's
       // address and, for the team pages' way back, the Teams list's.
       expect({ file, content: /organization(Proposals?|VendorResponses|Templates?|Vendors|Section)Path|organizationContent"|@\/components\/organizations\/content\/(?!ContentChrome")/.test(source) }).toEqual({ file, content: false });
+      // The Teams list's address is for the team files and the frame's "Teams" way back. Every
+      // other management file keeps the ban: nothing of the member, ownership or block code leads there.
+      if (!TEAM_FILES.includes(file) && file !== `${COMPONENTS}/ManageChrome.tsx`) expect({ file, teamsList: /organizationTeamsPath/.test(source) }).toEqual({ file, teamsList: false });
       expect({ file, list: /(list|get)Organization\w+Action/.test(source) }).toEqual({ file, list: false });
       // No icon and no label of an edit or delete control.
       expect({ file, icons: /\b(Pencil|PencilLine|Edit|Edit2|Edit3|SquarePen|Trash|Trash2|Share|Share2|Download|Upload|FileDown|Copy|Printer|Send|Save)\b,?/.test(source) }).toEqual({ file, icons: false });
