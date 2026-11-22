@@ -268,11 +268,31 @@ describe("the staff management screens", () => {
     expect(send).toMatch(/\} catch \{[\s\S]*?return refused\("outcome_unknown"\);/);
   });
 
+  it("offers one resend after an unknown outcome that turned out saved, through the same gate", () => {
+    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
+    // The review tells the flow when an answer left the outcome unknown; a new review forgets it.
+    expect(flow).toMatch(/if \(outcome\.result\.failure === "outcome_unknown"\) onUnknownOutcome\(\);/);
+    expect(flow).toMatch(/const toReview = \(\) => \{[\s\S]*?setUnknownRequest\(null\);/);
+    // Only the member loaded again decides it, with the tested view model.
+    expect(flow).toMatch(/const shown = unknownRequest \? unknownOutcomeFollowUp\(kind, \{ organization, member: result\.data\.member \}, unknownRequest\) : null;/);
+    // It comes before the "not available for this member now" state, which it replaces.
+    expect(flow.indexOf("if (saved && managed && followUp) {")).toBeGreaterThan(0);
+    expect(flow.indexOf("if (saved && managed && followUp) {")).toBeLessThan(flow.indexOf("is not available for this member now"));
+    // The resend is the review step itself: same gate, same one sendWrite, the new version.
+    expect(flow).toMatch(/return followUp\.resend \? \(\s*<ReviewStep\s+key=\{`finish-\$\{saved\.id\}`\}\s+kind=\{kind\}\s+organization=\{organization\}\s+member=\{managed\}\s+request=\{saved\.request\}\s+finish=\{followUp\}/);
+    expect(flow).toMatch(/\) : \(\s*<SavedStep organizationId=\{organization\.id\} memberId=\{managed\.member\.userId\} followUp=\{followUp\} \/>/);
+    expect(flow.match(/<ReviewStep\b/g)).toHaveLength(2);
+    expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: saved\.request, answer, history: \{ finishingSignOut: true \} \}\)\}/);
+    // The step with no resend sends nothing at all.
+    const savedStep = flow.slice(flow.indexOf("function SavedStep("), flow.indexOf("function ResultStep("));
+    expect(savedStep).not.toMatch(/Action\(|<button\b|<form\b|gate\./);
+  });
+
   it("shows the result from the API's answer, with the ways back, and makes no read to show it", () => {
     const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
     expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: review\.request, answer \}\)\}/);
     const result = flow.slice(flow.indexOf("function ResultStep("));
-    expect(result).toMatch(/const summary = resultSummary\(kind, \{ organization, member: member\?\.member \}, request, answer\);/);
+    expect(result).toMatch(/const summary = resultSummary\(kind, \{ organization, member: member\?\.member \}, request, answer, history\);/);
     expect(result).not.toMatch(/Action\(/);
     expect(result).toMatch(/<Link href=\{memberManagementPath\(organization\.id, memberId\)\} prefetch=\{false\} className=\{linkClass\}>\s*Back to this member/);
     expect(result).toMatch(/<Link href=\{organizationMembersPath\(organization\.id\)\} prefetch=\{false\} className=\{linkClass\}>\s*Members list/);

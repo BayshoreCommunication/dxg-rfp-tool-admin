@@ -33,6 +33,7 @@ import {
   retryAfterSecondsOf,
   reviewLines,
   roleChoicesFor,
+  unknownOutcomeFollowUp,
   versionOf,
   type ManagedMember,
   type ManagedOrganization,
@@ -588,5 +589,94 @@ describe("the form, the review and the result", () => {
     expect(resultSummary("block", context, request, { answer: "organization", changed: false, blocked: true, blockedAt: "2026-11-20T23:30:00.000Z", sessionsEnded: 0 }).title).toBe("Already blocked");
     expect(resultSummary("unblock", context, request, { answer: "organization", changed: true, blocked: false, blockedAt: null, sessionsEnded: null }).title).toBe("Organization reactivated");
     expect(resultSummary("unblock", context, request, { answer: "organization", changed: false, blocked: false, blockedAt: null, sessionsEnded: null }).title).toBe("Not blocked");
+  });
+});
+
+describe("after a write whose outcome is unknown, once the member is loaded again", () => {
+  const REASON = "Requested by the account owner in ticket 4411.";
+  const context = (change: Record<string, unknown> = {}) => ({ organization: organization(), member: managed(change, 5).member });
+
+  it("deactivate: says the change was saved, that the sign-out may not have completed, and offers the one resend", () => {
+    // The backend answers a deactivation of a suspended member `changed: false` and ends the sessions again.
+    for (const status of ["suspended", "deactivated"]) {
+      const followUp = unknownOutcomeFollowUp("deactivate", context({ status }), { reason: REASON });
+      expect(followUp).toMatchObject({ title: "The deactivation was saved", resend: { label: "Finish signing this member out" } });
+      expect(followUp?.lines[0]).toBe("Pat Planner (pat@acme.example) is deactivated in Acme Events.");
+      expect(followUp?.lines.join(" ")).toMatch(/signing the member out everywhere may not have completed/);
+      expect(followUp?.lines.join(" ")).toMatch(/changes nothing about the member/);
+    }
+    // Still active: the outcome is not shown, so the form and the review come back as before.
+    expect(unknownOutcomeFollowUp("deactivate", context(), { reason: REASON })).toBeNull();
+    expect(unknownOutcomeFollowUp("deactivate", context({ status: "removed" }), { reason: REASON })).toBeNull();
+  });
+
+  it("role: offers the resend only when the member has the requested role, and says what it can and can't do", () => {
+    const followUp = unknownOutcomeFollowUp("role", context({ roles: ["viewer"] }), { reason: REASON, role: "viewer" });
+    expect(followUp).toMatchObject({ title: "The role change was saved", resend: { label: "Finish signing this member out" } });
+    expect(followUp?.lines[0]).toBe("Pat Planner (pat@acme.example) has the role Viewer in Acme Events.");
+    // The backend's retry cannot tell which way the role moved: it never promises a full sign-out.
+    expect(followUp?.lines.join(" ")).toMatch(/end the member's other sessions on their next request/);
+    expect(followUp?.lines.join(" ")).toMatch(/can't sign the member out everywhere at once/);
+    expect(unknownOutcomeFollowUp("role", context({ roles: ["viewer"], status: "suspended" }), { reason: REASON, role: "viewer" })?.resend).not.toBeNull();
+    // Another role, no role in the request, a removed member (409 MEMBER_REMOVED) or the Owner: nothing is offered.
+    expect(unknownOutcomeFollowUp("role", context(), { reason: REASON, role: "viewer" })).toBeNull();
+    expect(unknownOutcomeFollowUp("role", context({ roles: ["viewer"] }), { reason: REASON })).toBeNull();
+    expect(unknownOutcomeFollowUp("role", context({ roles: ["viewer"], status: "removed" }), { reason: REASON, role: "viewer" })).toBeNull();
+    expect(unknownOutcomeFollowUp("role", context({ roles: ["owner", "viewer"] }), { reason: REASON, role: "viewer" })).toBeNull();
+  });
+
+  it("reactivate: says it was saved and offers no resend, because a reactivation signs nobody out", () => {
+    const followUp = unknownOutcomeFollowUp("reactivate", context(), { reason: REASON });
+    expect(followUp).toEqual({
+      title: "The reactivation was saved",
+      lines: ["Pat Planner (pat@acme.example) is active in Acme Events, with the role Planner.", "A reactivation signs nobody out, so nothing more is needed."],
+      resend: null,
+    });
+    expect(unknownOutcomeFollowUp("reactivate", context({ status: "suspended" }), { reason: REASON })).toBeNull();
+  });
+
+  it("transfer: says it was saved and offers no resend, because the backend answers ALREADY_OWNER", () => {
+    const followUp = unknownOutcomeFollowUp("transfer", context({ roles: ["owner"] }), { reason: REASON });
+    expect(followUp).toMatchObject({ title: "The transfer was saved", resend: null });
+    expect(followUp?.lines[0]).toBe("Pat Planner (pat@acme.example) is the Owner of Acme Events.");
+    expect(followUp?.lines.join(" ")).toMatch(/signing the previous Owner out everywhere may not have completed/);
+    expect(followUp?.lines.join(" ")).toMatch(/can't be sent again.*Nothing more can be done from this page/);
+    expect(unknownOutcomeFollowUp("transfer", context(), { reason: REASON })).toBeNull();
+  });
+
+  it("reassign, block and reactivate organization: the member read shows nothing of the outcome, so nothing is claimed", () => {
+    expect(unknownOutcomeFollowUp("reassign", context(), { reason: REASON })).toBeNull();
+    expect(unknownOutcomeFollowUp("block", context(), { reason: REASON })).toBeNull();
+    expect(unknownOutcomeFollowUp("unblock", context(), { reason: REASON })).toBeNull();
+    expect(unknownOutcomeFollowUp("deactivate", { organization: organization() }, { reason: REASON })).toBeNull();
+  });
+
+  it("never says a write was not saved, and never names an identifier", () => {
+    const all = [
+      unknownOutcomeFollowUp("deactivate", context({ status: "suspended" }), { reason: REASON }),
+      unknownOutcomeFollowUp("role", context({ roles: ["viewer"] }), { reason: REASON, role: "viewer" }),
+      unknownOutcomeFollowUp("reactivate", context(), { reason: REASON }),
+      unknownOutcomeFollowUp("transfer", context({ roles: ["owner"] }), { reason: REASON }),
+    ];
+    for (const followUp of all) expect(`${followUp?.title} ${followUp?.lines.join(" ")}`).not.toMatch(/[A-Z]{3,}_[A-Z_]+|undefined|null|was not saved|nothing happened/i);
+  });
+
+  it("words the answer to the resend as a sign-out asked for again, not as nothing having happened", () => {
+    const ctx = context({ status: "suspended" });
+    const again = { answer: "member" as const, changed: false, member: managed({ status: "suspended" }).member, version: 5 };
+    expect(resultSummary("deactivate", ctx, { reason: REASON }, again, { finishingSignOut: true })).toEqual({
+      title: "Sign-out asked for again",
+      lines: [
+        "Pat Planner (pat@acme.example) is deactivated in Acme Events, with the role Planner.",
+        "Nothing about the member changed. The server ended all of the member's sessions again and confirmed it.",
+      ],
+    });
+    const role = { answer: "member" as const, changed: false, member: managed({ roles: ["viewer"] }).member, version: 5 };
+    expect(resultSummary("role", ctx, { reason: REASON, role: "viewer" }, role, { finishingSignOut: true }).lines[1]).toBe(
+      "Nothing about the member changed. The server confirmed that the member's other sessions end on their next request.",
+    );
+    // Without the resend, and for a reactivation, the wording is the ordinary one.
+    expect(resultSummary("deactivate", ctx, { reason: REASON }, again).title).toBe("Nothing needed changing");
+    expect(resultSummary("reactivate", ctx, { reason: REASON }, { ...again, member: managed().member }, { finishingSignOut: true }).title).toBe("Nothing needed changing");
   });
 });

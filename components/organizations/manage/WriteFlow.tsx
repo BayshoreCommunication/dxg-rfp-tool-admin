@@ -39,6 +39,7 @@ import {
   resultSummary,
   reviewLines,
   roleChoicesFor,
+  unknownOutcomeFollowUp,
   WRITE_COPY,
   type DraftErrors,
   type DraftField,
@@ -46,6 +47,8 @@ import {
   type ManagedOrganization,
   type ManagementRefusal,
   type ManagementResult,
+  type ResultHistory,
+  type UnknownOutcomeFollowUp,
   type WriteAnswer,
   type WriteDraft,
   type WriteKind,
@@ -102,7 +105,11 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
   const [draft, setDraft] = useState<WriteDraft>(emptyDraft);
   const [errors, setErrors] = useState<DraftErrors>({});
   const [review, setReview] = useState<{ id: number; request: WriteRequest } | null>(null);
-  const [done, setDone] = useState<{ request: WriteRequest; answer: WriteAnswer } | null>(null);
+  const [done, setDone] = useState<{ request: WriteRequest; answer: WriteAnswer; history?: ResultHistory } | null>(null);
+  // The reviewed request whose answer never said whether it was saved. A new review forgets it.
+  const [unknownRequest, setUnknownRequest] = useState<WriteRequest | null>(null);
+  // Set when the member, loaded again after that, already shows what the request asked for.
+  const [saved, setSaved] = useState<{ id: number; request: WriteRequest } | null>(null);
   const [reload, setReload] = useState<{ phase: "idle" | "loading" | "loaded" } | { phase: "failed"; refusal: ManagementRefusal }>({ phase: "idle" });
   const errorSummary = useRef<HTMLDivElement>(null);
   const formHeading = useRef<HTMLHeadingElement>(null);
@@ -117,7 +124,9 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
   const copy = WRITE_COPY[kind];
 
   if (done) {
-    return <ResultStep kind={kind} organization={organization} member={managed} request={done.request} answer={done.answer} continueToDeactivate={continueToDeactivate} />;
+    return (
+      <ResultStep kind={kind} organization={organization} member={managed} request={done.request} answer={done.answer} history={done.history} continueToDeactivate={continueToDeactivate} />
+    );
   }
 
   /* The one read this flow makes after the page has loaded, and only when staff ask for it: the
@@ -137,9 +146,36 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
     }
     setManaged(result.data);
     setReview(null);
+    // After an unknown outcome the member may already show what was asked for: that is said, and
+    // the form (which no longer offers the change) is not shown in its place.
+    const shown = unknownRequest ? unknownOutcomeFollowUp(kind, { organization, member: result.data.member }, unknownRequest) : null;
+    setSaved((current) => (shown && unknownRequest ? { id: (current?.id ?? 0) + 1, request: unknownRequest } : null));
     setReload({ phase: "loaded" });
     focusAfter.current = "form";
   };
+
+  const followUp = saved && managed ? unknownOutcomeFollowUp(kind, { organization, member: managed.member }, saved.request) : null;
+  if (saved && managed && followUp) {
+    // The one resend: the same reviewed request with the member's new version, through the same
+    // confirmation gate as any write. Where the backend would refuse it, nothing is offered.
+    return followUp.resend ? (
+      <ReviewStep
+        key={`finish-${saved.id}`}
+        kind={kind}
+        organization={organization}
+        member={managed}
+        request={saved.request}
+        finish={followUp}
+        reload={reload}
+        onLoadCurrentMember={loadCurrentMember}
+        onUnknownOutcome={() => setUnknownRequest(saved.request)}
+        onBack={() => undefined}
+        onDone={(answer) => setDone({ request: saved.request, answer, history: { finishingSignOut: true } })}
+      />
+    ) : (
+      <SavedStep organizationId={organization.id} memberId={managed.member.userId} followUp={followUp} />
+    );
+  }
 
   // After the member was loaded again, the write may no longer be one their state offers.
   if (isMemberWrite(kind) && managed && !memberWritesFor(managed.member).includes(kind)) {
@@ -162,6 +198,7 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
         request={review.request}
         reload={reload}
         onLoadCurrentMember={loadCurrentMember}
+        onUnknownOutcome={() => setUnknownRequest(review.request)}
         onBack={() => {
           focusAfter.current = "form";
           setReview(null);
@@ -190,6 +227,7 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
     }
     setErrors({});
     setReload({ phase: "idle" });
+    setUnknownRequest(null);
     // A new review each time: its confirmation starts empty.
     setReview((current) => ({ id: (current?.id ?? 0) + 1, request: checked.request }));
   };
@@ -448,8 +486,10 @@ function ReviewStep({
   organization,
   member,
   request,
+  finish,
   reload,
   onLoadCurrentMember,
+  onUnknownOutcome,
   onBack,
   onDone,
 }: {
@@ -457,15 +497,18 @@ function ReviewStep({
   organization: ManagedOrganization;
   member: ManagedMember | null;
   request: WriteRequest;
+  /** Set when this step is the resend after an unknown outcome that turned out saved. */
+  finish?: UnknownOutcomeFollowUp;
   reload: { phase: "idle" | "loading" | "loaded" } | { phase: "failed"; refusal: ManagementRefusal };
   onLoadCurrentMember: () => void;
+  onUnknownOutcome: () => void;
   onBack: () => void;
   onDone: (answer: WriteAnswer) => void;
 }) {
   const confirmId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
   const refusalNote = useRef<HTMLDivElement>(null);
-  const copy = WRITE_COPY[kind];
+  const copy = finish?.resend ? { ...WRITE_COPY[kind], confirm: finish.resend.label, sending: finish.resend.sending, danger: false } : WRITE_COPY[kind];
   // A transfer and a block are confirmed by typing the organization's name; the rest by a tick.
   const requiredName = kind === "transfer" || kind === "block" ? confirmationPhrase(organization) : undefined;
   const [gateState, setGateState] = useState<WriteGateState>({ acknowledged: false, typedName: "", confirmed: false, inFlight: false, done: false });
@@ -496,13 +539,14 @@ function ReviewStep({
     if (!outcome.sent) return;
     if (!outcome.result.ok) {
       setRefusal(outcome.result);
+      if (outcome.result.failure === "outcome_unknown") onUnknownOutcome();
       return;
     }
     onDone(outcome.result.data);
   };
 
   const busy = gateState.inFlight || gateState.done;
-  const lines = reviewLines(kind, { organization, member: member?.member }, request);
+  const lines = finish ? finish.lines : reviewLines(kind, { organization, member: member?.member }, request);
   const memberId = member?.member.userId;
   // The member's state is what the next try depends on: these refusals offer to load it again.
   const offersReload = Boolean(member) && refusal !== null && ["stale_version", "version_required", "outcome_unknown"].includes(refusal.failure);
@@ -517,7 +561,7 @@ function ReviewStep({
       }}
     >
       <h2 ref={heading} tabIndex={-1} className="text-lg font-bold text-[#12213a] outline-none">
-        Review: {copy.title.toLowerCase()}
+        {finish ? finish.title : `Review: ${copy.title.toLowerCase()}`}
       </h2>
       <ul className="space-y-2 text-sm leading-6 text-[#20304b]">
         {lines.map((line) => (
@@ -529,7 +573,7 @@ function ReviewStep({
       <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200" aria-label="Exactly what this change names">
         <ReviewFact label="Organization" value={organizationLabel(organization)} detail={`Id: ${organization.id}`} />
         {member ? <ReviewFact label={kind === "transfer" ? "New Owner" : "Member"} value={memberLabel(member.member)} detail={`Id: ${member.member.userId}`} /> : null}
-        {kind === "role" && member && request.role ? <ReviewFact label="Role" value={`${currentRoleLabel(member.member)} to ${roleLabel(request.role)}`} /> : null}
+        {kind === "role" && member && request.role && !finish ? <ReviewFact label="Role" value={`${currentRoleLabel(member.member)} to ${roleLabel(request.role)}`} /> : null}
         {kind === "reassign" && request.target ? <ReviewFact label="Proposals go to" value={memberLabel(request.target)} detail={`Id: ${request.target.userId}`} /> : null}
         <ReviewFact label="Reason, as typed" value={request.reason} preserve />
       </dl>
@@ -617,7 +661,11 @@ function ReviewStep({
             onChange={(event) => gate.setAcknowledged(event.target.checked)}
             className="mt-1 h-4 w-4 accent-[#007f86]"
           />
-          <span>I have checked the organization, the member and the change above, and I want to make this change now.</span>
+          <span>
+            {finish
+              ? "I have checked the organization and the member above, and I want to send this request again now."
+              : "I have checked the organization, the member and the change above, and I want to make this change now."}
+          </span>
         </label>
       )}
 
@@ -626,9 +674,17 @@ function ReviewStep({
           {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
           {gateState.inFlight ? copy.sending : copy.confirm}
         </button>
-        <button type="button" onClick={onBack} disabled={busy} className={secondaryButton}>
-          Back to edit
-        </button>
+        {finish ? (
+          memberId ? (
+            <Link href={memberManagementPath(organization.id, memberId)} prefetch={false} className={linkClass}>
+              Back to this member
+            </Link>
+          ) : null
+        ) : (
+          <button type="button" onClick={onBack} disabled={busy} className={secondaryButton}>
+            Back to edit
+          </button>
+        )}
       </div>
       <p className="sr-only" role="status" aria-live="polite">
         {gateState.inFlight ? `${copy.sending}.` : ""}
@@ -647,6 +703,37 @@ const ReviewFact = ({ label, value, detail, preserve = false }: { label: string;
   </div>
 );
 
+/** After an unknown outcome, the member loaded again shows the change and no resend applies. */
+function SavedStep({ organizationId, memberId, followUp }: { organizationId: string; memberId: string; followUp: UnknownOutcomeFollowUp }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+  return (
+    <section className={`space-y-4 px-5 py-6 sm:px-6 ${cardClass}`} role="status" aria-live="polite">
+      <h2 ref={heading} tabIndex={-1} className="text-lg font-bold text-[#12213a] outline-none">
+        {followUp.title}
+      </h2>
+      <ul className="space-y-2 text-sm leading-6 text-[#20304b]">
+        {followUp.lines.map((line) => (
+          <li key={line} className="break-words rounded-xl bg-slate-50 px-4 py-2.5">
+            {line}
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-slate-600">This is from the member as loaded again just now, not from an answer to the change.</p>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4">
+        <Link href={memberManagementPath(organizationId, memberId)} prefetch={false} className={linkClass}>
+          Back to this member
+        </Link>
+        <Link href={organizationMembersPath(organizationId)} prefetch={false} className={linkClass}>
+          Members list
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 /** What the API answered. The ways on are links: each opens a page that reads what it shows. */
 function ResultStep({
   kind,
@@ -654,6 +741,7 @@ function ResultStep({
   member,
   request,
   answer,
+  history,
   continueToDeactivate,
 }: {
   kind: WriteKind;
@@ -661,13 +749,14 @@ function ResultStep({
   member: ManagedMember | null;
   request: WriteRequest;
   answer: WriteAnswer;
+  history?: ResultHistory;
   continueToDeactivate: boolean;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus();
   }, []);
-  const summary = resultSummary(kind, { organization, member: member?.member }, request, answer);
+  const summary = resultSummary(kind, { organization, member: member?.member }, request, answer, history);
   const memberId = member?.member.userId;
   return (
     <section className={`space-y-4 px-5 py-6 sm:px-6 ${cardClass}`} role="status" aria-live="polite">

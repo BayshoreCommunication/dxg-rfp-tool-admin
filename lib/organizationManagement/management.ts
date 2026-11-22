@@ -667,14 +667,111 @@ export const reviewLines = (kind: WriteKind, context: ReviewContext, request: Wr
   }
 };
 
+/* ---------- after a write whose outcome is unknown ---------- */
+
+/* The backend saves a deactivation or a role change first and ends the member's sessions right
+   after it. If that second step fails the answer is a 500 with the change saved (docs/API.md,
+   "Staff member management", Sessions). The member loaded again then already shows the change, so
+   the form has nothing left to offer; what is left is the backend's documented repair: the same
+   request with the member's new version, which answers `changed: false` and asks for the sign-out
+   again. What the backend source does with that request, write by write:
+   - deactivate, member already `suspended`: accepted, `changed: false`, every session ended again.
+   - role, member already has the role: accepted, `changed: false`, the member's other sessions end
+     on their next request (the retry cannot tell which way the role moved).
+   - reactivate, member already `active`: accepted, `changed: false`, and nothing else: a
+     reactivation ends no session, so there is nothing to finish and no resend is offered.
+   - transfer, target already the Owner: refused, 400 ALREADY_OWNER. No resend is offered.
+   - reassign: the member read says nothing about proposals, so the outcome is not shown by it. */
+export type UnknownOutcomeFollowUp = {
+  title: string;
+  lines: string[];
+  /** The one resend offered: the same request, with the version of the member as loaded again. */
+  resend: { label: string; sending: string } | null;
+};
+
+export const FINISH_SIGN_OUT = { label: "Finish signing this member out", sending: "Asking for the sign-out again" } as const;
+
+/** What to say once the member, loaded again after an unknown outcome, already shows what was
+    asked for. Null when it does not: the form and the review are then shown as before. */
+export const unknownOutcomeFollowUp = (kind: WriteKind, context: ReviewContext, request: WriteRequest): UnknownOutcomeFollowUp | null => {
+  const member = context.member;
+  if (!member) return null;
+  const standing = memberStanding(member.status);
+  const organization = organizationLabel(context.organization);
+  const who = memberLabel(member);
+  const unconfirmed = "The server did not confirm the change when it was sent";
+  switch (kind) {
+    case "deactivate":
+      if (standing !== "deactivated") return null;
+      return {
+        title: "The deactivation was saved",
+        lines: [
+          `${who} is deactivated in ${organization}.`,
+          `${unconfirmed}, so signing the member out everywhere may not have completed.`,
+          "Sending the same request again changes nothing about the member. It asks the server to end all of the member's sessions again.",
+        ],
+        resend: FINISH_SIGN_OUT,
+      };
+    case "role":
+      if (!request.role || customerRoleOf(member.roles) !== request.role || isOwnerMember(member)) return null;
+      if (standing !== "active" && standing !== "deactivated" && standing !== "invited") return null;
+      return {
+        title: "The role change was saved",
+        lines: [
+          `${who} has the role ${roleLabel(request.role)} in ${organization}.`,
+          `${unconfirmed}, so signing the member out may not have completed.`,
+          "Sending the same role again changes nothing about the member. It asks the server to end the member's other sessions on their next request; a repeated request can't sign the member out everywhere at once, because the server can't tell from it whether the role lost rights.",
+        ],
+        resend: FINISH_SIGN_OUT,
+      };
+    case "reactivate":
+      if (standing !== "active") return null;
+      return {
+        title: "The reactivation was saved",
+        lines: [`${who} is active in ${organization}, with the role ${currentRoleLabel(member)}.`, "A reactivation signs nobody out, so nothing more is needed."],
+        resend: null,
+      };
+    case "transfer":
+      if (!isOwnerMember(member)) return null;
+      return {
+        title: "The transfer was saved",
+        lines: [
+          `${who} is the Owner of ${organization}.`,
+          `${unconfirmed}, so signing the previous Owner out everywhere may not have completed.`,
+          "A transfer can't be sent again: the server refuses it because this member is already the Owner. Nothing more can be done from this page.",
+        ],
+        resend: null,
+      };
+    default:
+      return null;
+  }
+};
+
+/** What came before the answer a result shows. */
+export type ResultHistory = {
+  /** The answer is to the resend offered after an unknown outcome. */
+  finishingSignOut?: boolean;
+};
+
 export type ResultSummary = { title: string; lines: string[] };
 
 /** What happened, from the API's own answer. No second read is made to show it. */
-export const resultSummary = (kind: WriteKind, context: ReviewContext, request: WriteRequest, answer: WriteAnswer): ResultSummary => {
+export const resultSummary = (kind: WriteKind, context: ReviewContext, request: WriteRequest, answer: WriteAnswer, history: ResultHistory = {}): ResultSummary => {
   const organization = organizationLabel(context.organization);
   if (answer.answer === "member") {
     const who = memberLabel(answer.member);
     const state = `${who} is ${memberStatusLabel(answer.member.status).toLowerCase()} in ${organization}, with the role ${currentRoleLabel(answer.member)}.`;
+    if (!answer.changed && history.finishingSignOut && (kind === "deactivate" || kind === "role")) {
+      return {
+        title: "Sign-out asked for again",
+        lines: [
+          state,
+          kind === "deactivate"
+            ? "Nothing about the member changed. The server ended all of the member's sessions again and confirmed it."
+            : "Nothing about the member changed. The server confirmed that the member's other sessions end on their next request.",
+        ],
+      };
+    }
     if (!answer.changed) {
       return { title: "Nothing needed changing", lines: [state, "The member was already in that state. The request is still recorded on the RFPilot side."] };
     }
