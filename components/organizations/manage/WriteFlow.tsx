@@ -292,7 +292,9 @@ export default function WriteFlow({ kind, organization, member, continueToDeacti
   );
 }
 
-const Field = ({
+/* Field, ReasonField and ReviewFact are also what the team flow (TeamWriteFlow.tsx) is built
+   from: one reason field, with one rule and one counter, for every staff write. */
+export const Field = ({
   label,
   hint,
   error,
@@ -326,7 +328,7 @@ const Field = ({
 };
 
 /** The written reason every staff write carries: required, 10 to 500 characters after trimming. */
-const ReasonField = ({ value, error, onChange }: { value: string; error?: string; onChange: (value: string) => void }) => {
+export const ReasonField = ({ value, error, onChange }: { value: string; error?: string; onChange: (value: string) => void }) => {
   const id = useId();
   const length = reasonLength(value);
   const outside = length > REASON_MAX || (length > 0 && length < REASON_MIN);
@@ -698,7 +700,7 @@ function ReviewStep({
   );
 }
 
-const ReviewFact = ({ label, value, detail, preserve = false }: { label: string; value: string; detail?: string; preserve?: boolean }) => (
+export const ReviewFact = ({ label, value, detail, preserve = false }: { label: string; value: string; detail?: string; preserve?: boolean }) => (
   <div className="grid gap-0.5 px-4 py-3 sm:grid-cols-[160px_minmax(0,1fr)] sm:gap-4">
     <dt className="text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 sm:pt-0.5">{label}</dt>
     <dd className="min-w-0 text-sm text-[#20304b]">
