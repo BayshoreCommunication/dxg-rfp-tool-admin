@@ -64,7 +64,7 @@ export async function TeamWriteScreen({ organizationId, teamId, write }: { organ
         <ManageFailureState refusal={load.refusal} retryHref={known && knownTeam ? teamWritePath(known, knownTeam, write) : undefined} />
       ) : load.state === "not_offered" ? (
         <>
-          <TeamSummary team={load.team.team} eyebrow={TEAM_WRITE_COPY[write].title} />
+          <TeamSummary team={load.team.team} managersListed={load.team.managersListed} eyebrow={TEAM_WRITE_COPY[write].title} />
           <NotOfferedState title={`${TEAM_WRITE_COPY[write].title} is not available for this team`} message={ARCHIVED_TEAM_NOTE}>
             <Link href={teamManagementPath(organizationId, teamId)} prefetch={false} className={linkClass}>
               Back to this team
@@ -73,7 +73,7 @@ export async function TeamWriteScreen({ organizationId, teamId, write }: { organ
         </>
       ) : (
         <>
-          <TeamSummary team={load.team.team} eyebrow={TEAM_WRITE_COPY[write].title} />
+          <TeamSummary team={load.team.team} managersListed={load.team.managersListed} eyebrow={TEAM_WRITE_COPY[write].title} />
           {/* Keyed by the team as read: a page that reads another team starts the flow again. */}
           <TeamWriteFlow kind={write} organization={load.organization} team={{ id: load.team.team.id, name: load.team.team.name }} key={teamFlowKey(write, { teamId: load.team.team.id })} />
         </>

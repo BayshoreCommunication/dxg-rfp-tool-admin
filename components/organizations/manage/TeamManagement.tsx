@@ -32,8 +32,8 @@ const Fact = ({ label, children }: { label: string; children: ReactNode }) => (
 );
 
 /** The team as the API returned it: what every write on the team pages is about. */
-export const TeamSummary = ({ team, eyebrow }: { team: Team; eyebrow: string }) => {
-  const cut = managerListNote(team);
+export const TeamSummary = ({ team, managersListed, eyebrow }: { team: Team; managersListed: number; eyebrow: string }) => {
+  const cut = managerListNote({ team, managersListed });
   return (
     <section className={`px-5 py-5 sm:px-6 ${cardClass}`} aria-label="Team">
       <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#007f86]">{eyebrow}</p>
@@ -73,7 +73,7 @@ export default function TeamManagement({ organizationId, managed }: { organizati
   const cut = memberListNote(managed);
   return (
     <div className="space-y-5">
-      <TeamSummary team={team} eyebrow="Manage team" />
+      <TeamSummary team={team} managersListed={managed.managersListed} eyebrow="Manage team" />
 
       <section className={`px-5 py-5 sm:px-6 ${cardClass}`} aria-labelledby="team-changes">
         <h2 id="team-changes" className="text-lg font-bold text-[#12213a]">

@@ -462,6 +462,7 @@ describe("what the answers hand on", () => {
     expect(result).toEqual({
       ok: true,
       data: {
+        managersListed: 1,
         team: { id: TEAM, name: "West", archived: false, archivedAt: null, createdAt: "2026-10-01T00:00:00.000Z", memberCount: 250, managers: [{ id: USER, name: "Pat Planner", email: "pat@acme.example" }] },
         // A row without a usable id or version is left out; the count stays the backend's.
         members: [{ member: member(), version: 4, isManager: true }],

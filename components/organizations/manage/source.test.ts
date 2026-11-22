@@ -688,7 +688,10 @@ describe("the team management screens", () => {
     expect(page).toMatch(/const cut = memberListNote\(managed\);/);
     expect(page.match(/countLabel\(team\.memberCount, "member"\)/g)).toHaveLength(2);
     expect(page).toMatch(/\{cut \? `\. \$\{cut\}` : "\."\}/);
-    expect(page).toMatch(/const cut = managerListNote\(team\);/);
+    // The manager note is decided by how many rows the answer held, on every page that shows the team.
+    expect(page).toMatch(/const cut = managerListNote\(\{ team, managersListed \}\);/);
+    expect(page).toMatch(/<TeamSummary team=\{team\} managersListed=\{managed\.managersListed\} eyebrow="Manage team" \/>/);
+    expect(read(screensFile).match(/<TeamSummary team=\{load\.team\.team\} managersListed=\{load\.team\.managersListed\} eyebrow=/g)).toHaveLength(2);
     // The count is never taken from the length of a list.
     expect(page).not.toMatch(/countLabel\(members\.length|members\.length\.toLocaleString|managers\.length\.toLocaleString/);
     // A member's teams are replaced whole: a list that may be cut is never chosen against.

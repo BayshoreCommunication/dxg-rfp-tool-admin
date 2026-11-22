@@ -106,7 +106,8 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
     is built from the member as read on that press (`reviewMemberTeams`) and names what changed
     since the page loaded. The lasting fix is the backend's. The backend
     lists at most 200 members and 200 managers of a team: the count shown is `memberCount`, with
-    "Showing the first N" when the list is shorter. Removing a team member is a DELETE with
+    "Showing the first N" when the list is shorter and the count is above 200, and "The server
+    listed N of M members" when it is not (rows the backend or the parser left out). Removing a team member is a DELETE with
     `{ reason }` in a JSON body. `MEMBER_NOT_FOUND` on add and make-manager means "not an active
     member" and is worded so. The Teams list has "Create a team" and one "Manage" link per team.
 - **Legacy customers** (`/legacy-customers`, backend ORG-110): staff place a legacy customer, with

@@ -111,8 +111,9 @@ export const MEMBER_TEAMS_LIMIT = 500;
 /** One member of a team: the member, the membership version a change of their teams needs, and whether they manage the team. */
 export type TeamMember = ManagedMember & { isManager: boolean };
 
-/** One team as the staff team routes return it, with the members listed (at most 200). */
-export type ManagedTeam = { team: Team; members: TeamMember[] };
+/** One team as the staff team routes return it, with the members listed (at most 200), and how
+    many manager rows the answer held before any that could not be read was left out. */
+export type ManagedTeam = { team: Team; members: TeamMember[]; managersListed: number };
 
 /* `{ organizationId, team, members: [{ member, version, isManager }] }`: the team read and the
    answer of every team write. The team is read through the Teams list's own parser and each
@@ -132,7 +133,8 @@ export const parseManagedTeam = (data: unknown, organizationId: string, teamId?:
     const found = entry && isManagementId(userId) ? parseManagedMember({ organizationId, member: entry.member, version: entry.version }, organizationId, userId) : null;
     if (found) members.push({ ...found, isManager: entry?.isManager === true });
   }
-  return { team, members };
+  const managers = record(raw.team)?.managers;
+  return { team, members, managersListed: Array.isArray(managers) ? managers.length : 0 };
 };
 
 export type TeamAnswer = { answer: "team"; team: ManagedTeam };
@@ -381,17 +383,32 @@ export const teamFlowKey = (kind: TeamWrite, subject: { teamId?: string; member?
 
 /* ---------- lists that the backend cuts short ---------- */
 
-/** Said beside a member list that is shorter than the team's count. Null when the list is whole. */
-export const memberListNote = (team: ManagedTeam): string | null =>
-  team.members.length < team.team.memberCount
-    ? `Showing the first ${team.members.length.toLocaleString("en-US")} of ${countLabel(team.team.memberCount, "member")}. The server lists at most ${TEAM_MEMBER_LIMIT} members of a team.`
-    : null;
+/* Said beside a member list that is shorter than the team's count. Null when the list is whole.
+   `memberCount` counts every row of the team. The list can be shorter for two reasons: the
+   backend's bound of 200, and rows left out (the backend leaves out a row whose user is no longer
+   a member of the organization, and a row that cannot be read is dropped here). The bound is
+   named only when the count is above it: at or below it, the bound is not why rows are missing. */
+export const memberListNote = (team: Pick<ManagedTeam, "team" | "members">): string | null => {
+  const shown = team.members.length.toLocaleString("en-US");
+  const count = team.team.memberCount;
+  if (team.members.length >= count) return null;
+  return count <= TEAM_MEMBER_LIMIT
+    ? `The server listed ${shown} of ${countLabel(count, "member")}.`
+    : `Showing the first ${shown} of ${countLabel(count, "member")}. The server lists at most ${TEAM_MEMBER_LIMIT} members of a team.`;
+};
 
-/** Said beside a manager list that reached the backend's bound: it sends no count of managers, so there may be more. */
-export const managerListNote = (team: Pick<Team, "managers">): string | null =>
-  team.managers.length >= TEAM_MANAGER_LIMIT
-    ? `Showing the first ${team.managers.length.toLocaleString("en-US")} managers. The server lists at most ${TEAM_MANAGER_LIMIT} and sends no count of them, so there may be more.`
-    : null;
+/* Said beside a manager list that reached the backend's bound: it sends no count of managers, so
+   there may be more. Whether the bound was reached is read off what the answer held
+   (`managersListed`), not off what is left after a row that could not be read was dropped. */
+export const managerListNote = (managed: Pick<ManagedTeam, "team" | "managersListed">): string | null => {
+  const shown = managed.team.managers.length;
+  const listed = Math.max(managed.managersListed, shown);
+  if (listed < TEAM_MANAGER_LIMIT) return null;
+  const more = `The server lists at most ${TEAM_MANAGER_LIMIT} and sends no count of them, so there may be more.`;
+  return shown === listed
+    ? `Showing the first ${shown.toLocaleString("en-US")} managers. ${more}`
+    : `Showing ${shown.toLocaleString("en-US")} of the ${listed.toLocaleString("en-US")} managers the server listed. ${more}`;
+};
 
 /* ---------- wording ---------- */
 

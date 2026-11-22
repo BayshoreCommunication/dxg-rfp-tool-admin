@@ -375,18 +375,52 @@ describe("who can join a team, and which teams can be chosen", () => {
 describe("lists the backend cuts short", () => {
   const rows = (count: number) => Array.from({ length: count }, (_, index) => ({ member: memberView({ userId: `6a${String(index).padStart(22, "0")}` }), version: 1, isManager: false }));
 
-  it("says 'showing the first N' when the member list is shorter than the count, and nothing when it is whole", () => {
-    expect(memberListNote(managedTeam({ memberCount: 1 }))).toBeNull();
-    expect(memberListNote(managedTeam({ memberCount: 0 }, []))).toBeNull();
-    expect(memberListNote(managedTeam({ memberCount: 1234 }, rows(200)))).toBe("Showing the first 200 of 1,234 members. The server lists at most 200 members of a team.");
-    expect(memberListNote(managedTeam({ memberCount: 3 }, rows(2)))).toMatch(/^Showing the first 2 of 3 members\./);
+  // memberCount counts every row of the team; the list is shorter when the backend's bound cut
+  // it, and also when a row was left out. The bound is blamed only above the bound.
+  it.each([
+    ["whole", 1, 1, null],
+    ["empty", 0, 0, null],
+    ["more listed than counted", 1, 2, null],
+    ["a row left out, far below the bound", 3, 2, "The server listed 2 of 3 members."],
+    ["one member, not listed", 1, 0, "The server listed 0 of 1 member."],
+    ["a row left out, at the bound", 200, 199, "The server listed 199 of 200 members."],
+    ["just above the bound", 201, 200, "Showing the first 200 of 201 members. The server lists at most 200 members of a team."],
+    ["far above the bound", 1234, 200, "Showing the first 200 of 1,234 members. The server lists at most 200 members of a team."],
+    ["above the bound, and a row left out too", 1234, 199, "Showing the first 199 of 1,234 members. The server lists at most 200 members of a team."],
+  ] as const)("the member list note, %s (count %i, listed %i)", (_name, memberCount, listed, said) => {
+    expect(memberListNote(managedTeam({ memberCount }, rows(listed)))).toBe(said);
   });
 
-  it("says the manager list may be cut when it reaches the bound, since no count of managers is sent", () => {
-    const managers = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `6a${String(index).padStart(22, "0")}`, name: `M ${index}`, email: null }));
-    expect(managerListNote(managedTeam({ managers: managers(3) }).team)).toBeNull();
-    expect(managerListNote(managedTeam({ managers: managers(199) }).team)).toBeNull();
-    expect(managerListNote(managedTeam({ managers: managers(200) }).team)).toMatch(/^Showing the first 200 managers\. .* there may be more\.$/);
+  it("drops a member row it cannot read without blaming the bound", () => {
+    const team = managedTeam({ memberCount: 3 }, [...rows(2), { member: { name: "No id" }, version: 1 }]);
+    expect(team.members).toHaveLength(2);
+    expect(memberListNote(team)).toBe("The server listed 2 of 3 members.");
+  });
+
+  // No count of managers is sent: whether the bound was reached is read off the rows the answer
+  // held, so a row dropped here does not hide that there may be more.
+  const managers = (count: number, unreadable = 0) => [
+    ...Array.from({ length: count - unreadable }, (_, index) => ({ id: `6a${String(index).padStart(22, "0")}`, name: `M ${index}`, email: null })),
+    ...Array.from({ length: unreadable }, () => ({ name: "No id" })),
+  ];
+  const MORE = "The server lists at most 200 and sends no count of them, so there may be more.";
+  it.each([
+    [3, 0, null],
+    [199, 0, null],
+    [199, 1, null],
+    [200, 0, `Showing the first 200 managers. ${MORE}`],
+    [200, 1, `Showing 199 of the 200 managers the server listed. ${MORE}`],
+    [200, 5, `Showing 195 of the 200 managers the server listed. ${MORE}`],
+  ] as const)("the manager list note: %i rows in the answer, %i of them unreadable", (count, unreadable, said) => {
+    const team = managedTeam({ managers: managers(count, unreadable) });
+    expect(team.team.managers).toHaveLength(count - unreadable);
+    expect(team.managersListed).toBe(count);
+    expect(managerListNote(team)).toBe(said);
+  });
+
+  it("counts no manager rows for an answer without a manager list", () => {
+    expect(managedTeam({ managers: undefined }).managersListed).toBe(0);
+    expect(managerListNote(managedTeam({ managers: "x" }))).toBeNull();
   });
 
   const memberships = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `6c${String(index).padStart(22, "0")}`, name: `T ${index}`, archived: index % 2 === 1, isManager: false }));
