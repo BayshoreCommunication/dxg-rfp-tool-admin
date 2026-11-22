@@ -1,10 +1,16 @@
 import { countLabel } from "@/lib/plural";
 import { formatContentDate, personName, type TeamsList as Teams } from "@/lib/organizationContent/content";
+import { isManagementId } from "@/lib/organizationManagement/management";
+import { teamCreatePath, teamManagementPath } from "@/lib/organizationManagement/teams";
 import { UsersRound } from "lucide-react";
-import { ContentBadge, ContentCard, EmptyState } from "./ContentChrome";
+import Link from "next/link";
+import { ContentBadge, ContentCard, EmptyState, focusRing } from "./ContentChrome";
 
-/** The organization's teams, active first. View only. */
-export default function TeamsList({ data }: { data: Teams }) {
+const staffLink = `inline-flex min-h-11 items-center text-sm font-bold text-[#007f86] underline-offset-2 hover:underline dark:text-cyan-300 ${focusRing}`;
+
+/** The organization's teams, active first. View only: the two links lead to the staff management
+    pages, which are outside this browser and read what they show when they open. */
+export default function TeamsList({ organizationId, data }: { organizationId: string; data: Teams }) {
   const { teams } = data;
   return (
     <ContentCard
@@ -12,13 +18,18 @@ export default function TeamsList({ data }: { data: Teams }) {
       title="Teams"
       count={`${teams.length.toLocaleString("en-US")} total`}
       description="This organization's teams, active first, with who manages each."
+      controls={
+        <Link href={teamCreatePath(organizationId)} prefetch={false} className={staffLink}>
+          Create a team
+        </Link>
+      }
     >
       {teams.length === 0 ? (
         <EmptyState icon={UsersRound} title="No teams yet" message="This organization has not created a team." />
       ) : (
         <ul className="divide-y divide-slate-100">
           {teams.map((team) => (
-            <li key={team.id} className="grid gap-2 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1fr)] lg:items-center lg:gap-4">
+            <li key={team.id} className="grid gap-2 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.6fr)] lg:items-center lg:gap-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="min-w-0 break-words text-sm font-bold text-[#20304b]">{team.name}</p>
@@ -45,6 +56,13 @@ export default function TeamsList({ data }: { data: Teams }) {
                 Created {formatContentDate(team.createdAt)}
                 {team.archived && team.archivedAt ? ` · archived ${formatContentDate(team.archivedAt)}` : ""}
               </p>
+              {isManagementId(team.id) ? (
+                <p className="min-w-0">
+                  <Link href={teamManagementPath(organizationId, team.id)} prefetch={false} aria-label={`Manage ${team.name}`} className={staffLink}>
+                    Manage
+                  </Link>
+                </p>
+              ) : null}
             </li>
           ))}
         </ul>

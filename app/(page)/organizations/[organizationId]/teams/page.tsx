@@ -18,7 +18,7 @@ export default async function OrganizationTeamsPage({ params }: Props) {
   return (
     <ContentFrame organizationId={known} active="teams">
       {result.ok ? (
-        <TeamsList data={result.data} />
+        <TeamsList organizationId={organizationId} data={result.data} />
       ) : (
         <ContentFailureState failure={result.failure} kind="teams" retryHref={known ? organizationTeamsPath(known) : undefined} />
       )}
