@@ -11,6 +11,8 @@ import {
   loadTeamMemberWritePage,
   loadTeamWritePage,
   memberTeamsPath,
+  memberTeamsTooMany,
+  notOnTeamNote,
   TEAM_WRITE_COPY,
   teamCreatePath,
   teamFlowKey,
@@ -97,7 +99,7 @@ export async function TeamMemberWriteScreen({ organizationId, teamId, userId, wr
             title={`${TEAM_WRITE_COPY[write].title} is not available for this member`}
             message={
               !load.membership
-                ? `${memberLabel(load.member.member)} is not on this team.`
+                ? notOnTeamNote(memberLabel(load.member.member), load.member.member)
                 : load.membership.archived
                   ? ARCHIVED_TEAM_NOTE
                   : `${memberLabel(load.member.member)} is not in a state this change applies to on the team ${load.membership.name}. Open the team to see what can be changed.`
@@ -142,7 +144,11 @@ export async function MemberTeamsScreen({ organizationId, userId }: { organizati
           <MemberSummary member={load.member.member} eyebrow={TEAM_WRITE_COPY.memberTeams.title} />
           <NotOfferedState
             title="Changing teams is not available for this member"
-            message={`${memberLabel(load.member.member)} has been removed from the organization, or has a status this screen does not know. A removed member's teams can't be set.`}
+            message={
+              load.tooManyTeams
+                ? memberTeamsTooMany(memberLabel(load.member.member))
+                : `${memberLabel(load.member.member)} has been removed from the organization, or has a status this screen does not know. A removed member's teams can't be set.`
+            }
           >
             <Link href={memberManagementPath(organizationId, userId)} prefetch={false} className={linkClass}>
               Back to this member
@@ -155,7 +161,7 @@ export async function MemberTeamsScreen({ organizationId, userId }: { organizati
       ) : (
         <>
           <MemberSummary member={load.member.member} eyebrow={TEAM_WRITE_COPY.memberTeams.title} />
-          <TeamWriteFlow kind="memberTeams" organization={load.organization} member={load.member} choices={load.choices} key={teamFlowKey("memberTeams", { member: load.member })} />
+          <TeamWriteFlow kind="memberTeams" organization={load.organization} member={load.member} choices={load.choices} choicesCut={load.choicesCut} key={teamFlowKey("memberTeams", { member: load.member })} />
         </>
       )}
     </ManageFrame>

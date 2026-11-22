@@ -34,8 +34,12 @@ import {
   MEMBER_TEAMS_EXACT,
   MEMBER_TEAMS_EXACT_NONE,
   memberListNote,
-  memberTeamsNote,
+  memberTeamsAtBound,
+  memberTeamsBlock,
   memberTeamsOffered,
+  memberTeamsTooMany,
+  notOnTeamNote,
+  activeTeams,
   memberTeamsPath,
   NO_SESSION_ENDED,
   parseManagedTeam,
@@ -385,15 +389,66 @@ describe("lists the backend cuts short", () => {
     expect(managerListNote(managedTeam({ managers: managers(200) }).team)).toMatch(/^Showing the first 200 managers\. .* there may be more\.$/);
   });
 
-  it("says a member's team list may be cut when it reaches the member read's bound", () => {
-    expect(memberTeamsNote(managed().member)).toBeNull();
-    const teams = Array.from({ length: 500 }, (_, index) => ({ id: `6c${String(index).padStart(22, "0")}`, name: `T ${index}`, archived: false, isManager: false }));
-    expect(memberTeamsNote({ teams })).toMatch(/^Showing the first 500 team memberships\. .* there may be more\.$/);
+  const memberships = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `6c${String(index).padStart(22, "0")}`, name: `T ${index}`, archived: index % 2 === 1, isManager: false }));
+
+  it.each([
+    [0, false],
+    [499, false],
+    [500, true],
+    [501, true],
+  ])("a member read listing %i teams: at its bound %j", (count, atBound) => {
+    expect(memberTeamsAtBound({ teams: memberships(count) })).toBe(atBound);
+  });
+
+  it("says a member at the bound is on too many teams to change from this page, and points to the per-team pages", () => {
+    expect(memberTeamsTooMany("Pat Planner")).toBe(
+      "Pat Planner is on too many teams to change safely from this page: the server lists at most 500 of a member's teams, and this change replaces all of them. Team membership can be changed one team at a time from each team's page.",
+    );
+  });
+
+  it("says 'not on this team' only when the member read can tell", () => {
+    expect(notOnTeamNote("Pat Planner", { teams: memberships(3) })).toBe("Pat Planner is not on this team.");
+    expect(notOnTeamNote("Pat Planner", { teams: memberships(500) })).toBe(
+      "This page cannot tell whether Pat Planner is on this team: the server lists at most 500 of a member's teams, and this member has that many. The team's page lists the team's own members.",
+    );
+  });
+
+  it("keeps the sign that the Teams list reached its bound", () => {
+    const list = (count: number) => ({ teams: Array.from({ length: count }, (_, index) => ({ ...managedTeam().team, id: `6c${String(index).padStart(22, "0")}`, archived: index > 1 })) });
+    expect(activeTeams(list(3))).toMatchObject({ cut: false, choices: [{}, {}] });
+    expect(activeTeams(list(499)).cut).toBe(false);
+    // The bound is on the list as read, archived teams included: 500 teams with 2 active ones is still a cut list.
+    expect(activeTeams(list(500))).toMatchObject({ cut: true, choices: [{}, {}] });
+  });
+
+  const WEST = { id: TEAM, name: "West", archived: false, isManager: false };
+  const EAST = { id: TEAM_B, name: "East", archived: false, isManager: false };
+  const OLD = { id: TEAM_OLD, name: "Old Guard", archived: true, isManager: false };
+  it.each([
+    ["every active team offered", [WEST, OLD], CHOICES, false, null],
+    ["no teams", [], CHOICES, false, null],
+    ["an archived team missing from the choices is not a block", [OLD], [], false, null],
+    ["an active team missing from the choices", [WEST, EAST], [{ id: TEAM, name: "West" }], false, /^This member is on at least one active team this page did not load \(East\), .* each team's page, reached from the Teams list\.$/],
+    ["the Teams list reached its bound", [WEST], CHOICES, true, /^This organization has more teams than the server lists \(at most 500\), .* each team's page, reached from the Teams list\.$/],
+  ] as const)("blocks Review: %s", (_name, teams, choices, cut, said) => {
+    const block = memberTeamsBlock({ teams: [...teams] }, [...choices], cut);
+    if (said === null) expect(block).toBeNull();
+    else expect(block).toMatch(said);
+    // The form check refuses the same way, whatever is ticked.
+    const checked = checkTeamDraft("memberTeams", { ...emptyTeamDraft([]), reason: REASON }, { member: { teams: [...teams] }, choices: [...choices], choicesCut: cut });
+    if (said !== null) expect(checked).toEqual({ ok: false, errors: { teams: block } });
+  });
+
+  it("does not untick a current team in silence: one missing from the choices blocks the review", () => {
+    const member = { teams: [WEST, EAST] };
+    const choices = [{ id: TEAM, name: "West" }];
+    expect(initialTeamIds(member, choices)).toEqual([TEAM]);
+    expect(checkTeamDraft("memberTeams", { ...emptyTeamDraft([]), reason: REASON }, { member, choices })).toMatchObject({ ok: false, errors: { teams: expect.stringMatching(/East/) } });
   });
 });
 
 describe("which backend reads each team page makes", () => {
-  const reads = (answers: { team?: ManagementResult<ManagedTeam>; member?: ManagementResult<ManagedMember>; organization?: ManagementResult<ManagedOrganization>; activeTeams?: ManagementResult<TeamChoice[]> } = {}) => {
+  const reads = (answers: { team?: ManagementResult<ManagedTeam>; member?: ManagementResult<ManagedMember>; organization?: ManagementResult<ManagedOrganization>; activeTeams?: ManagementResult<{ choices: TeamChoice[]; cut: boolean }> } = {}) => {
     const calls: string[] = [];
     const made: TeamReads = {
       team: async (organizationId, teamId) => {
@@ -410,7 +465,7 @@ describe("which backend reads each team page makes", () => {
       },
       activeTeams: async (organizationId) => {
         calls.push(`teams ${organizationId}`);
-        return answers.activeTeams ?? { ok: true, data: CHOICES };
+        return answers.activeTeams ?? { ok: true, data: { choices: CHOICES, cut: false } };
       },
     };
     return { made, calls };
@@ -488,7 +543,13 @@ describe("which backend reads each team page makes", () => {
 
   it("a member's teams: the member, then the active teams once, then the organization", async () => {
     const { made, calls } = reads();
-    await expect(loadMemberTeamsPage(made, ORG, USER)).resolves.toMatchObject({ state: "ready", choices: CHOICES, member: { version: 4 }, organization: { id: ORG } });
+    await expect(loadMemberTeamsPage(made, ORG, USER)).resolves.toMatchObject({ state: "ready", choices: CHOICES, choicesCut: false, member: { version: 4 }, organization: { id: ORG } });
+    const cut = reads({ activeTeams: { ok: true, data: { choices: CHOICES, cut: true } } });
+    await expect(loadMemberTeamsPage(cut.made, ORG, USER)).resolves.toMatchObject({ state: "ready", choicesCut: true });
+    // A member whose team list reached the member read's bound: not offered, and nothing else is read.
+    const many = reads({ member: { ok: true, data: managed({ teams: Array.from({ length: 500 }, (_, index) => ({ id: `6c${String(index).padStart(22, "0")}`, name: `T ${index}`, archived: false, isManager: false })) }) } });
+    await expect(loadMemberTeamsPage(many.made, ORG, USER)).resolves.toMatchObject({ state: "not_offered", tooManyTeams: true });
+    expect(many.calls).toEqual([`member ${ORG} ${USER}`]);
     expect(calls).toEqual([`member ${ORG} ${USER}`, `teams ${ORG}`, `organization ${ORG}`]);
     // A removed member: nothing else is read.
     const removed = reads({ member: { ok: true, data: managed({ status: "removed" }) } });
@@ -548,7 +609,7 @@ describe("the form, the review and the result", () => {
     expect(checkTeamDraft("memberTeams", draft({ teamIds: ["not-an-id"] }), { member, choices: CHOICES })).toMatchObject({ ok: false });
     expect(checkTeamDraft("memberTeams", draft({ teamIds: [TEAM] }), { member, choices: CHOICES })).toMatchObject({ ok: false, errors: { teams: expect.stringMatching(/the member's teams now/) } });
     const many = Array.from({ length: 101 }, (_, index) => `6c${String(index + 100).padStart(22, "0")}`);
-    expect(checkTeamDraft("memberTeams", draft({ teamIds: many }), { member, choices: many.map((id) => ({ id, name: id })) })).toMatchObject({ ok: false, errors: { teams: "Choose at most 100 teams." } });
+    expect(checkTeamDraft("memberTeams", draft({ teamIds: many }), { member, choices: [...CHOICES, ...many.map((id) => ({ id, name: id }))] })).toMatchObject({ ok: false, errors: { teams: "Choose at most 100 teams." } });
     // Taking the member off every active team is a change.
     expect(checkTeamDraft("memberTeams", draft({ teamIds: [] }), { member, choices: CHOICES })).toEqual({ ok: true, request: { reason: REASON, teamIds: [] } });
   });
@@ -793,5 +854,14 @@ describe("the review of a member's teams reads the member again", () => {
     });
     const removed = reading({ ok: true, data: managed({ status: "removed" }) });
     await expect(reviewMemberTeams(removed.reads, ORG, loaded, draft([TEAM]), ALL)).resolves.toMatchObject({ state: "not_offered", member: { member: { status: "removed" } } });
+    // The member as read on the press reached the member read's bound, or is on a team the page did not load.
+    const many = reading({ ok: true, data: managed({ teams: Array.from({ length: 500 }, (_, index) => ({ id: `6c${String(index).padStart(22, "0")}`, name: `T ${index}`, archived: false, isManager: false })) }) });
+    await expect(reviewMemberTeams(many.reads, ORG, loaded, draft([TEAM]), ALL)).resolves.toMatchObject({ state: "not_offered", tooManyTeams: true });
+    const elsewhere = reading({ ok: true, data: managed({ teams: [...on(TEAM, TEAM_B), { id: "6c0000000000000000000099", name: "New", archived: false, isManager: false }] }) });
+    await expect(reviewMemberTeams(elsewhere.reads, ORG, loaded, draft([TEAM]), ALL)).resolves.toMatchObject({ state: "refused", errors: { teams: expect.stringMatching(/did not load \(New\)/) } });
+    // A Teams list that reached its bound: no review, and no read either.
+    const cut = reading({ ok: true, data: loaded });
+    await expect(reviewMemberTeams(cut.reads, ORG, loaded, draft([TEAM]), ALL, true)).resolves.toMatchObject({ state: "invalid", errors: { teams: expect.stringMatching(/more teams than the server lists/) } });
+    expect(cut.calls).toEqual([]);
   });
 });

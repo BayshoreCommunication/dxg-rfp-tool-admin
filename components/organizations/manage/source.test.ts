@@ -639,16 +639,16 @@ describe("the team management screens", () => {
     // And once per press of Review on a member's teams, through the tested view model: the review
     // is built from that read, never from the member as the page loaded them.
     expect(flow.match(/getManagedMemberAction/g)).toHaveLength(3);
-    expect(flow).toMatch(/const outcome = await reviewMemberTeams\(\{ member: getManagedMemberAction \}, organization\.id, basis \?\? loaded, draft, choices\);/);
+    expect(flow).toMatch(/const outcome = await reviewMemberTeams\(\{ member: getManagedMemberAction \}, organization\.id, basis \?\? loaded, draft, choices, choicesCut\);/);
     expect(flow.match(/reviewMemberTeams\(/g)).toHaveLength(1);
     expect(flow.match(/toMemberTeamsReview\(/g)).toHaveLength(1);
-    expect(flow).toMatch(/const toReview = \(\) => \{\s*if \(kind === "memberTeams" && managed\) \{\s*void toMemberTeamsReview\(managed\);\s*return;\s*\}/);
+    expect(flow).toMatch(/const toReview = \(\) => \{\s*if \(block\) return;\s*if \(kind === "memberTeams" && managed\) \{\s*void toMemberTeamsReview\(managed\);\s*return;\s*\}/);
     expect(flow.match(/\btoReview\(\)/g)).toHaveLength(1);
     expect(flow).toMatch(/onSubmit=\{\(event\) => \{\s*event\.preventDefault\(\);\s*toReview\(\);/);
     // A failed read shows the failure and no review; a second press while one is in flight reads nothing.
     expect(flow).toMatch(/if \(outcome\.state === "read_failed"\) \{\s*setReviewRead\(\{ phase: "failed", refusal: outcome\.refusal \}\);\s*return;/);
     expect(flow).toMatch(/if \(reviewRead\.phase === "loading"\) return;/);
-    expect(flow).toMatch(/<button type="submit" disabled=\{reviewRead\.phase === "loading"\} className=\{primaryButton\}>/);
+    expect(flow).toMatch(/<button type="submit" disabled=\{reviewRead\.phase === "loading" \|\| block !== null\} className=\{primaryButton\}>/);
     // The member read on the press is the one the review and the request's version are about.
     expect(flow).toMatch(/setManaged\(outcome\.member\);/);
     expect(flow).toMatch(/const notice = teamsChangedNotice\(memberLabel\(outcome\.member\.member\), outcome\.changed\);/);
@@ -691,7 +691,18 @@ describe("the team management screens", () => {
     expect(page).toMatch(/const cut = managerListNote\(team\);/);
     // The count is never taken from the length of a list.
     expect(page).not.toMatch(/countLabel\(members\.length|members\.length\.toLocaleString|managers\.length\.toLocaleString/);
-    expect(read(flowFile)).toMatch(/const cut = member \? memberTeamsNote\(member\.member\) : null;/);
+    // A member's teams are replaced whole: a list that may be cut is never chosen against.
+    const flow = read(flowFile);
+    expect(flow).not.toMatch(/memberTeamsNote|there may be more/);
+    expect(flow).toMatch(/const block = kind === "memberTeams" \? memberTeamsBlock\(managed\?\.member, choices, choicesCut\) : null;/);
+    expect(flow).toMatch(/if \(kind === "memberTeams" && managed && \(!memberTeamsOffered\(managed\.member\) \|\| memberTeamsAtBound\(managed\.member\)\)\) \{/);
+    expect(flow).toMatch(/<p className="break-words font-semibold">Review is off\. \{block\}<\/p>\s*<Link href=\{organizationTeamsPath\(organization\.id\)\} prefetch=\{false\}/);
+    const screens = read(screensFile);
+    expect(screens).toMatch(/load\.tooManyTeams\s*\? memberTeamsTooMany\(memberLabel\(load\.member\.member\)\)/);
+    expect(screens).toMatch(/choices=\{load\.choices\} choicesCut=\{load\.choicesCut\}/);
+    // "Not on this team" is said only when the member read can tell.
+    expect(screens).toMatch(/!load\.membership\s*\? notOnTeamNote\(memberLabel\(load\.member\.member\), load\.member\.member\)/);
+    expect(screens).not.toMatch(/is not on this team/);
     // Dates are UTC and labelled.
     expect(page.match(/formatContentDate\(/g)).toHaveLength(2);
     for (const file of TEAM_COMPONENTS) expect({ file, local: /toLocaleDateString|toLocaleTimeString|new Date\(/.test(read(file)) }).toEqual({ file, local: false });

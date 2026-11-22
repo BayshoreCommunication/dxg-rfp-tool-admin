@@ -29,7 +29,7 @@ import {
   type TransferAnswer,
 } from "@/lib/organizationManagement/management";
 import {
-  activeTeamChoices,
+  activeTeams,
   canJoinTeam,
   parseManagedTeam,
   parseMemberTeamsAnswer,
@@ -39,7 +39,7 @@ import {
   type ManagedTeam,
   type TeamAnswer,
   type TeamCandidatesPage,
-  type TeamChoice,
+  type ActiveTeams,
 } from "@/lib/organizationManagement/teams";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 import { checkStaffAdmin } from "@/lib/server/staffAdmin";
@@ -321,13 +321,13 @@ export async function getManagedTeamAction(organizationId: string, teamId: strin
 /* The organization's active teams, to choose a member's teams from. There is no management route
    for this: it is the content browser's teams read (recorded, and counted in that browser's
    allowance), asked once by the page that shows the choice. Only the id and the name of each
-   active team are handed on. */
-export async function listActiveTeamsAction(organizationId: string): Promise<ManagementResult<TeamChoice[]>> {
+   active team are handed on, and whether the list reached the backend's bound. */
+export async function listActiveTeamsAction(organizationId: string): Promise<ManagementResult<ActiveTeams>> {
   const denied = await staffRefusal();
   if (denied) return denied;
   if (!isManagementId(organizationId)) return refused("invalid_id");
   const result = await listOrganizationTeamsAction(organizationId);
-  return result.ok ? { ok: true, data: activeTeamChoices(result.data) } : listRefusal(result.failure);
+  return result.ok ? { ok: true, data: activeTeams(result.data) } : listRefusal(result.failure);
 }
 
 /* One page of the organization's members, to choose who joins a team: the content browser's

@@ -474,7 +474,14 @@ describe("what the answers hand on", () => {
     mockedFetch.mockResolvedValue(
       ok({ organizationId: ORG, teams: [team({ managers: [{ id: USER, name: "Pat", email: "pat@acme.example" }] }), team({ id: TEAM_B, name: "Old", archived: true }), team({ id: "not-an-id", name: "Odd" })] }),
     );
-    await expect(listActiveTeamsAction(ORG)).resolves.toEqual({ ok: true, data: [{ id: TEAM, name: "West" }] });
+    await expect(listActiveTeamsAction(ORG)).resolves.toEqual({ ok: true, data: { choices: [{ id: TEAM, name: "West" }], cut: false } });
+    // A list at the backend's bound is handed on as one that may be cut, whatever is left of it after the archived teams go.
+    mockedFetch.mockResolvedValue(ok({ organizationId: ORG, teams: Array.from({ length: 500 }, (_, index) => team({ id: `6c${String(index).padStart(22, "0")}`, name: `T ${index}`, archived: index > 0 })) }));
+    await expect(listActiveTeamsAction(ORG)).resolves.toMatchObject({ ok: true, data: { choices: [{ name: "T 0" }], cut: true } });
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+    mockedFetch.mockClear();
+    mockedFetch.mockResolvedValue(ok({ organizationId: ORG, teams: [team()] }));
+    await listActiveTeamsAction(ORG);
     expect(mockedFetch).toHaveBeenCalledTimes(1);
     for (const [status, code, failure] of [[404, "ORGANIZATION_NOT_FOUND", "organization_not_found"], [404, undefined, "not_available"], [429, undefined, "rate_limited"], [401, undefined, "session_ended"], [500, undefined, "unavailable"]] as const) {
       mockedFetch.mockResolvedValue(refusal(status, code));

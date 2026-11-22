@@ -39,9 +39,11 @@ import {
   MANAGER_REACH,
   MEMBER_TEAMS_EFFECTS,
   MEMBER_TEAMS_MAX,
-  memberTeamsNote,
+  memberTeamsAtBound,
+  memberTeamsBlock,
   memberTeamsOffered,
   memberTeamsPath,
+  memberTeamsTooMany,
   NO_SESSION_ENDED,
   reviewMemberTeams,
   TEAM_NAME_RULE,
@@ -92,6 +94,8 @@ type Props = {
   isManager?: boolean;
   /** The organization's active teams: what a member's teams are chosen from. */
   choices?: TeamChoice[];
+  /** Whether the Teams list those came from reached its bound. */
+  choicesCut?: boolean;
 };
 
 type Answered = ManagementResult<TeamWriteAnswer>;
@@ -136,7 +140,7 @@ const flowPath = (kind: TeamWrite, organizationId: string, subject: Subject): st
   return teamCreatePath(organizationId);
 };
 
-export default function TeamWriteFlow({ kind, organization, team, member, isManager = false, choices = [] }: Props) {
+export default function TeamWriteFlow({ kind, organization, team, member, isManager = false, choices = [], choicesCut = false }: Props) {
   const [managed, setManaged] = useState<ManagedMember | null>(member ?? null);
   const [draft, setDraft] = useState<TeamDraft>(() => emptyTeamDraft(kind === "memberTeams" && member ? initialTeamIds(member.member, choices) : []));
   const [errors, setErrors] = useState<TeamDraftErrors>({});
@@ -184,11 +188,21 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
   };
 
   // After the member was loaded again, their teams may no longer be something this screen sets.
-  if (kind === "memberTeams" && managed && !memberTeamsOffered(managed.member)) {
+  if (kind === "memberTeams" && managed && (!memberTeamsOffered(managed.member) || memberTeamsAtBound(managed.member))) {
     return (
-      <NotOfferedState title="Changing teams is not available for this member now" message={`${memberLabel(managed.member)} changed since this page was opened. Open the member to see what can be changed now.`}>
+      <NotOfferedState
+        title="Changing teams is not available for this member now"
+        message={
+          memberTeamsOffered(managed.member)
+            ? memberTeamsTooMany(memberLabel(managed.member))
+            : `${memberLabel(managed.member)} changed since this page was opened. Open the member to see what can be changed now.`
+        }
+      >
         <Link href={memberManagementPath(organization.id, managed.member.userId)} prefetch={false} className={linkClass}>
           Back to this member
+        </Link>
+        <Link href={organizationTeamsPath(organization.id)} prefetch={false} className={linkClass}>
+          Teams list
         </Link>
       </NotOfferedState>
     );
@@ -224,13 +238,15 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
       });
     }
   };
+  // A member's teams can't be reviewed when the page can't offer every active team they are on.
+  const block = kind === "memberTeams" ? memberTeamsBlock(managed?.member, choices, choicesCut) : null;
   /* A member's teams: the request replaces the whole set, so each press of Review reads the member
      again (one more recorded read, on the press only) and the review is built from that read. A
      read that fails shows no review. */
   const toMemberTeamsReview = async (loaded: ManagedMember) => {
     if (reviewRead.phase === "loading") return;
     setReviewRead({ phase: "loading" });
-    const outcome = await reviewMemberTeams({ member: getManagedMemberAction }, organization.id, basis ?? loaded, draft, choices);
+    const outcome = await reviewMemberTeams({ member: getManagedMemberAction }, organization.id, basis ?? loaded, draft, choices, choicesCut);
     if (outcome.state === "read_failed") {
       setReviewRead({ phase: "failed", refusal: outcome.refusal });
       return;
@@ -255,11 +271,12 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
     setReview((current) => ({ id: (current?.id ?? 0) + 1, request: outcome.request, notice }));
   };
   const toReview = () => {
+    if (block) return;
     if (kind === "memberTeams" && managed) {
       void toMemberTeamsReview(managed);
       return;
     }
-    const checked = checkTeamDraft(kind, draft, { teamName: team?.name, member: managed?.member, choices });
+    const checked = checkTeamDraft(kind, draft, { teamName: team?.name, member: managed?.member, choices, choicesCut });
     if (!checked.ok) {
       setErrors(checked.errors);
       focusAfter.current = "errors";
@@ -313,6 +330,15 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
 
       <ReasonField value={draft.reason} error={errors.reason} onChange={(reason) => edit({ reason }, "reason")} />
 
+      {block ? (
+        <div role="alert" className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          <p className="break-words font-semibold">Review is off. {block}</p>
+          <Link href={organizationTeamsPath(organization.id)} prefetch={false} className={linkClass}>
+            Teams list
+          </Link>
+        </div>
+      ) : null}
+
       {reviewRead.phase === "failed" ? (
         <div className="space-y-2">
           <RefusalNote refusal={reviewRead.refusal} />
@@ -321,7 +347,7 @@ export default function TeamWriteFlow({ kind, organization, team, member, isMana
       ) : null}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
-        <button type="submit" disabled={reviewRead.phase === "loading"} className={primaryButton}>
+        <button type="submit" disabled={reviewRead.phase === "loading" || block !== null} className={primaryButton}>
           {reviewRead.phase === "loading" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
           {reviewRead.phase === "loading" ? "Reading the member" : "Review"}
         </button>
@@ -458,7 +484,6 @@ const TeamFormBody = ({
       );
     default: {
       const archived = member ? currentTeams(member.member).archived : [];
-      const cut = member ? memberTeamsNote(member.member) : null;
       const toggle = (id: string, on: boolean) => edit({ teamIds: on ? [...draft.teamIds.filter((other) => other !== id), id] : draft.teamIds.filter((other) => other !== id) }, "teams");
       return (
         <fieldset className="space-y-3" aria-describedby={errors.teams ? `${groupId}-error` : undefined}>
@@ -510,7 +535,6 @@ const TeamFormBody = ({
               {MEMBER_TEAMS_EFFECTS[1]} This member is on: {archived.map((entry) => entry.name).join(", ")}.
             </p>
           ) : null}
-          {cut ? <p className="text-sm text-amber-900">{cut}</p> : null}
         </fieldset>
       );
     }

@@ -214,6 +214,42 @@ export type TeamChoice = { id: string; name: string };
 /** The organization's active teams, from the Teams list read: the only teams a member's teams can name. */
 export const activeTeamChoices = (list: TeamsList): TeamChoice[] => list.teams.filter((team) => !team.archived && isManagementId(team.id)).map(({ id, name }) => ({ id, name }));
 
+/** The Teams list read is bounded: the backend lists at most this many teams of an organization. */
+export const ORGANIZATION_TEAMS_LIMIT = 500;
+
+/** The choices, and whether the Teams list they come from reached its bound: there may then be teams it did not list. */
+export type ActiveTeams = { choices: TeamChoice[]; cut: boolean };
+
+export const activeTeams = (list: TeamsList): ActiveTeams => ({ choices: activeTeamChoices(list), cut: list.teams.length >= ORGANIZATION_TEAMS_LIMIT });
+
+/** Whether the member read's own bound was reached: the teams it lists may then not be all the member is on. */
+export const memberTeamsAtBound = (member: Pick<Member, "teams">): boolean => member.teams.length >= MEMBER_TEAMS_LIMIT;
+
+const PER_TEAM = "Team membership can be changed one team at a time from each team's page";
+
+/** Said in place of the form when the member read reached its bound: a set chosen here would replace teams the page cannot see. */
+export const memberTeamsTooMany = (who: string): string =>
+  `${who} is on too many teams to change safely from this page: the server lists at most ${MEMBER_TEAMS_LIMIT} of a member's teams, and this change replaces all of them. ${PER_TEAM}.`;
+
+/* Why "Review" is off for a member's teams. The request replaces the member's whole set of active
+   teams with the teams ticked, and only a team among the choices can be ticked: a team the member
+   is on that the page does not offer would be left silently. Null when every active team the
+   member is on is offered and the Teams list was whole. */
+export const memberTeamsBlock = (member: Pick<Member, "teams"> | undefined, choices: TeamChoice[], cut: boolean): string | null => {
+  if (cut) {
+    return `This organization has more teams than the server lists (at most ${ORGANIZATION_TEAMS_LIMIT}), so this page can't offer every team this member may be on, and changing teams here would take them off any team it does not show. ${PER_TEAM}, reached from the Teams list.`;
+  }
+  const missing = member ? currentTeams(member).active.filter((team) => !choices.some((choice) => choice.id === team.id)) : [];
+  if (missing.length === 0) return null;
+  return `This member is on at least one active team this page did not load (${missing.map((team) => team.name).join(", ")}), and changing teams here would take them off every team it did not load. Open this page again to load the teams afresh. ${PER_TEAM}, reached from the Teams list.`;
+};
+
+/** Said on a page about one member of a team when the member read does not name the team. */
+export const notOnTeamNote = (who: string, member: Pick<Member, "teams">): string =>
+  memberTeamsAtBound(member)
+    ? `This page cannot tell whether ${who} is on this team: the server lists at most ${MEMBER_TEAMS_LIMIT} of a member's teams, and this member has that many. The team's page lists the team's own members.`
+    : `${who} is not on this team.`;
+
 /** The member's current teams, from the member read: the active ones the request replaces, and the archived ones it leaves as history. */
 export const currentTeams = (member: Pick<Member, "teams">): { active: MemberTeam[]; archived: MemberTeam[] } => ({
   active: member.teams.filter((team) => !team.archived),
@@ -244,7 +280,7 @@ export type TeamReads = {
   team(organizationId: string, teamId: string): Promise<ManagementResult<ManagedTeam>>;
   member(organizationId: string, userId: string): Promise<ManagementResult<ManagedMember>>;
   organization(organizationId: string): Promise<ManagementResult<ManagedOrganization>>;
-  activeTeams(organizationId: string): Promise<ManagementResult<TeamChoice[]>>;
+  activeTeams(organizationId: string): Promise<ManagementResult<ActiveTeams>>;
 };
 
 const failed = (refusal: ManagementRefusal) => ({ state: "failed" as const, refusal });
@@ -316,9 +352,10 @@ export const loadTeamMemberWritePage = async (
 };
 
 export type MemberTeamsLoad =
-  | { state: "ready"; member: ManagedMember; choices: TeamChoice[]; organization: ManagedOrganization }
-  /** A removed member, or a status this screen does not know: nothing else is read. */
-  | { state: "not_offered"; member: ManagedMember }
+  | { state: "ready"; member: ManagedMember; choices: TeamChoice[]; choicesCut: boolean; organization: ManagedOrganization }
+  /** A removed member, or a status this screen does not know, or (`tooManyTeams`) a member whose
+      team list reached the member read's bound: nothing else is read. */
+  | { state: "not_offered"; member: ManagedMember; tooManyTeams?: true }
   | { state: "failed"; refusal: ManagementRefusal };
 
 /* A member's teams: the member (their teams now, and the version the write needs), then the
@@ -329,11 +366,13 @@ export const loadMemberTeamsPage = async (reads: Pick<TeamReads, "member" | "act
   const member = await reads.member(organizationId, userId);
   if (!member.ok) return failed(member);
   if (!memberTeamsOffered(member.data.member)) return { state: "not_offered", member: member.data };
-  const choices = await reads.activeTeams(organizationId);
-  if (!choices.ok) return failed(choices);
+  // The request replaces every active team: a list that may be cut is not one to choose against.
+  if (memberTeamsAtBound(member.data.member)) return { state: "not_offered", member: member.data, tooManyTeams: true };
+  const teams = await reads.activeTeams(organizationId);
+  if (!teams.ok) return failed(teams);
   const organization = await reads.organization(organizationId);
   if (!organization.ok) return failed(organization);
-  return { state: "ready", member: member.data, choices: choices.data, organization: organization.data };
+  return { state: "ready", member: member.data, choices: teams.data.choices, choicesCut: teams.data.cut, organization: organization.data };
 };
 
 /** What a team write flow's client state belongs to: a page that reads another team, member or version starts it again. */
@@ -352,12 +391,6 @@ export const memberListNote = (team: ManagedTeam): string | null =>
 export const managerListNote = (team: Pick<Team, "managers">): string | null =>
   team.managers.length >= TEAM_MANAGER_LIMIT
     ? `Showing the first ${team.managers.length.toLocaleString("en-US")} managers. The server lists at most ${TEAM_MANAGER_LIMIT} and sends no count of them, so there may be more.`
-    : null;
-
-/** Said when a member's team list reached the member read's bound: the teams shown may not be all of them. */
-export const memberTeamsNote = (member: Pick<Member, "teams">): string | null =>
-  member.teams.length >= MEMBER_TEAMS_LIMIT
-    ? `Showing the first ${member.teams.length.toLocaleString("en-US")} team memberships. The server lists at most ${MEMBER_TEAMS_LIMIT} for a member, so there may be more.`
     : null;
 
 /* ---------- wording ---------- */
@@ -423,7 +456,7 @@ export type TeamDraftErrors = Partial<Record<TeamDraftField, string>>;
 export type TeamRequest = { reason: string; name?: string; target?: TeamCandidate; isManager?: boolean; teamIds?: string[] };
 
 /** What a draft is checked against: the team's name now, the member's teams now, the teams that can be chosen. */
-export type TeamDraftContext = { teamName?: string; member?: Pick<Member, "teams">; choices?: TeamChoice[] };
+export type TeamDraftContext = { teamName?: string; member?: Pick<Member, "teams">; choices?: TeamChoice[]; choicesCut?: boolean };
 
 export const checkTeamDraft = (kind: TeamWrite, draft: TeamDraft, context: TeamDraftContext = {}): { ok: true; request: TeamRequest } | { ok: false; errors: TeamDraftErrors } => {
   const errors: TeamDraftErrors = {};
@@ -439,7 +472,9 @@ export const checkTeamDraft = (kind: TeamWrite, draft: TeamDraft, context: TeamD
   if (kind === "memberTeams") {
     const choices = context.choices ?? [];
     const now = context.member ? currentTeams(context.member).active.map((team) => team.id) : null;
-    if (draft.teamIds.length > MEMBER_TEAMS_MAX) errors.teams = `Choose at most ${MEMBER_TEAMS_MAX} teams.`;
+    const block = memberTeamsBlock(context.member, choices, context.choicesCut === true);
+    if (block) errors.teams = block;
+    else if (draft.teamIds.length > MEMBER_TEAMS_MAX) errors.teams = `Choose at most ${MEMBER_TEAMS_MAX} teams.`;
     else if (teamIds === null || !teamIds.every((id) => choices.some((choice) => choice.id === id))) errors.teams = "Choose only from the organization's active teams.";
     else if (now && now.length === teamIds.length && now.every((id) => teamIds.includes(id))) errors.teams = "These are the member's teams now. Choose a different set.";
   }
@@ -491,7 +526,7 @@ export type MemberTeamsReview =
   /** The member could not be read again: no review is shown. */
   | { state: "read_failed"; refusal: ManagementRefusal }
   /** The member was read, and their teams can no longer be set from this screen. */
-  | { state: "not_offered"; member: ManagedMember }
+  | { state: "not_offered"; member: ManagedMember; tooManyTeams?: true }
   /** The member was read, and against their teams now the form no longer stands. */
   | { state: "refused"; member: ManagedMember; errors: TeamDraftErrors }
   | { state: "review"; member: ManagedMember; request: TeamRequest; changed: TeamsChangedSince };
@@ -508,8 +543,9 @@ export const reviewMemberTeams = async (
   basis: ManagedMember,
   draft: TeamDraft,
   choices: TeamChoice[],
+  choicesCut = false,
 ): Promise<MemberTeamsReview> => {
-  const form = checkTeamDraft("memberTeams", draft, { choices });
+  const form = checkTeamDraft("memberTeams", draft, { choices, choicesCut });
   if (!form.ok) return { state: "invalid", errors: form.errors };
   let read: ManagementResult<ManagedMember>;
   try {
@@ -520,7 +556,8 @@ export const reviewMemberTeams = async (
   if (!read.ok) return { state: "read_failed", refusal: read };
   const member = read.data;
   if (!memberTeamsOffered(member.member)) return { state: "not_offered", member };
-  const checked = checkTeamDraft("memberTeams", draft, { member: member.member, choices });
+  if (memberTeamsAtBound(member.member)) return { state: "not_offered", member, tooManyTeams: true };
+  const checked = checkTeamDraft("memberTeams", draft, { member: member.member, choices, choicesCut });
   if (!checked.ok) return { state: "refused", member, errors: checked.errors };
   return { state: "review", member, request: checked.request, changed: teamsChangedSince(basis.member, member.member) };
 };
