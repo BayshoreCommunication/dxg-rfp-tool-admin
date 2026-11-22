@@ -217,6 +217,9 @@ describe("the staff management screens", () => {
     const picker = read(`${COMPONENTS}/ReassignTargetPicker.tsx`);
     expect(actionsIn(`${COMPONENTS}/ReassignTargetPicker.tsx`)).toEqual(["listReassignCandidatesAction"]);
     expect(picker.match(/listReassignCandidatesAction\(/g)).toHaveLength(1);
+    // The member the proposals come from goes with the request: who can receive them is decided on the server.
+    expect(picker).toMatch(/await listReassignCandidatesAction\(organizationId, fromUserId, page\);/);
+    expect(picker).toMatch(/const others = ready \? ready\.notEligibleCount : 0;/);
     expect(picker.match(/\bload\(/g)).toHaveLength(3);
     for (const call of picker.match(/.*\bload\(.*/g) ?? []) expect(call).toMatch(/onClick=\{\(\) => load\(/);
     // No effect anywhere in the feature starts a read: the two effects kinds are focus only.

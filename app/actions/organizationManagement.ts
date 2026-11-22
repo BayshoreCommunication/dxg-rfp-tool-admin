@@ -4,6 +4,7 @@ import { listOrganizationMembersAction } from "@/app/actions/organizationContent
 import { getOrganizationAccountAction } from "@/app/actions/organizationPlans";
 import { BACKEND_URL } from "@/lib/config";
 import {
+  canReceiveProposals,
   isAssignableRole,
   isManagementId,
   parseBlockAnswer,
@@ -97,8 +98,9 @@ export async function getManagedMemberAction(organizationId: string, userId: str
    confirm a transfer or a block), its standing, its Owner and whether it is blocked. There is no
    management route for this: it is the organization account read
    (GET /api/v1/admin/organizations/:organizationId), recorded like any other view of it. Only
-   those five facts are handed on. */
-export async function getManagedOrganizationAction(organizationId: string): Promise<ManagementResult<ManagedOrganization>> {
+   those facts are handed on, and the Owner's name and email only to the one page that shows
+   them: the transfer of ownership. `write` is the page asking; anything else gets no Owner. */
+export async function getManagedOrganizationAction(organizationId: string, write?: unknown): Promise<ManagementResult<ManagedOrganization>> {
   const denied = await staffRefusal();
   if (denied) return denied;
   if (!isManagementId(organizationId)) return refused("invalid_id");
@@ -113,7 +115,7 @@ export async function getManagedOrganizationAction(organizationId: string): Prom
         name: organization.name,
         standing: organization.standing,
         blocked: organization.blocked ? { at: organization.blocked.at } : null,
-        owner: owner ? { name: owner.name, email: owner.email } : null,
+        owner: write === "transfer" && owner ? { name: owner.name, email: owner.email } : null,
       },
     };
   }
@@ -134,20 +136,23 @@ export async function getManagedOrganizationAction(organizationId: string): Prom
 /* One page of the organization's members, to choose who receives a member's proposals. There is
    no management route for this either: it is the content browser's members read (50 a page,
    recorded, and counted in that browser's allowance), so it is asked only when staff press the
-   control that loads it, one page at a time. Only what the choice shows is handed on. */
-export async function listReassignCandidatesAction(organizationId: string, page: unknown): Promise<ManagementResult<ReassignCandidatesPage>> {
+   control that loads it, one page at a time. Only what the choice shows is handed on: the
+   members of that page who can receive the proposals (the API's rule, applied here and not in
+   the browser), and how many of the page cannot. A member who cannot receive them is counted,
+   never named. `fromUserId` is the member the proposals come from, who is never a receiver. */
+export async function listReassignCandidatesAction(organizationId: string, fromUserId: string, page: unknown): Promise<ManagementResult<ReassignCandidatesPage>> {
   const denied = await staffRefusal();
   if (denied) return denied;
-  if (!isManagementId(organizationId)) return refused("invalid_id");
+  if (!isManagementId(organizationId) || !isManagementId(fromUserId)) return refused("invalid_id");
   const asked = typeof page === "number" && Number.isInteger(page) && page >= 1 && page <= 100_000 ? page : 1;
   const result = await listOrganizationMembersAction(organizationId, { page: asked });
   if (result.ok) {
+    const candidates = result.data.members
+      .map((member) => ({ userId: member.userId, name: member.name, email: member.email, roles: member.roles, status: member.status }))
+      .filter((candidate) => canReceiveProposals(candidate, fromUserId));
     return {
       ok: true,
-      data: {
-        candidates: result.data.members.map((member) => ({ userId: member.userId, name: member.name, email: member.email, roles: member.roles, status: member.status })),
-        pagination: result.data.pagination,
-      },
+      data: { candidates, notEligibleCount: result.data.members.length - candidates.length, pagination: result.data.pagination },
     };
   }
   switch (result.failure) {

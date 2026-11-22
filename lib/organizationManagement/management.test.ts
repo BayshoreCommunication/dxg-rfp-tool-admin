@@ -408,18 +408,28 @@ describe("which writes a member's state offers", () => {
 describe("which backend reads each management page makes", () => {
   const reads = (member: ManagedMember | null = managed(), org: ManagedOrganization | null = organization()) => {
     const calls: string[] = [];
+    const asked: string[] = [];
     const made: ManagementReads = {
       member: async (organizationId, userId) => {
         calls.push(`member ${organizationId} ${userId}`);
         return member ? { ok: true, data: member } : refused("member_not_found");
       },
-      organization: async (organizationId) => {
+      organization: async (organizationId, write) => {
         calls.push(`organization ${organizationId}`);
+        asked.push(write);
         return org ? { ok: true, data: org } : refused("organization_not_found");
       },
     };
-    return { made, calls };
+    return { made, calls, asked };
   };
+
+  it("tells the organization read which page is asking, so the Owner goes to the transfer page only", async () => {
+    const r = reads();
+    for (const write of ["role", "deactivate", "reassign", "transfer"] as const) await loadMemberWritePage(r.made, ORG, USER, write);
+    await loadOrganizationWritePage(r.made, ORG, "block");
+    await loadOrganizationWritePage(r.made, ORG, "unblock");
+    expect(r.asked).toEqual(["role", "deactivate", "reassign", "transfer", "block", "unblock"]);
+  });
 
   it("reads the member once for the member page, and nothing for an address that is not made of ids", async () => {
     const r = reads();

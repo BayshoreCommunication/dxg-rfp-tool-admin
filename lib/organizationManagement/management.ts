@@ -103,7 +103,8 @@ export type ManagedOrganization = {
   standing: OrganizationStanding;
   /** Null while not blocked. `at` is null when the answer says blocked without a usable date. */
   blocked: { at: string | null } | null;
-  /** The current Owner as account contact: who becomes an Admin after a transfer. */
+  /** The Owner as account contact when the page loaded. Handed only to the transfer page, the one
+      page that shows it; null on every other page, and when the organization has none on file. */
   owner: { name: string; email: string } | null;
 };
 
@@ -465,7 +466,9 @@ export const organizationWritesFor = (organization: Pick<ManagedOrganization, "s
 /* ---------- choosing who receives the proposals ---------- */
 
 export type ReassignCandidate = Pick<Member, "userId" | "name" | "email" | "roles" | "status">;
-export type ReassignCandidatesPage = { candidates: ReassignCandidate[]; pagination: Pagination };
+/** One page of the Members list as the picker gets it: only the members who can receive the
+    proposals, and how many of that page cannot (counted on the server, never named). */
+export type ReassignCandidatesPage = { candidates: ReassignCandidate[]; notEligibleCount: number; pagination: Pagination };
 
 const PROPOSAL_OWNER_ROLES = ["owner", "organization_admin", "team_manager", "planner"];
 
@@ -484,7 +487,8 @@ export const flowKey = (write: MemberWrite, managed: ManagedMember): string => `
 /** The two audited reads the management pages make. A page is handed only what it shows. */
 export type ManagementReads = {
   member(organizationId: string, userId: string): Promise<ManagementResult<ManagedMember>>;
-  organization(organizationId: string): Promise<ManagementResult<ManagedOrganization>>;
+  /** `write` is the page asking: the Owner's name and email are returned for a transfer only. */
+  organization(organizationId: string, write: WriteKind): Promise<ManagementResult<ManagedOrganization>>;
 };
 
 /** The member page: the one member, read once. Nothing is asked for an address that is not made of ids. */
@@ -507,7 +511,7 @@ export const loadMemberWritePage = async (reads: ManagementReads, organizationId
   const member = await reads.member(organizationId, userId);
   if (!member.ok) return { state: "failed", refusal: member };
   if (!memberWritesFor(member.data.member).includes(write)) return { state: "not_offered", member: member.data };
-  const organization = await reads.organization(organizationId);
+  const organization = await reads.organization(organizationId, write);
   if (!organization.ok) return { state: "failed", refusal: organization };
   return { state: "ready", member: member.data, organization: organization.data };
 };
@@ -520,7 +524,7 @@ export type OrganizationWriteLoad =
 /** The block and reactivate pages: the organization, read once. */
 export const loadOrganizationWritePage = async (reads: Pick<ManagementReads, "organization">, organizationId: string, write: OrganizationWrite): Promise<OrganizationWriteLoad> => {
   if (!isManagementId(organizationId)) return { state: "failed", refusal: refused("invalid_id") };
-  const organization = await reads.organization(organizationId);
+  const organization = await reads.organization(organizationId, write);
   if (!organization.ok) return { state: "failed", refusal: organization };
   return organizationWritesFor(organization.data).includes(write) ? { state: "ready", organization: organization.data } : { state: "not_offered", organization: organization.data };
 };

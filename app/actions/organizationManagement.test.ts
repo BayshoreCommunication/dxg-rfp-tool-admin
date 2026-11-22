@@ -141,7 +141,7 @@ const READS: Case[] = [
   { name: "organization", run: (o = ORG) => getManagedOrganizationAction(o), method: "GET", url: API, answer: () => account() },
   {
     name: "candidates",
-    run: (o = ORG) => listReassignCandidatesAction(o, 1),
+    run: (o = ORG) => listReassignCandidatesAction(o, USER, 1),
     method: "GET",
     url: `${API}/members`,
     answer: () => ok({ organizationId: ORG, members: [member()], pagination: { page: 1, perPage: 50, total: 1, totalPages: 1 }, pendingInvitations: [], pendingInvitationsTotal: 0 }),
@@ -439,11 +439,27 @@ describe("what the answers hand on", () => {
     expect(JSON.stringify(result)).not.toMatch(/passwordHash|twoFactorSecret|BACKEND/);
   });
 
-  it("hands on five facts of the organization, with the block only while blocked", async () => {
+  it("hands on the Owner's name and email to the transfer page only", async () => {
+    mockedFetch.mockResolvedValue(account());
+    await expect(getManagedOrganizationAction(ORG, "transfer")).resolves.toEqual({
+      ok: true,
+      data: { id: ORG, name: "Acme Events", standing: "active", blocked: null, owner: { name: "Olive Owner", email: "olive@acme.example" } },
+    });
+    // Every other page, and a caller that names no page or something else, gets no Owner at all.
+    for (const write of [undefined, "role", "deactivate", "reactivate", "reassign", "block", "unblock", "TRANSFER", "transfer ", ["transfer"], { write: "transfer" }, true, 1, null]) {
+      const result = await getManagedOrganizationAction(ORG, write);
+      expect(result).toEqual({ ok: true, data: { id: ORG, name: "Acme Events", standing: "active", blocked: null, owner: null } });
+      expect(JSON.stringify(result)).not.toMatch(/Olive|olive@/);
+    }
+    // One request each: asking for the Owner is not a second read.
+    expect(mockedFetch).toHaveBeenCalledTimes(15);
+  });
+
+  it("hands on the facts of the organization, with the block only while blocked", async () => {
     mockedFetch.mockResolvedValue(account());
     await expect(getManagedOrganizationAction(ORG)).resolves.toEqual({
       ok: true,
-      data: { id: ORG, name: "Acme Events", standing: "active", blocked: null, owner: { name: "Olive Owner", email: "olive@acme.example" } },
+      data: { id: ORG, name: "Acme Events", standing: "active", blocked: null, owner: null },
     });
     mockedFetch.mockResolvedValue(account({ blocked: true, blockedAt: "2026-11-20T09:00:00.000Z" }));
     await expect(getManagedOrganizationAction(ORG)).resolves.toMatchObject({ ok: true, data: { blocked: { at: "2026-11-20T09:00:00.000Z" } } });
@@ -474,42 +490,62 @@ describe("what the answers hand on", () => {
     await expect(getManagedOrganizationAction(ORG)).resolves.toEqual({ ok: false, failure: "unavailable", code: null });
   });
 
-  it("lists one page of members to choose from, with only what the choice shows", async () => {
+  it("lists only the members of one page who can receive the proposals, and counts the rest without naming them", async () => {
     mockedFetch.mockResolvedValue(
       ok({
         organizationId: ORG,
-        members: [member({ teams: [{ id: "6c0000000000000000000003", name: "West", archived: false, isManager: true }] }), member({ userId: OTHER, name: "Vic", roles: ["viewer"] })],
+        members: [
+          // The member the proposals come from: never a receiver.
+          member({ teams: [{ id: "6c0000000000000000000003", name: "West", archived: false, isManager: true }] }),
+          member({ userId: OTHER, name: "Ada Admin", email: "ada@acme.example", roles: ["organization_admin"] }),
+          member({ userId: "6a00000000000000000000a1", name: "Vic Viewer", email: "vic@acme.example", roles: ["viewer"] }),
+          member({ userId: "6a00000000000000000000a2", name: "Dee Deactivated", email: "dee@acme.example", status: "suspended" }),
+          member({ userId: "6a00000000000000000000a3", name: "Ina Invited", email: "ina@acme.example", status: "invited" }),
+          member({ userId: "6a00000000000000000000a4", name: "Rem Removed", email: "rem@acme.example", status: "removed" }),
+          member({ userId: "6a00000000000000000000a5", name: "Olive Owner", email: "olive@acme.example", roles: ["owner"] }),
+        ],
         pagination: { page: 2, perPage: 50, total: 120, totalPages: 3 },
         pendingInvitations: [{ id: "6e0000000000000000000001", email: "new@acme.example", role: "planner", status: "pending" }],
         pendingInvitationsTotal: 1,
       }),
     );
-    const result = await listReassignCandidatesAction(ORG, 2);
+    const result = await listReassignCandidatesAction(ORG, USER, 2);
     expect(result).toEqual({
       ok: true,
       data: {
         candidates: [
-          { userId: USER, name: "Pat Planner", email: "pat@acme.example", roles: ["planner"], status: "active" },
-          { userId: OTHER, name: "Vic", email: "pat@acme.example", roles: ["viewer"], status: "active" },
+          { userId: OTHER, name: "Ada Admin", email: "ada@acme.example", roles: ["organization_admin"], status: "active" },
+          { userId: "6a00000000000000000000a5", name: "Olive Owner", email: "olive@acme.example", roles: ["owner"], status: "active" },
         ],
+        notEligibleCount: 5,
         pagination: { page: 2, perPage: 50, total: 120, totalPages: 3 },
       },
     });
     expect(urlOf().endsWith(`${API}/members?page=2`)).toBe(true);
+    // Nobody who can't receive the proposals reaches the browser, by name, email or id.
+    expect(JSON.stringify(result)).not.toMatch(/Pat Planner|pat@|Vic|vic@|Dee|dee@|Ina|ina@|Rem Removed|rem@|6a00000000000000000000a[1-4]/);
     expect(JSON.stringify(result)).not.toMatch(/new@acme\.example|West|joinedAt/);
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses a list of receivers without the member the proposals come from, before any backend call", async () => {
+    for (const from of ["", "abc", USER.toUpperCase(), `${USER}0`, undefined, null, 7, {}, [USER]]) {
+      await expect(listReassignCandidatesAction(ORG, from as unknown as string, 1)).resolves.toEqual({ ok: false, failure: "invalid_id", code: null });
+    }
+    expect(mockedFetch).not.toHaveBeenCalled();
   });
 
   it("asks for page 1 when the page is not a whole number, and never puts anything else in the address", async () => {
     for (const page of [undefined, null, "2", 0, -1, 1.5, "1&search=x", { page: 2 }]) {
       mockedFetch.mockReset();
       mockedFetch.mockResolvedValue(READS[2].answer());
-      await listReassignCandidatesAction(ORG, page);
+      await listReassignCandidatesAction(ORG, USER, page);
       expect(urlOf().endsWith(`${API}/members`)).toBe(true);
     }
     mockedFetch.mockResolvedValue(refusal(429));
-    await expect(listReassignCandidatesAction(ORG, 1)).resolves.toEqual({ ok: false, failure: "rate_limited", code: null });
+    await expect(listReassignCandidatesAction(ORG, USER, 1)).resolves.toEqual({ ok: false, failure: "rate_limited", code: null });
     mockedFetch.mockResolvedValue(refusal(404));
-    await expect(listReassignCandidatesAction(ORG, 1)).resolves.toEqual({ ok: false, failure: "not_available", code: null });
+    await expect(listReassignCandidatesAction(ORG, USER, 1)).resolves.toEqual({ ok: false, failure: "not_available", code: null });
   });
 
   it("returns each write's answer as the result the screen shows", async () => {

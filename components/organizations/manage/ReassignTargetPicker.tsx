@@ -46,7 +46,7 @@ export default function ReassignTargetPicker({
     setList({ phase: "loading", page });
     let result: ManagementResult<ReassignCandidatesPage>;
     try {
-      result = await listReassignCandidatesAction(organizationId, page);
+      result = await listReassignCandidatesAction(organizationId, fromUserId, page);
     } catch {
       result = refused("unavailable");
     }
@@ -58,8 +58,9 @@ export default function ReassignTargetPicker({
   // The page a first load, or another try, asks for.
   const firstOrSame = list.phase === "loading" || list.phase === "failed" ? list.page : 1;
   const ready = list.phase === "ready" ? list.page : null;
+  // The server hands on only the members who can receive the proposals; this check is a second one.
   const eligible = ready ? ready.candidates.filter((candidate) => canReceiveProposals(candidate, fromUserId)) : [];
-  const others = ready ? ready.candidates.length - eligible.length : 0;
+  const others = ready ? ready.notEligibleCount : 0;
 
   return (
     <fieldset className="space-y-3" aria-describedby={error ? `${groupId}-error` : undefined}>
