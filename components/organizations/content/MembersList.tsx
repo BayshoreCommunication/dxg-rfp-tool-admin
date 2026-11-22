@@ -10,8 +10,10 @@ import {
   withQuery,
   type MembersPage,
 } from "@/lib/organizationContent/content";
+import { isManagementId, memberManagementPath } from "@/lib/organizationManagement/management";
 import { MailPlus, Users } from "lucide-react";
-import { ContentBadge, ContentCard, EmptyState, Pager } from "./ContentChrome";
+import Link from "next/link";
+import { ContentBadge, ContentCard, EmptyState, focusRing, Pager } from "./ContentChrome";
 
 const cell = "min-w-0 break-words text-[13px] text-slate-600";
 const label = "text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 lg:sr-only";
@@ -32,12 +34,13 @@ export default function MembersList({ organizationId, page }: { organizationId: 
           <EmptyState icon={Users} title={pagination.total > 0 ? "No members on this page" : "No members found"} message={pagination.total > 0 ? "Go back to an earlier page." : "This organization has no members."} />
         ) : (
           <>
-            <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] gap-4 border-b border-slate-100 bg-[#f8fafc] px-6 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 lg:grid" aria-hidden="true">
+            <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)] gap-4 border-b border-slate-100 bg-[#f8fafc] px-6 py-3 text-[11px] font-bold uppercase tracking-[0.045em] text-slate-500 lg:grid" aria-hidden="true">
               <span>Member</span>
               <span>Roles</span>
               <span>Teams</span>
               <span>Joined</span>
               <span>Last sign-in</span>
+              <span>Staff</span>
             </div>
             <ul className="divide-y divide-slate-100">
               {members.map((member) => {
@@ -45,7 +48,7 @@ export default function MembersList({ organizationId, page }: { organizationId: 
                 return (
                   <li
                     key={member.userId}
-                    className="grid gap-2 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-4"
+                    className="grid gap-2 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.7fr)] lg:items-center lg:gap-4"
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -74,6 +77,20 @@ export default function MembersList({ organizationId, page }: { organizationId: 
                       <span className={label}>Last sign-in: </span>
                       {member.lastSignedInAt ? formatContentDate(member.lastSignedInAt) : "Never"}
                     </p>
+                    {/* The way to the member's management page, which is outside this view-only browser.
+                        It reads the member when it opens, so it is never fetched ahead of the click. */}
+                    {isManagementId(member.userId) ? (
+                      <p className="min-w-0">
+                        <Link
+                          href={memberManagementPath(organizationId, member.userId)}
+                          prefetch={false}
+                          aria-label={`Manage ${personName(member)}`}
+                          className={`inline-flex min-h-11 items-center text-sm font-bold text-[#007f86] underline-offset-2 hover:underline dark:text-cyan-300 ${focusRing}`}
+                        >
+                          Manage
+                        </Link>
+                      </p>
+                    ) : null}
                   </li>
                 );
               })}

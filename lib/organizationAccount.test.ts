@@ -352,3 +352,27 @@ describe("organization account wording", () => {
     );
   });
 });
+
+// Staff organization block (backend docs/API.md): the account answer carries `blocked: true` and
+// `blockedAt` on the organization ONLY while it is blocked. No key means not blocked.
+describe("the blocked marker of an organization account", () => {
+  const withOrganization = (change: Record<string, unknown>) => ({ ...response(), organization: { ...response().organization, ...change } });
+
+  it("is absent for an organization that is not blocked", () => {
+    expect(parseOrganizationAccount(response())?.organization).not.toHaveProperty("blocked");
+    expect(parseOrganizationAccount(withOrganization({ blocked: false, blockedAt: "2026-11-20T09:00:00.000Z" }))?.organization).not.toHaveProperty("blocked");
+    // A date alone is not a block, and neither is anything but the API's own `true`.
+    for (const change of [{ blockedAt: "2026-11-20T09:00:00.000Z" }, { blocked: "true" }, { blocked: 1 }, { blocked: { at: "2026-11-20T09:00:00.000Z" } }]) {
+      expect(parseOrganizationAccount(withOrganization(change))?.organization).not.toHaveProperty("blocked");
+    }
+  });
+
+  it("keeps since when, for one that is, and nothing about who blocked it", () => {
+    const parsed = parseOrganizationAccount(withOrganization({ blocked: true, blockedAt: "2026-11-20T09:00:00.000Z", byStaffAccountId: "c".repeat(24) }));
+    expect(parsed?.organization.blocked).toEqual({ at: "2026-11-20T09:00:00.000Z" });
+    expect(JSON.stringify(parsed)).not.toMatch(/byStaffAccountId/);
+    // Blocked with a date that can't be read is still blocked.
+    expect(parseOrganizationAccount(withOrganization({ blocked: true }))?.organization.blocked).toEqual({ at: null });
+    expect(parseOrganizationAccount(withOrganization({ blocked: true, blockedAt: "soon" }))?.organization.blocked).toEqual({ at: null });
+  });
+});
