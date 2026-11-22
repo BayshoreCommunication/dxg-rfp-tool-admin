@@ -732,7 +732,10 @@ describe("the team management screens", () => {
 
   it("starts the flow again when the page reads another team, member or version, and reloads fully after UNKNOWN_TEAMS", () => {
     const screens = read(screensFile);
-    expect(screens.match(/key=\{teamFlowKey\(/g)).toHaveLength(3);
+    // Every flow is keyed, the create flow too, and every key names the organization as read.
+    expect(screens.match(/key=\{teamFlowKey\(/g)).toHaveLength(4);
+    expect(screens.match(/<TeamWriteFlow\b/g)).toHaveLength(4);
+    expect(screens.match(/key=\{teamFlowKey\((write|"create"|"memberTeams"), load\.organization\.id[,)]/g)).toHaveLength(4);
     const flow = read(flowFile);
     expect(flow).toMatch(/failure === "unknown_teams" && member \? \(\s*(\/\/.*\s*)*<a href=\{memberTeamsPath\(organization\.id, member\.member\.userId\)\} className=\{linkClass\}>\s*Open this page again\s*<\/a>/);
     expect(flow.match(/<a\b/g)).toHaveLength(1);

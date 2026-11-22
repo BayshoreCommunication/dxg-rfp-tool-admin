@@ -377,9 +377,9 @@ export const loadMemberTeamsPage = async (reads: Pick<TeamReads, "member" | "act
   return { state: "ready", member: member.data, choices: teams.data.choices, choicesCut: teams.data.cut, organization: organization.data };
 };
 
-/** What a team write flow's client state belongs to: a page that reads another team, member or version starts it again. */
-export const teamFlowKey = (kind: TeamWrite, subject: { teamId?: string; member?: ManagedMember }): string =>
-  [kind, subject.teamId ?? "", subject.member?.member.userId ?? "", subject.member?.version ?? ""].join(":");
+/** What a team write flow's client state belongs to: a page that reads another organization, team, member or version starts it again. */
+export const teamFlowKey = (kind: TeamWrite, organizationId: string, subject: { teamId?: string; member?: ManagedMember } = {}): string =>
+  [kind, organizationId, subject.teamId ?? "", subject.member?.member.userId ?? "", subject.member?.version ?? ""].join(":");
 
 /* ---------- lists that the backend cuts short ---------- */
 

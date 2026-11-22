@@ -46,7 +46,8 @@ export async function CreateTeamScreen({ organizationId }: { organizationId: str
             <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#007f86]">{TEAM_WRITE_COPY.create.title}</p>
             <h1 className="mt-1 break-words text-2xl font-extrabold tracking-[-0.03em] text-[#12213a]">{organizationLabel(load.organization)}</h1>
           </section>
-          <TeamWriteFlow kind="create" organization={load.organization} />
+          {/* Keyed by the organization as read: the create page of another organization starts the flow again. */}
+          <TeamWriteFlow kind="create" organization={load.organization} key={teamFlowKey("create", load.organization.id)} />
         </>
       )}
     </ManageFrame>
@@ -75,7 +76,7 @@ export async function TeamWriteScreen({ organizationId, teamId, write }: { organ
         <>
           <TeamSummary team={load.team.team} managersListed={load.team.managersListed} eyebrow={TEAM_WRITE_COPY[write].title} />
           {/* Keyed by the team as read: a page that reads another team starts the flow again. */}
-          <TeamWriteFlow kind={write} organization={load.organization} team={{ id: load.team.team.id, name: load.team.team.name }} key={teamFlowKey(write, { teamId: load.team.team.id })} />
+          <TeamWriteFlow kind={write} organization={load.organization} team={{ id: load.team.team.id, name: load.team.team.name }} key={teamFlowKey(write, load.organization.id, { teamId: load.team.team.id })} />
         </>
       )}
     </ManageFrame>
@@ -122,7 +123,7 @@ export async function TeamMemberWriteScreen({ organizationId, teamId, userId, wr
             team={{ id: load.membership.id, name: load.membership.name }}
             member={load.member}
             isManager={load.membership.isManager}
-            key={teamFlowKey(write, { teamId: load.membership.id, member: load.member })}
+            key={teamFlowKey(write, load.organization.id, { teamId: load.membership.id, member: load.member })}
           />
         </>
       )}
@@ -161,7 +162,7 @@ export async function MemberTeamsScreen({ organizationId, userId }: { organizati
       ) : (
         <>
           <MemberSummary member={load.member.member} eyebrow={TEAM_WRITE_COPY.memberTeams.title} />
-          <TeamWriteFlow kind="memberTeams" organization={load.organization} member={load.member} choices={load.choices} choicesCut={load.choicesCut} key={teamFlowKey("memberTeams", { member: load.member })} />
+          <TeamWriteFlow kind="memberTeams" organization={load.organization} member={load.member} choices={load.choices} choicesCut={load.choicesCut} key={teamFlowKey("memberTeams", load.organization.id, { member: load.member })} />
         </>
       )}
     </ManageFrame>

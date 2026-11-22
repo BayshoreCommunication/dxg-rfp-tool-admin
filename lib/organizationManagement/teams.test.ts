@@ -598,10 +598,17 @@ describe("which backend reads each team page makes", () => {
     expect(bad.calls).toEqual([]);
   });
 
-  it("keys a flow by the write, the team, the member and the version read", () => {
-    expect(teamFlowKey("rename", { teamId: TEAM })).toBe(`rename:${TEAM}::`);
-    expect(teamFlowKey("memberTeams", { member: managed({}, 4) })).not.toBe(teamFlowKey("memberTeams", { member: managed({}, 5) }));
-    expect(teamFlowKey("removeMember", { teamId: TEAM, member: managed() })).not.toBe(teamFlowKey("removeMember", { teamId: TEAM_B, member: managed() }));
+  it("keys a flow by the write, the organization, the team, the member and the version read", () => {
+    const ORG_B = "6b0000000000000000000008";
+    expect(teamFlowKey("rename", ORG, { teamId: TEAM })).toBe(`rename:${ORG}:${TEAM}::`);
+    expect(teamFlowKey("create", ORG)).toBe(`create:${ORG}:::`);
+    expect(teamFlowKey("memberTeams", ORG, { member: managed({}, 4) })).not.toBe(teamFlowKey("memberTeams", ORG, { member: managed({}, 5) }));
+    expect(teamFlowKey("removeMember", ORG, { teamId: TEAM, member: managed() })).not.toBe(teamFlowKey("removeMember", ORG, { teamId: TEAM_B, member: managed() }));
+    // Flow state never carries from one organization to another: not on the create page, not for the same ids elsewhere.
+    expect(teamFlowKey("create", ORG)).not.toBe(teamFlowKey("create", ORG_B));
+    for (const subject of [{ teamId: TEAM }, { member: managed() }, { teamId: TEAM, member: managed() }]) {
+      expect(teamFlowKey("rename", ORG, subject)).not.toBe(teamFlowKey("rename", ORG_B, subject));
+    }
   });
 });
 
