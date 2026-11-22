@@ -131,6 +131,10 @@ describe("the typed-name gate for a transfer of ownership and a block", () => {
   it("matches the name exactly, spaces at the ends and runs of spaces aside, and never an empty name", () => {
     expect(typedNameMatches("Acme Events", "Acme Events")).toBe(true);
     expect(typedNameMatches("  Acme   Events ", "Acme Events")).toBe(true);
+    // White space inside counts as one space on both sides; it is never dropped.
+    expect(typedNameMatches("Acme Events", "Acme   Events")).toBe(true);
+    expect(typedNameMatches("Acme\tEvents", "Acme Events")).toBe(true);
+    expect(typedNameMatches("AcmeEvents", "Acme Events")).toBe(false);
     expect(typedNameMatches("acme events", "Acme Events")).toBe(false);
     expect(typedNameMatches("Acme", "Acme Events")).toBe(false);
     expect(typedNameMatches("", "")).toBe(false);

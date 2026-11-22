@@ -394,6 +394,23 @@ describe("the staff management screens", () => {
     expect(page).toMatch(/No change is offered here for this member as they are now\./);
   });
 
+  it("keeps the keyboard focus after a page of members loads, and uses the tested rule for the block link", () => {
+    const picker = read(`${COMPONENTS}/ReassignTargetPicker.tsx`);
+    // The pressed control is gone once the read ends: focus goes to the loaded list, or to the retry.
+    expect(picker).toMatch(/focusAfter\.current = result\.ok \? "results" : "retry";/);
+    expect(picker).toMatch(/if \(focusAfter\.current === "results"\) results\.current\?\.focus\(\);\s*if \(focusAfter\.current === "retry"\) retry\.current\?\.focus\(\);/);
+    expect(picker).toMatch(/<div\s+ref=\{results\}\s+tabIndex=\{-1\}\s+role="group"\s+aria-label=\{`Members who can receive the proposals, page /);
+    expect(picker).toMatch(/<button ref=\{retry\} type="button" onClick=\{\(\) => load\(firstOrSame\)\}/);
+    // The detail page decides "Block organization" with the management pages' own rule.
+    const account = read("components/organizations/OrganizationAccount.tsx");
+    expect(account).toMatch(/const canBlock = organizationWritesFor\(\{ standing: organization\.standing, blocked: organization\.blocked \?\? null \}\)\.includes\("block"\);/);
+    expect(account).not.toMatch(/organization\.standing === "inactive"/);
+    // The repo's notes name every refusal that offers "Load the current member".
+    const notes = read("CLAUDE.md");
+    for (const failure of ["stale_version", "version_required", "outcome_unknown"]) expect(read(`${COMPONENTS}/WriteFlow.tsx`)).toContain(`"${failure}"`);
+    expect(notes).toMatch(/offered after a\s+`STALE_VERSION`, a `VERSION_REQUIRED` and a write whose outcome is unknown/);
+  });
+
   it("gives every control a name and a visible keyboard focus", () => {
     const elements = (source: string, open: RegExp, close: (name: string) => string) =>
       [...source.matchAll(open)].map((match) => {
@@ -448,7 +465,7 @@ describe("the staff management screens", () => {
     expect(account).toMatch(/\{organization\.blocked\.at \? `Blocked since \$\{formatContentDate\(organization\.blocked\.at\)\}` : "Blocked \(the date is not recorded\)"\}/);
     expect(account).toMatch(/\{organization\.blocked \? \(\s*<section\s+aria-label="This organization is blocked"/);
     // The block link sits in its own danger area, and only for an organization that can be blocked.
-    expect(account).toMatch(/const canBlock = !organization\.blocked && \(organization\.standing === "active" \|\| organization\.standing === "inactive"\);/);
+    expect(account).toMatch(/const canBlock = organizationWritesFor\(\{ standing: organization\.standing, blocked: organization\.blocked \?\? null \}\)\.includes\("block"\);/);
     expect(account).toMatch(/\{canBlock \? \(\s*<section aria-labelledby="danger-area"[\s\S]*?Danger area[\s\S]*?Block organization\s*<\/Link>/);
     expect(read("lib/organizationContent/content.ts")).toMatch(/timeZone: "UTC" \}\)\} UTC`;/);
     // The detail page still sends nothing itself.

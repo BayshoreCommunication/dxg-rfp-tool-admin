@@ -13,7 +13,8 @@ export type WriteGateState = { acknowledged: boolean; typedName: string; confirm
 
 const normalized = (value: string): string => value.trim().replace(/\s+/g, " ");
 
-/** The typed name must be the name: the same letters in the same case, spaces at the ends aside. */
+/** The typed name must be the name: the same letters in the same case. Spaces at the ends are
+    ignored, and a run of spaces (or other white space) inside counts as one space, on both sides. */
 export const typedNameMatches = (typed: string, required: string): boolean => normalized(required) !== "" && normalized(typed) === normalized(required);
 
 export const createWriteGate = <T>(dependencies: {

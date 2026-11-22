@@ -1,6 +1,7 @@
 "use client";
 
 import { listReassignCandidatesAction } from "@/app/actions/organizationManagement";
+import { focusRing } from "@/components/organizations/content/ContentChrome";
 import { RefusalNote, secondaryButton } from "@/components/organizations/manage/ManageChrome";
 import { rolesLabel } from "@/lib/organizationContent/content";
 import {
@@ -14,7 +15,7 @@ import {
 } from "@/lib/organizationManagement/management";
 import { countLabel } from "@/lib/plural";
 import { Loader2 } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 /* Who receives the member's proposals. The choices come from the organization's Members list,
    which is a recorded read: nothing is loaded until staff press the control, one page of 50 at a
@@ -39,6 +40,18 @@ export default function ReassignTargetPicker({
   const groupId = useId();
   const [list, setList] = useState<ListState>({ phase: "idle" });
   const asked = useRef(0);
+  // Every control that starts a read is replaced once the read ends (the pressed "Next page of
+  // members" is gone while the page loads), which would drop the keyboard focus on the page. It
+  // goes to the list that was loaded, or to the control that tries again.
+  const results = useRef<HTMLDivElement>(null);
+  const retry = useRef<HTMLButtonElement>(null);
+  const focusAfter = useRef<"results" | "retry" | null>(null);
+
+  useEffect(() => {
+    if (focusAfter.current === "results") results.current?.focus();
+    if (focusAfter.current === "retry") retry.current?.focus();
+    focusAfter.current = null;
+  });
 
   const load = async (page: number) => {
     if (list.phase === "loading") return;
@@ -51,6 +64,7 @@ export default function ReassignTargetPicker({
       result = refused("unavailable");
     }
     if (mine !== asked.current) return;
+    focusAfter.current = result.ok ? "results" : "retry";
     setList(result.ok ? { phase: "ready", page: result.data } : { phase: "failed", refusal: result, page });
   };
 
@@ -81,7 +95,13 @@ export default function ReassignTargetPicker({
       ) : null}
 
       {ready ? (
-        <div className="space-y-3">
+        <div
+          ref={results}
+          tabIndex={-1}
+          role="group"
+          aria-label={`Members who can receive the proposals, page ${ready.pagination.page.toLocaleString("en-US")} of ${ready.pagination.totalPages.toLocaleString("en-US")}`}
+          className={`space-y-3 rounded-xl ${focusRing}`}
+        >
           {eligible.length === 0 ? (
             <p className="text-sm text-slate-600" role="status">
               No member on this page can receive proposals.
@@ -118,7 +138,7 @@ export default function ReassignTargetPicker({
 
       <div className="flex flex-wrap items-center gap-3">
         {list.phase === "idle" || list.phase === "failed" || loading ? (
-          <button type="button" onClick={() => load(firstOrSame)} disabled={loading} className={secondaryButton}>
+          <button ref={retry} type="button" onClick={() => load(firstOrSame)} disabled={loading} className={secondaryButton}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             {loading ? "Loading members" : list.phase === "failed" ? "Try loading again" : chosen ? "Choose a different member" : "Load members to choose from"}
           </button>

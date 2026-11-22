@@ -70,7 +70,8 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
     "Block organization".
   - **Every request is recorded on the RFPilot side, the single-member read
     (`GET members/:userId`) included:** no caching, no prefetch, one member read per page view,
-    and once more only when staff press "Load the current member" after a `STALE_VERSION`. A
+    and once more only when staff press "Load the current member", which is offered after a
+    `STALE_VERSION`, a `VERSION_REQUIRED` and a write whose outcome is unknown. A
     member write page reads the member and then the organization (its name is in the review, and
     typed to confirm a transfer or a block); `loadMemberWritePage` decides the reads. The list of
     members to receive proposals is the content browser's members read, loaded only on a press.

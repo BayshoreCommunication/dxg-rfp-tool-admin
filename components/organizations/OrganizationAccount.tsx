@@ -24,7 +24,7 @@ import {
   type OrganizationAccount as Account,
 } from "@/lib/organizationAccount";
 import { formatContentDate } from "@/lib/organizationContent/content";
-import { organizationWritePath } from "@/lib/organizationManagement/management";
+import { organizationWritePath, organizationWritesFor } from "@/lib/organizationManagement/management";
 import type { PlanOption } from "@/lib/organizationPlans";
 import { Building2, Eye, ShieldAlert } from "lucide-react";
 import Link from "next/link";
@@ -84,7 +84,8 @@ export default function OrganizationAccount({ account, plans }: Props) {
   const planItem = accountPlanItem(account);
   const lastChange = lastPlanChangeLabel(plan.lastChange);
   // Only a customer organization can be blocked: not RFPilot's own, and not one awaiting placement.
-  const canBlock = !organization.blocked && (organization.standing === "active" || organization.standing === "inactive");
+  // The rule is the management pages' own, so the link and the page it opens can't disagree.
+  const canBlock = organizationWritesFor({ standing: organization.standing, blocked: organization.blocked ?? null }).includes("block");
 
   return (
     <div className="space-y-6">
