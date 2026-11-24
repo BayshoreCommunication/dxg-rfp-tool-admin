@@ -1,6 +1,6 @@
 import { listOrganizationPlansAction } from "@/app/actions/organizationPlans";
-import { buildPageList } from "@/components/clients/ClientDetilas";
-import ClientSearchForm from "@/components/clients/ClientSearchForm";
+import { buildPageList } from "@/components/shared/pageList";
+import ClientSearchForm from "@/components/shared/ClientSearchForm";
 import { organizationAccountPath } from "@/lib/organizationAccount";
 import { countLabel } from "@/lib/plural";
 import {

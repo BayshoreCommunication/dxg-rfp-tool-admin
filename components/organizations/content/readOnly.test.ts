@@ -61,9 +61,9 @@ describe("the organization content pages are view-only", () => {
   it("uses no component from outside the content browser, and no client code", () => {
     const imported = contentFiles.flatMap((file) => [...read(file).matchAll(/from "(@\/components\/[^"]+)"/g)].map((match) => match[1]));
     const outside = [...new Set(imported)].filter((path) => !path.startsWith("@/components/organizations/content/"));
-    // From ClientDetilas only the page-number helper is taken, not the client controls.
-    expect(outside).toEqual(["@/components/clients/ClientDetilas"]);
-    expect(read(`${COMPONENTS}/ContentChrome.tsx`)).toMatch(/import \{ buildPageList \} from "@\/components\/clients\/ClientDetilas";/);
+    // Only the page-number helper is taken from outside, not a client control.
+    expect(outside).toEqual(["@/components/shared/pageList"]);
+    expect(read(`${COMPONENTS}/ContentChrome.tsx`)).toMatch(/import \{ buildPageList \} from "@\/components\/shared\/pageList";/);
     for (const file of contentFiles) expect({ file, hooks: /from "react"/.test(read(file)) && !/import type \{[^}]*\} from "react"/.test(read(file)) }).toEqual({ file, hooks: false });
   });
 

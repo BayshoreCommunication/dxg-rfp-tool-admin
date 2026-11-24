@@ -3,6 +3,8 @@
 // belongs to. They accept a ticket without one, because a backend older than 2026-11-12 does
 // not send the field.
 
+import { organizationAccountPath } from "@/lib/organizationAccount";
+
 type OrganizationLike = { id?: string | null; name?: string | null } | null | undefined;
 
 export const organizationName = (organization: OrganizationLike): string | null => {
@@ -16,6 +18,12 @@ const OBJECT_ID = /^[0-9a-f]{24}$/i;
 export const organizationInboxHref = (organization: OrganizationLike): string | null => {
   const id = typeof organization?.id === "string" ? organization.id.trim() : "";
   return OBJECT_ID.test(id) ? `/support?status=all&organization=${id.toLowerCase()}` : null;
+};
+
+/** The organization's account page, or null when the ticket's organization is not known. */
+export const organizationAccountHref = (organization: OrganizationLike): string | null => {
+  const id = typeof organization?.id === "string" ? organization.id.trim() : "";
+  return OBJECT_ID.test(id) ? organizationAccountPath(id.toLowerCase()) : null;
 };
 
 /** Only a well-formed organization id is sent to the backend as a filter. */

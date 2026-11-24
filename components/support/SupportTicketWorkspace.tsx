@@ -23,7 +23,7 @@ import {
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { toast } from "@/components/ui/Toast";
 import { formatBytes, supportAttachmentHref, uploadSupportAttachments } from "@/lib/support/attachments";
-import { organizationInboxHref, organizationName } from "@/lib/support/organization";
+import { organizationAccountHref, organizationInboxHref, organizationName } from "@/lib/support/organization";
 import { buildThreadItems, initials, isAutomaticReply, isDxgSide, timeLabel } from "@/lib/support/thread";
 import AttachmentPicker from "./AttachmentPicker";
 import CannedReplyPicker from "./CannedReplyPicker";
@@ -201,6 +201,8 @@ export default function SupportTicketWorkspace({
   // Ticket numbers are per organization, so the header names the organization beside the number.
   const customerOrganization = organizationName(organization ?? ticket.organization);
   const organizationHref = organizationInboxHref(organization ?? ticket.organization);
+  // The way from a ticket to the customer's account. That page is a recorded read: no prefetch.
+  const accountHref = organizationAccountHref(organization ?? ticket.organization);
   const [mode, setMode] = useState<"reply" | "note">("reply");
   const [body, setBody] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -386,20 +388,21 @@ export default function SupportTicketWorkspace({
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-            <a
-              href={requester?.email ? `/clients?search=${encodeURIComponent(requester.email)}` : undefined}
-              title={requester?.email ? "Open in client directory" : undefined}
-              className="group inline-flex min-w-0 items-center gap-2"
-            >
+            <span className="inline-flex min-w-0 items-center gap-2">
               <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-[10px] font-black text-slate-700 dark:bg-[#1c3442] dark:text-slate-200">
                 {initials(requester?.name)}
               </span>
-              <span className="truncate font-semibold text-slate-700 group-hover:text-[#007f86] dark:text-slate-200">
+              <span className="truncate font-semibold text-slate-700 dark:text-slate-200">
                 {requester?.name ?? "Unknown user"}
               </span>
               {requester?.email && <span className="hidden truncate sm:inline">{requester.email}</span>}
               {requester?.company && <span className="hidden truncate md:inline">· {requester.company}</span>}
-            </a>
+            </span>
+            {accountHref ? (
+              <Link href={accountHref} prefetch={false} className="font-semibold text-[#007f86] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00aeb5] dark:text-cyan-300">
+                Organization account
+              </Link>
+            ) : null}
             <span aria-hidden="true" className="hidden text-slate-300 sm:inline dark:text-slate-600">|</span>
             <span>
               Opened <SupportDateTime value={ticket.createdAt} />

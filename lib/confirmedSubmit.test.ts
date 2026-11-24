@@ -1,4 +1,4 @@
-import { createConfirmedSubmit, type SubmitState } from "@/lib/legacyCustomers/confirmedSubmit";
+import { createConfirmedSubmit, type SubmitState } from "@/lib/confirmedSubmit";
 
 type Result = { ok: boolean };
 

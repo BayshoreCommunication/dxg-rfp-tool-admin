@@ -240,7 +240,7 @@ describe("how the admin app reads customer content", () => {
       // Everything these files import from the app's own components is inside the content browser
       // (plus the page-number helper), so no client component rides in.
       for (const [, from] of source.matchAll(/from "(@\/components\/[^"]+)"/g)) {
-        expect({ file, from, inside: from.startsWith("@/components/organizations/content/") || from === "@/components/clients/ClientDetilas" }).toMatchObject({ inside: true });
+        expect({ file, from, inside: from.startsWith("@/components/organizations/content/") || from === "@/components/shared/pageList" }).toMatchObject({ inside: true });
       }
     }
   });

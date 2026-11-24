@@ -1,5 +1,5 @@
 import React from "react";
-import { Users, FileText, Send, MousePointerClick, TrendingUp } from "lucide-react";
+import { FileText, Send, MousePointerClick, TrendingUp } from "lucide-react";
 
 interface StatMetric {
   id: string;
@@ -14,7 +14,6 @@ interface StatMetric {
 interface TopCardItemProps {
   isLoading?: boolean;
   totals?: {
-    totalClients: number;
     totalProposals: number;
     totalEmailSent: number;
     totalClick: number;
@@ -48,8 +47,8 @@ const StatCard = ({ title, value, icon, iconSurface, iconColor, trendValue }: St
 
 export const TopCardItemSkeleton = () => {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-      {[1, 2, 3, 4].map((i) => (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:gap-5">
+      {[1, 2, 3].map((i) => (
         <div key={i} className="min-h-[154px] rounded-2xl border border-slate-200 bg-white p-4 sm:min-h-[176px] sm:p-6">
           <div className="flex items-start justify-between">
             <div className="h-12 w-12 animate-pulse rounded-2xl bg-slate-100" />
@@ -70,15 +69,6 @@ export default function TopCardItem({ totals, isLoading }: TopCardItemProps) {
   if (isLoading) return <TopCardItemSkeleton />;
 
   const statsData: StatMetric[] = [
-    {
-      id: "clients",
-      title: "Total Clients",
-      value: totals?.totalClients ?? 0,
-      iconSurface: "bg-[#f0efff]",
-      iconColor: "text-[#5b4df6]",
-      trendValue: "+12%",
-      icon: <Users strokeWidth={2} />,
-    },
     {
       id: "proposals",
       title: "Total Proposals",
@@ -109,7 +99,7 @@ export default function TopCardItem({ totals, isLoading }: TopCardItemProps) {
   ];
 
   return (
-    <section aria-label="Dashboard metrics" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+    <section aria-label="Dashboard metrics" className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:gap-5">
       {statsData.map((stat) => (
         <StatCard key={stat.id} {...stat} />
       ))}

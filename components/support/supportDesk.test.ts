@@ -44,6 +44,11 @@ describe("support desk surfaces", () => {
     const workspace = read("components/support/SupportTicketWorkspace.tsx");
     expect(workspace).toMatch(/organizationName\(organization \?\? ticket\.organization\)/);
     expect(workspace).toMatch(/organizationInboxHref\(organization \?\? ticket\.organization\)/);
+    // The ticket links to the organization's account page (a recorded read, so never prefetched),
+    // and only when the ticket carries a real organization id; the requester is plain text.
+    expect(workspace).toMatch(/const accountHref = organizationAccountHref\(organization \?\? ticket\.organization\);/);
+    expect(workspace).toMatch(/\{accountHref \? \(\s*<Link href=\{accountHref\} prefetch=\{false\}[^>]*>\s*Organization account\s*<\/Link>\s*\) : null\}/);
+    expect(workspace.match(/accountHref/g)).toHaveLength(3);
     const page = read("app/(page)/support/page.tsx");
     expect(page).toMatch(/organization: organizationFilter\(single\(params\.organization\)\)/);
     expect(read("components/support/SupportInboxFilters.tsx")).toMatch(/#number, organization, name, or email/);

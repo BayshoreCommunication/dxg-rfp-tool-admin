@@ -3,25 +3,32 @@
 import { BACKEND_URL } from "@/lib/config";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
-export interface AdminOverviewClient {
-  id: string;
-  name: string;
-  email: string;
-  company?: string;
-  joinDate: string;
-  totalProposals: number;
-  totalEmailSent: number;
-}
-
 export interface AdminOverviewData {
   totals: {
-    totalClients: number;
     totalProposals: number;
     totalEmailSent: number;
     totalClick: number;
   };
-  latestClients: AdminOverviewClient[];
 }
+
+const count = (value: unknown): number =>
+  typeof value === "number" && Number.isFinite(value) ? value : 0;
+
+/* Only the three totals the dashboard shows leave this action. The backend's overview also
+   carries customer accounts (`latestClients`: names, emails, companies) and `totalClients`;
+   the result is built field by field so neither can reach a caller. */
+const overviewOf = (data: unknown): AdminOverviewData | null => {
+  if (typeof data !== "object" || data === null) return null;
+  const totals = (data as { totals?: unknown }).totals;
+  const source = typeof totals === "object" && totals !== null ? (totals as Record<string, unknown>) : {};
+  return {
+    totals: {
+      totalProposals: count(source.totalProposals),
+      totalEmailSent: count(source.totalEmailSent),
+      totalClick: count(source.totalClick),
+    },
+  };
+};
 
 export async function getAdminOverviewAction(): Promise<{
   ok: boolean;
@@ -51,7 +58,7 @@ export async function getAdminOverviewAction(): Promise<{
 
     return {
       ok: true,
-      data: (result?.data as AdminOverviewData) || null,
+      data: overviewOf(result?.data),
     };
   } catch (error) {
     return {

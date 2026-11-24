@@ -1,9 +1,9 @@
-import { Building2, House, LifeBuoy, Settings, UserRound, UserRoundCog, Users } from "lucide-react";
+import { Building2, House, LifeBuoy, Settings, Users } from "lucide-react";
 
 export interface NavItem {
   id: string;
   title: string;
-  /** Label for the phone tab bar when the title is too long for a seventh of the screen. */
+  /** Label for the phone tab bar when the title is too long for a fifth of the screen. */
   shortTitle?: string;
   href: string;
   icon: React.ReactNode;
@@ -18,26 +18,11 @@ export const navigationConfig: NavItem[] = [
     icon: <House size={22} />,
   },
   {
-    id: "clients",
-    title: "Clients",
-    href: "/clients",
-    icon: <UserRound size={22} />,
-  },
-
-  {
     id: "organizations",
     title: "Organizations",
     shortTitle: "Orgs",
     href: "/organizations",
     icon: <Building2 size={22} />,
-  },
-
-  {
-    id: "legacy-customers",
-    title: "Legacy customers",
-    shortTitle: "Legacy",
-    href: "/legacy-customers",
-    icon: <UserRoundCog size={22} />,
   },
 
   {
