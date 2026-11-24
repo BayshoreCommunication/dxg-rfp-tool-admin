@@ -23,8 +23,7 @@ import { countLabel } from "@/lib/plural";
 /** The backend refuses anything but a 24-character lower-case hex id; so do the actions and links here. */
 export const isManagementId = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{24}$/.test(value);
 
-const ORGANIZATION_WRITES = ["block", "unblock"] as const;
-export type OrganizationWrite = (typeof ORGANIZATION_WRITES)[number];
+export type OrganizationWrite = "block" | "unblock";
 /* The management pages live outside /organizations/[organizationId]/: everything under that
    address is the view-only content browser (components/organizations/content/readOnly.test.ts). */
 export const MANAGEMENT_PATH = "/organization-management";
