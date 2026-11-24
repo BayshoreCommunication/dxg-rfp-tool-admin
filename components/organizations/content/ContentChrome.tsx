@@ -1,4 +1,4 @@
-import { buildPageList } from "@/components/clients/ClientDetilas";
+import { buildPageList } from "@/components/shared/pageList";
 import { ORGANIZATIONS_PATH, organizationAccountPath } from "@/lib/organizationAccount";
 import {
   CONTENT_SECTIONS,

@@ -1,11 +1,9 @@
-// The gate in front of the two requests that move customer data (place, roll back), as plain
-// code (confirmedSubmit.test.ts). Nothing is sent until the confirmation control is set, and
-// while a request is in flight a second submit sends nothing. After a request that started a
-// run the gate stays shut: the page is on its way to the run. After a refusal it opens again.
+// The gate in front of a request that changes customer data, as plain code
+// (confirmedSubmit.test.ts). Nothing is sent until the confirmation control is set, and while a
+// request is in flight a second submit sends nothing. After a request that did what it asked for
+// the gate stays shut. After a refusal it opens again, with the confirmation cleared.
 //
-// This is the browser half. The server half is the Idempotency-Key each review carries (a
-// repeat with the same key returns the same run and starts no second task) and the backend's
-// own one-placement-per-customer rule.
+// lib/organizationManagement/confirmGate.ts builds the staff write gate on it.
 
 export type SubmitState = { confirmed: boolean; inFlight: boolean; done: boolean };
 export type SubmitOutcome<T> = { sent: true; result: T } | { sent: false; reason: "not_confirmed" | "in_flight" | "done" };

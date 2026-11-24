@@ -5,7 +5,6 @@ import { navigationConfig, NavItem } from "@/config/navigation";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useAdminNotifications } from "@/components/notifications/AdminNotificationsProvider";
-import { clearPlacementDraftsIn } from "@/lib/legacyCustomers/draft";
 import { badgeLabel } from "@/lib/notifications/adminNotifications";
 import { cn } from "@/lib/utils";
 import { LoaderCircle, LogOut } from "lucide-react";
@@ -30,13 +29,6 @@ const Sidebar = () => {
     setIsSigningOut(true);
 
     try {
-      // Unsent legacy-customer placement choices kept in this tab do not outlive the session.
-      // A browser that refuses the storage must not stop the sign-out.
-      try {
-        clearPlacementDraftsIn(() => window.sessionStorage);
-      } catch {
-        // Nothing to clear, or nothing that can be cleared.
-      }
       try {
         await signOutAction();
       } catch (error) {

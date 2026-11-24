@@ -3,24 +3,12 @@
 import { BACKEND_URL } from "@/lib/config";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 
-export interface AdminOverviewClient {
-  id: string;
-  name: string;
-  email: string;
-  company?: string;
-  joinDate: string;
-  totalProposals: number;
-  totalEmailSent: number;
-}
-
 export interface AdminOverviewData {
   totals: {
-    totalClients: number;
     totalProposals: number;
     totalEmailSent: number;
     totalClick: number;
   };
-  latestClients: AdminOverviewClient[];
 }
 
 export async function getAdminOverviewAction(): Promise<{
