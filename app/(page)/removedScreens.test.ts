@@ -26,7 +26,7 @@ describe("the removed Clients and Legacy customers screens", () => {
     expect(names).not.toContain("legacy-customers");
     // No catch-all page that would answer for them instead of the 404. The only catch-all is
     // NextAuth's own route under /api/auth.
-    expect(names.filter((name) => name.startsWith("[..." ) || name.startsWith("[[..."))).toEqual(["[...nextauth]"]);
+    expect(names.filter((name) => name.startsWith("[...") || name.startsWith("[[..."))).toEqual(["[...nextauth]"]);
   });
 
   it("have no feature folder left behind", () => {
