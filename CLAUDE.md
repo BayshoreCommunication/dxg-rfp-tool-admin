@@ -59,61 +59,46 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
   `ChangePlanButton`'s `router.refresh()` can each re-render the page). The page's backend reads
   are decided in `loadOrganizationPage`. A 404 without `ORGANIZATION_NOT_FOUND` means the API does
   not have the route yet.
-- **Staff management** (owner decisions, 2026-11-18): staff change a member's role, deactivate and
-  reactivate a member, reassign a member's proposals, transfer ownership, and block or reactivate
-  a whole customer organization. Team management is the last sub-bullet here. Pages are under
-  `/organization-management/[organizationId]/`: `members/[userId]` (the member and the writes
-  their state offers), `members/[userId]/role`, `/deactivate`, `/reactivate`,
-  `/reassign-proposals`, `/transfer-ownership`, and `block` and `reactivate` for the organization.
-  Code: `app/actions/organizationManagement.ts`, `lib/organizationManagement/` (pure, tested) and
+- **Organization management** (owner decision, 2026-11-24, which reverses the member and team
+  writes of 2026-11-18): staff **view** one member and one team, and **block or reactivate** a
+  whole customer organization. Staff change nothing about a member or a team: no role change,
+  deactivation, reactivation, reassignment of proposals, change of teams or ownership move, and
+  no team create, rename, archive, member or manager change. Those pages, components and server
+  actions were removed, not hidden; their addresses are a 404. Pages are under
+  `/organization-management/[organizationId]/`: `members/[userId]` and `teams/[teamId]` (both
+  view only, with no control), and `block` and `reactivate` for the organization. Code:
+  `app/actions/organizationManagement.ts` (five actions: `getManagedMemberAction`,
+  `getManagedTeamAction`, `getManagedOrganizationAction`, `blockOrganizationAction`,
+  `reactivateOrganizationAction`), `lib/organizationManagement/` (`management.ts`,
+  `lib/organizationManagement/teams.ts`, `confirmGate.ts`; pure, tested) and
   `components/organizations/manage/`.
+  - **The guard:** `app/actions/staffViewOnly.test.ts` fails when an action for a member or team
+    write is exported again, when any source names one of the removed backend write routes with
+    a method other than GET, when a removed write page comes back, or when the member page says
+    "What you can change". An exported server action is a public endpoint: add none for a member
+    or team write. The backend still has the write routes until its own follow-up change.
   - **Why outside `/organizations/[organizationId]/`:** everything under that address, and
-    `components/organizations/content/`, is the view-only browser, which `readOnly.test.ts` keeps
-    free of any control. The Members list there has one plain "Manage" link per member; the
-    detail page shows "Blocked since" with "Reactivate organization", or a danger area with
-    "Block organization".
+    `components/organizations/content/`, is the content browser, which `readOnly.test.ts` keeps
+    free of any control. The Members list and the Teams list there have one plain "View" link per
+    row; the detail page shows "Blocked since" with "Reactivate organization", or a danger area
+    with "Block organization".
   - **Every request is recorded on the RFPilot side, the single-member read
-    (`GET members/:userId`) included:** no caching, no prefetch, one member read per page view,
-    and once more only when staff press "Load the current member", which is offered after a
-    `STALE_VERSION`, a `VERSION_REQUIRED` and a write whose outcome is unknown. A
-    member write page reads the member and then the organization (its name is in the review, and
-    typed to confirm a transfer or a block); `loadMemberWritePage` decides the reads. The list of
-    members to receive proposals is the content browser's members read, loaded only on a press.
-  - **One shared write allowance:** member, team and block writes together, 60 per 15 minutes per
-    staff account; the reads count toward the content browser's 300.
-  - Every write: form, review in plain words, explicit confirmation (`confirmGate.ts`; a
-    transfer and a block need the organization's name typed), a reason of 10 to 500 characters,
-    then one request. Every action: staff check, ids, body rebuilt field by field. The Owner is
-    changed only by a transfer. Reassignment never sends `rfpIds` (the API then moves all).
-    Refusal codes map to fixed wording in `management.ts` and are shown beside it; backend
-    message text never is. A write with no readable answer is "may or may not have been saved",
-    never "nothing happened". The staff routes return a deactivated member's status as
-    `suspended`.
-  - **Team management** (same owner decision): staff create, rename and archive a team, add and
-    remove a team member, set or unset a team manager, and set which teams a member is on. Staff
-    never change which team a proposal is on. Pages: `teams/new`, `teams/[teamId]` (the team, its
-    listed members and what its state offers; an archived team offers nothing and can't be
-    un-archived), `teams/[teamId]/rename`, `/archive` (the team's name typed to confirm),
-    `/members/add`, `/members/[userId]/remove`, `/make-manager`, `/remove-manager`, and
-    `members/[userId]/teams` ("Change teams" on the member page). Code: the second half of
-    `app/actions/organizationManagement.ts`, `lib/organizationManagement/teams.ts` (paths, parsers,
-    state rules, loaders, wording) and the `Team*` components. `TeamWriteFlow` and
-    `TeamMemberPicker` are siblings of `WriteFlow` and `ReassignTargetPicker`, whose source is
-    pinned by the guard; they share the gate, the reason field, the review facts, the refusals
-    and the frame. Reads per page (each recorded): the team page 1 (`GET teams/:teamId`); create 1
-    (the organization); rename, archive and add 2 (team, organization) plus one members read per
-    page of the picker staff load; remove and manager pages 2 (the member, whose own `teams` say
-    whether they are on the team and manage it, then the organization); a member's teams 3 (the
-    member, the content browser's teams read for the active teams, the organization), and one more
-    member read on each press of "Review": `PUT members/:userId/teams` replaces the member's whole
-    active team set and a team-route change does not move the member's `version`, so the review
-    is built from the member as read on that press (`reviewMemberTeams`) and names what changed
-    since the page loaded. The lasting fix is the backend's. The backend
-    lists at most 200 members and 200 managers of a team: the count shown is `memberCount`, with
-    "Showing the first N" when the list is shorter and the count is above 200, and "The server
-    listed N of M members" when it is not (rows the backend or the parser left out). Removing a team member is a DELETE with
-    `{ reason }` in a JSON body. `MEMBER_NOT_FOUND` on add and make-manager means "not an active
-    member" and is worded so. The Teams list has "Create a team" and one "Manage" link per team.
+    (`GET members/:userId`) and the team read (`GET teams/:teamId`) included:** no caching, no
+    prefetch, one read per page view. The view pages say so ("View only. … Each page you open is
+    recorded on the RFPilot side."); the block pages keep the note of a page that changes
+    something. The block and reactivate pages read the organization once
+    (`loadOrganizationWritePage`), through the organization account read; the Owner is not handed on.
+  - **Block and reactivate:** form, review in plain words, explicit confirmation (`confirmGate.ts`;
+    a block needs the organization's name typed, a reactivation a tick), a reason of 10 to 500
+    characters, then one POST with `{ reason }`. Every action: staff check, ids, body rebuilt from
+    the checked reason. Refusal codes map to fixed wording in `management.ts` and are shown beside
+    it; backend message text never is. A write with no readable answer is "may or may not have
+    been saved", never "nothing happened". Block writes allow 60 per 15 minutes per staff account;
+    the reads count toward the content browser's 300.
+  - **The team page:** the backend lists at most 200 members and 200 managers of a team: the count
+    shown is `memberCount`, with "Showing the first N" when the list is shorter and the count is
+    above 200, and "The server listed N of M members" when it is not (rows the backend or the
+    parser left out). The staff routes return a deactivated member's status as `suspended`.
 - Shared pieces: `components/shared/pageList.ts` (`buildPageList`, the pager's page numbers),
   `components/shared/ClientSearchForm.tsx` (the search box that navigates on its own; never used
   in the content browser) and `lib/confirmedSubmit.ts` (the gate under
