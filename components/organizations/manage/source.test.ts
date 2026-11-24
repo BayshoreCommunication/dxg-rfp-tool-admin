@@ -22,40 +22,15 @@ const screenFiles = [...sourceFiles(PAGES), ...sourceFiles(COMPONENTS), ...sourc
 const everywhere = [...sourceFiles("app"), ...sourceFiles("components"), ...sourceFiles("lib"), ...sourceFiles("config")];
 const links = (file: string) => read(file).match(/<Link\b[^>]*>/g) ?? [];
 
-const READ_ACTIONS = ["getManagedMemberAction", "getManagedOrganizationAction", "listReassignCandidatesAction"];
-const WRITE_ACTIONS = [
-  "changeMemberRoleAction",
-  "deactivateMemberAction",
-  "reactivateMemberAction",
-  "reassignMemberProposalsAction",
-  "transferOwnershipAction",
-  "blockOrganizationAction",
-  "reactivateOrganizationAction",
-];
-// Team management (the second half of the feature): its reads, its writes, its files.
-const TEAM_READ_ACTIONS = ["getManagedTeamAction", "listActiveTeamsAction", "listTeamCandidatesAction"];
-const TEAM_WRITE_ACTIONS = [
-  "createTeamAction",
-  "renameTeamAction",
-  "archiveTeamAction",
-  "addTeamMemberAction",
-  "setTeamManagerAction",
-  "removeTeamMemberAction",
-  "setMemberTeamsAction",
-];
-const ALL_ACTIONS = [...READ_ACTIONS, ...WRITE_ACTIONS, ...TEAM_READ_ACTIONS, ...TEAM_WRITE_ACTIONS];
-const TEAM_PAGES = [
-  `${ROOT}/members/[userId]/teams/page.tsx`,
-  `${ROOT}/teams/[teamId]/archive/page.tsx`,
-  `${ROOT}/teams/[teamId]/members/[userId]/make-manager/page.tsx`,
-  `${ROOT}/teams/[teamId]/members/[userId]/remove-manager/page.tsx`,
-  `${ROOT}/teams/[teamId]/members/[userId]/remove/page.tsx`,
-  `${ROOT}/teams/[teamId]/members/add/page.tsx`,
-  `${ROOT}/teams/[teamId]/page.tsx`,
-  `${ROOT}/teams/[teamId]/rename/page.tsx`,
-  `${ROOT}/teams/new/page.tsx`,
-];
-const TEAM_COMPONENTS = [`${COMPONENTS}/TeamManagement.tsx`, `${COMPONENTS}/TeamMemberPicker.tsx`, `${COMPONENTS}/TeamWriteFlow.tsx`, `${COMPONENTS}/TeamWriteScreens.tsx`];
+
+const READ_ACTIONS = ["getManagedMemberAction", "getManagedOrganizationAction"];
+// The only writes left: a block and a reactivation of the whole organization.
+const WRITE_ACTIONS = ["blockOrganizationAction", "reactivateOrganizationAction"];
+// The team page: its one read, its files. Nothing writes to a team.
+const TEAM_READ_ACTIONS = ["getManagedTeamAction"];
+const ALL_ACTIONS = [...READ_ACTIONS, ...WRITE_ACTIONS, ...TEAM_READ_ACTIONS];
+const TEAM_PAGES = [`${ROOT}/teams/[teamId]/page.tsx`];
+const TEAM_COMPONENTS = [`${COMPONENTS}/TeamManagement.tsx`];
 const TEAM_FILES = [...TEAM_PAGES, ...TEAM_COMPONENTS, `${LIB}/teams.ts`];
 const actionsIn = (file: string) => [...new Set(withoutComments(read(file)).match(/\b\w+Action\b/g) ?? [])].sort();
 
@@ -65,18 +40,11 @@ describe("the staff management screens", () => {
       [
         `${ROOT}/block/page.tsx`,
         `${ROOT}/loading.tsx`,
-        `${ROOT}/members/[userId]/deactivate/page.tsx`,
         `${ROOT}/members/[userId]/page.tsx`,
-        `${ROOT}/members/[userId]/reactivate/page.tsx`,
-        `${ROOT}/members/[userId]/reassign-proposals/page.tsx`,
-        `${ROOT}/members/[userId]/role/page.tsx`,
-        `${ROOT}/members/[userId]/transfer-ownership/page.tsx`,
         `${ROOT}/reactivate/page.tsx`,
         `${COMPONENTS}/ManageChrome.tsx`,
         `${COMPONENTS}/MemberManagement.tsx`,
-        `${COMPONENTS}/MemberWriteScreen.tsx`,
         `${COMPONENTS}/OrganizationWriteScreen.tsx`,
-        `${COMPONENTS}/ReassignTargetPicker.tsx`,
         `${COMPONENTS}/WriteFlow.tsx`,
         `${LIB}/confirmGate.ts`,
         `${LIB}/management.ts`,
@@ -91,16 +59,6 @@ describe("the staff management screens", () => {
     }
     const lib = read(`${LIB}/management.ts`);
     expect(lib).toMatch(/export const MANAGEMENT_PATH = "\/organization-management";/);
-    // Team management lives in its own files of the feature. The member, ownership and block
-    // files call none of its actions: they reach it only by its addresses (the member page's
-    // "Change teams", the frame's ways back) and hand it the reason field and the review facts.
-    for (const file of screenFiles.filter((path) => !TEAM_FILES.includes(path))) {
-      const source = withoutComments(read(file));
-      expect({ file, teams: /\b\w*Teams?\w*Action\b|team-management/.test(source) }).toEqual({ file, teams: false });
-      // Nor do they spell a team address or a team route themselves: the one "/teams" they may
-      // hold is the name of the module the address helpers are imported from.
-      expect({ file, address: /\/teams\b/.test(source.replace(/from "@\/lib\/organizationManagement\/teams";/g, "")) }).toEqual({ file, address: false });
-    }
   });
 
   it("is the only caller of the management actions", () => {
@@ -108,12 +66,7 @@ describe("the staff management screens", () => {
     for (const file of callers) expect({ file, inside: file.startsWith(PAGES) || file.startsWith(COMPONENTS) }).toEqual({ file, inside: true });
     expect(callers.sort()).toEqual([
       `${ROOT}/members/[userId]/page.tsx`,
-      `${COMPONENTS}/MemberWriteScreen.tsx`,
       `${COMPONENTS}/OrganizationWriteScreen.tsx`,
-      `${COMPONENTS}/ReassignTargetPicker.tsx`,
-      `${COMPONENTS}/TeamMemberPicker.tsx`,
-      `${COMPONENTS}/TeamWriteFlow.tsx`,
-      `${COMPONENTS}/TeamWriteScreens.tsx`,
       `${COMPONENTS}/WriteFlow.tsx`,
       `${ROOT}/teams/[teamId]/page.tsx`,
     ].sort());
@@ -139,6 +92,7 @@ describe("the staff management screens", () => {
     expect(source).not.toMatch(/setInterval|setTimeout|requestAnimationFrame|router\.refresh\(|revalidate|unstable_cache|"use cache"|useRouter|router\./);
   });
 
+
   it("keeps the backend in the actions file, behind the staff check and the app's signed fetch", () => {
     const source = read(ACTIONS);
     expect(source.startsWith('"use server";')).toBe(true);
@@ -149,42 +103,28 @@ describe("the staff management screens", () => {
     expect(source).not.toMatch(/revalidatePath|unstable_cache|force-cache|"use cache"/);
     // Every exported action asks who is signed in before anything else.
     const bodies = source.split(/\nexport async function /).slice(1);
-    expect(bodies).toHaveLength(20);
+    expect(bodies).toHaveLength(5);
     for (const body of bodies) {
       const firstStatement = body.slice(body.indexOf("{\n") + 2).trimStart();
       expect(firstStatement.startsWith("const denied = await staffRefusal();\n  if (denied) return denied;")).toBe(true);
     }
-    // The only methods, and the only routes.
-    expect([...new Set(source.match(/method: "[A-Z]+"/g))].sort()).toEqual(['method: "DELETE"', 'method: "GET"', 'method: "PATCH"', 'method: "POST"', 'method: "PUT"']);
-    // One DELETE (a member off a team, its reason in a JSON body) and one PUT (a member's teams): nothing else deletes or replaces.
-    expect(source.match(/method: "DELETE"/g)).toHaveLength(1);
-    expect(source.match(/method: "PUT"/g)).toHaveLength(1);
-    // The quoted word itself is in the one type union and the one call, and nowhere else: a
-    // method held in a variable, or picked by a condition, in any other action fails here.
-    for (const method of ["DELETE", "PUT"]) expect({ method, quoted: (source.match(new RegExp(`["'\`]${method}["'\`]`, "g")) ?? []).length }).toEqual({ method, quoted: 2 });
-    expect(source).toMatch(/init: \{ method: "GET" \} \| \{ method: "POST" \| "PATCH" \| "PUT" \| "DELETE"; body: /);
+    // The only methods, and the only routes: a read is a GET, a block or a reactivation a POST.
+    expect([...new Set(source.match(/method: "[A-Z]+"/g))].sort()).toEqual(['method: "GET"', 'method: "POST"']);
+    // Nothing deletes, replaces or patches: the quoted word itself is nowhere in the file, so a
+    // method held in a variable, or picked by a condition, fails here too.
+    for (const method of ["DELETE", "PUT", "PATCH"]) expect({ method, quoted: (source.match(new RegExp(`["'\`]${method}["'\`]`, "g")) ?? []).length }).toEqual({ method, quoted: 0 });
+    expect(source).toMatch(/init: \{ method: "GET" \} \| \{ method: "POST"; body: Record<string, string> \},/);
+    // One POST, the block or the reactivation of the organization, and it carries the reason alone.
+    expect(source.match(/method: "POST"/g)).toHaveLength(2);
+    expect(source).toMatch(/ask\("write", `\/\$\{organizationId\}\/\$\{write === "block" \? "block" : "reactivate"\}`, \{ method: "POST", body: \{ reason \} \}/);
     // Every method is written out where it is asked: the one that is not is the signed fetch being handed the action's own.
     expect(source.match(/\bmethod:(?! "[A-Z]+")[^\n]*/g)).toEqual(["method: init.method,"]);
-    expect(source).toMatch(/ask\("write", `\/\$\{organizationId\}\/teams\/\$\{teamId\}\/members\/\$\{userId\}`, \{ method: "DELETE", body: \{ reason \} \}/);
-    expect(source).toMatch(/ask\("write", `\/\$\{organizationId\}\/members\/\$\{userId\}\/teams`, \{ method: "PUT", body: \{ teamIds, version, reason \} \}/);
     const routes = [...source.matchAll(/ask\("(read|write)", `([^`]+)`/g)].map((match) => `${match[1]} ${match[2]}`);
     expect(routes.sort()).toEqual(
       [
         "read /${organizationId}/members/${userId}",
-        "write /${organizationId}/members/${userId}/role",
-        "write /${organizationId}/members/${userId}/${route}",
-        "write /${organizationId}/members/${userId}/reassign-rfps",
-        "write /${organizationId}/ownership/transfer",
         'write /${organizationId}/${write === "block" ? "block" : "reactivate"}',
-        // Team management. The same address is asked twice: PATCH sets the manager, DELETE takes the member off.
         "read /${organizationId}/teams/${teamId}",
-        "write /${organizationId}/teams",
-        "write /${organizationId}/teams/${teamId}",
-        "write /${organizationId}/teams/${teamId}/archive",
-        "write /${organizationId}/teams/${teamId}/members",
-        "write /${organizationId}/teams/${teamId}/members/${userId}",
-        "write /${organizationId}/teams/${teamId}/members/${userId}",
-        "write /${organizationId}/members/${userId}/teams",
       ].sort(),
     );
     // A body is never the caller's object: every one is written out field by field.
@@ -215,7 +155,7 @@ describe("the staff management screens", () => {
   });
 
   it("never prefetches a recorded read: every Link into an organization page or a management page opts out", () => {
-    const recorded = /organizationAccountPath\(|organization\w+Path\(|memberManagementPath\(|memberWritePath\(|reassignBeforeDeactivatePath\(|sessionRenewPath\(|retryHref|team(Create|Management|Write|MemberWrite)Path\(|memberTeamsPath\(|["'`{]\/organizations\/|["'`{]\/organization-management/;
+    const recorded = /organizationAccountPath\(|organization\w+Path\(|memberManagementPath\(|sessionRenewPath\(|retryHref|teamManagementPath\(|["'`{]\/organizations\/|["'`{]\/organization-management/;
     let found = 0;
     for (const file of everywhere.filter((path) => /\.tsx$/.test(path))) {
       const inFeature = file.startsWith(PAGES) || file.startsWith(COMPONENTS);
@@ -229,10 +169,10 @@ describe("the staff management screens", () => {
       }
       if (inFeature) expect({ file, prefetches: /router\.prefetch\(|prefetch=\{true\}/.test(read(file)) }).toEqual({ file, prefetches: false });
     }
-    expect(found).toBeGreaterThanOrEqual(30);
-    // The two ways in from outside the feature.
+    expect(found).toBeGreaterThanOrEqual(25);
+    // The ways in from outside the feature: one per member, one per team, and the block or the reactivation.
     const members = read("components/organizations/content/MembersList.tsx");
-    expect(members).toMatch(/<Link\s+href=\{memberManagementPath\(organizationId, member\.userId\)\}\s+prefetch=\{false\}\s+aria-label=\{`Manage \$\{personName\(member\)\}`\}/);
+    expect(members).toMatch(/<Link\s+href=\{memberManagementPath\(organizationId, member\.userId\)\}\s+prefetch=\{false\}\s+aria-label=\{`View \$\{personName\(member\)\}`\}/);
     expect(members.match(/<Link\b/g)).toHaveLength(1);
     const account = read("components/organizations/OrganizationAccount.tsx");
     expect(account).toMatch(/<Link\s+href=\{organizationWritePath\(organization\.id, "unblock"\)\}\s+prefetch=\{false\}/);
@@ -246,14 +186,6 @@ describe("the staff management screens", () => {
     expect(actionsIn(`${ROOT}/members/[userId]/page.tsx`)).toEqual(["getManagedMemberAction"]);
     expect(memberPage).toMatch(/await loadMemberPage\(\{ member: getManagedMemberAction \}, organizationId, userId\)/);
     expect(memberPage.match(/getManagedMemberAction/g)).toHaveLength(2);
-    // A member write page: the member and the organization, through the tested loader, once each.
-    const writeScreen = read(`${COMPONENTS}/MemberWriteScreen.tsx`);
-    expect(actionsIn(`${COMPONENTS}/MemberWriteScreen.tsx`)).toEqual(["getManagedMemberAction", "getManagedOrganizationAction"]);
-    expect(writeScreen).toMatch(/await loadMemberWritePage\(\{ member: getManagedMemberAction, organization: getManagedOrganizationAction \}, organizationId, userId, write\)/);
-    expect(writeScreen.match(/getManaged(Member|Organization)Action/g)).toHaveLength(4);
-    // What was read is shown: the member's summary and the flow that names the organization.
-    expect(writeScreen).toMatch(/<MemberSummary member=\{load\.member\.member\}/);
-    expect(writeScreen).toMatch(/<WriteFlow kind=\{write\} organization=\{load\.organization\} member=\{load\.member\}/);
     // The block and reactivate pages: the organization, once.
     const organizationScreen = read(`${COMPONENTS}/OrganizationWriteScreen.tsx`);
     expect(actionsIn(`${COMPONENTS}/OrganizationWriteScreen.tsx`)).toEqual(["getManagedOrganizationAction"]);
@@ -262,27 +194,18 @@ describe("the staff management screens", () => {
     expect(organizationScreen).toMatch(/\{organizationLabel\(organization\)\}/);
     // Every other page file only hands its address to one of those two screens.
     const thin = sourceFiles(PAGES).filter((file) => /\/page\.tsx$/.test(file) && file !== `${ROOT}/members/[userId]/page.tsx` && !TEAM_PAGES.includes(file));
-    expect(thin).toHaveLength(7);
+    expect(thin).toEqual([`${ROOT}/block/page.tsx`, `${ROOT}/reactivate/page.tsx`]);
     for (const file of thin) {
       const source = read(file);
       expect({ file, actions: actionsIn(file) }).toEqual({ file, actions: [] });
-      expect({ file, screens: (source.match(/<(MemberWriteScreen|OrganizationWriteScreen)\b/g) ?? []).length }).toEqual({ file, screens: 1 });
+      expect({ file, screens: (source.match(/<OrganizationWriteScreen\b/g) ?? []).length }).toEqual({ file, screens: 1 });
     }
-    // In the browser: the member is read again only from the control that says so, and the
-    // members to choose from only from a press, one page at a time.
-    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    expect(flow.match(/getManagedMemberAction\(/g)).toHaveLength(1);
-    expect(flow).toMatch(/const loadCurrentMember = async \(\) => \{[\s\S]*?result = await getManagedMemberAction\(organization\.id, managed\.member\.userId\);/);
-    expect(flow.match(/onClick=\{onLoadCurrentMember\}/g)).toHaveLength(1);
-    expect(flow).toMatch(/"Load the current member"/);
-    const picker = read(`${COMPONENTS}/ReassignTargetPicker.tsx`);
-    expect(actionsIn(`${COMPONENTS}/ReassignTargetPicker.tsx`)).toEqual(["listReassignCandidatesAction"]);
-    expect(picker.match(/listReassignCandidatesAction\(/g)).toHaveLength(1);
-    // The member the proposals come from goes with the request: who can receive them is decided on the server.
-    expect(picker).toMatch(/await listReassignCandidatesAction\(organizationId, fromUserId, page\);/);
-    expect(picker).toMatch(/const others = ready \? ready\.notEligibleCount : 0;/);
-    expect(picker.match(/\bload\(/g)).toHaveLength(3);
-    for (const call of picker.match(/.*\bload\(.*/g) ?? []) expect(call).toMatch(/onClick=\{\(\) => load\(/);
+    // In the browser the flow reads nothing at all: the two actions it names are the two writes.
+    expect(actionsIn(`${COMPONENTS}/WriteFlow.tsx`)).toEqual([...WRITE_ACTIONS].sort());
+    // The member page and the team page are drawn on the server and send nothing.
+    for (const file of [`${COMPONENTS}/MemberManagement.tsx`, `${COMPONENTS}/TeamManagement.tsx`]) {
+      expect({ file, controls: /<button\b|<form\b|<input\b|onClick=|"use client"|Action\b/.test(read(file)) }).toEqual({ file, controls: false });
+    }
     // No effect anywhere in the feature starts a read: the two effects kinds are focus only.
     for (const file of sourceFiles(COMPONENTS)) {
       for (const effect of read(file).match(/useEffect\(\(\) => \{[\s\S]*?\n  \}(, \[[^\]]*\])?\);/g) ?? []) {
@@ -291,17 +214,16 @@ describe("the staff management screens", () => {
     }
   });
 
+
   it("renders each page for every request", () => {
     const pages = sourceFiles(PAGES).filter((file) => /\/page\.tsx$/.test(file));
-    expect(pages).toHaveLength(8 + TEAM_PAGES.length);
+    expect(pages).toHaveLength(3 + TEAM_PAGES.length);
     for (const page of pages) {
       expect({ page, dynamic: /export const dynamic = "force-dynamic";/.test(read(page)) }).toEqual({ page, dynamic: true });
       expect(read(page)).not.toMatch(/"use client"|revalidate|unstable_cache|generateStaticParams/);
     }
-    // The one value read from an address besides the ids: a fixed word, compared exactly.
-    const withQuery = pages.filter((page) => /searchParams/.test(read(page)));
-    expect(withQuery).toEqual([`${ROOT}/members/[userId]/reassign-proposals/page.tsx`]);
-    expect(read(withQuery[0])).toMatch(/const continueToDeactivate = \(await searchParams\)\?\.then === "deactivate";/);
+    // Nothing is read from an address besides the ids.
+    expect(pages.filter((page) => /searchParams/.test(read(page)))).toEqual([]);
   });
 
   it("sends every write only through the confirmation gate, with the reviewed values", () => {
@@ -311,97 +233,53 @@ describe("the staff management screens", () => {
     for (const file of screenFiles.filter((path) => path !== `${COMPONENTS}/WriteFlow.tsx`)) {
       for (const action of WRITE_ACTIONS) expect({ file, action, named: new RegExp(`\\b${action}\\b`).test(read(file)) }).toEqual({ file, action, named: false });
     }
-    // All seven sit in one function, which the gate alone calls.
+    // Both sit in one function, which the gate alone calls.
     const send = flow.slice(flow.indexOf("const sendWrite = async"), flow.indexOf("export default function WriteFlow"));
     for (const action of WRITE_ACTIONS) expect(send).toMatch(new RegExp(`\\b${action}\\(`));
     expect(flow.match(/\bsendWrite\(/g)).toHaveLength(1);
-    expect(flow).toMatch(/createWriteGate<Answered>\(\{\s*send: \(\) => sendWrite\(kind, organization\.id, member, request\),\s*succeeded: \(result\) => result\.ok,\s*requiredName,\s*onChange: setGateState,/);
+    expect(flow).toMatch(/createWriteGate<Answered>\(\{\s*send: \(\) => sendWrite\(kind, organization\.id, request\),\s*succeeded: \(result\) => result\.ok,\s*requiredName,\s*onChange: setGateState,/);
     expect(flow.match(/createWriteGate</g)).toHaveLength(1);
     expect(flow.match(/gate\.submit\(\)/g)).toHaveLength(1);
     // The confirm control is off until the confirmation is given and while a request is in flight.
     expect(flow).toMatch(/<button type="submit" disabled=\{!gateState\.confirmed \|\| busy\} className=\{copy\.danger \? dangerButton : primaryButton\}>/);
     expect(flow).toMatch(/const busy = gateState\.inFlight \|\| gateState\.done;/);
-    // A transfer and a block are confirmed by the organization's name, typed.
-    expect(flow).toMatch(/const requiredName = kind === "transfer" \|\| kind === "block" \? confirmationPhrase\(organization\) : undefined;/);
+    // A block is confirmed by the organization's name, typed; a reactivation by a tick.
+    expect(flow).toMatch(/const requiredName = kind === "block" \? confirmationPhrase\(organization\) : undefined;/);
     expect(flow).toMatch(/onChange=\{\(event\) => gate\.setTypedName\(event\.target\.value\)\}/);
     expect(flow).toMatch(/onChange=\{\(event\) => gate\.setAcknowledged\(event\.target\.checked\)\}/);
-    // The version sent is the one of the member as loaded; the body is written out per write.
-    expect(send.match(/version: member\.version/g)).toHaveLength(4);
-    expect(send).not.toMatch(/rfpIds|\.\.\.request|\.\.\.member/);
+    // Only the reviewed reason is sent, written out per write.
+    expect(send.match(/\{ reason: request\.reason \}/g)).toHaveLength(2);
+    expect(send).not.toMatch(/rfpIds|\.\.\.request|version|userId|member/);
     // A request with no answer may have been saved.
     expect(send).toMatch(/\} catch \{[\s\S]*?return refused\("outcome_unknown"\);/);
   });
 
-  it("offers one resend after an unknown outcome that turned out saved, through the same gate", () => {
+  it("shows the result from the API's answer, with the way back, and makes no read to show it", () => {
     const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    // The review tells the flow when an answer left the outcome unknown; a new review forgets it.
-    expect(flow).toMatch(/if \(outcome\.result\.failure === "outcome_unknown"\) onUnknownOutcome\(\);/);
-    expect(flow).toMatch(/const toReview = \(\) => \{[\s\S]*?setUnknownRequest\(null\);/);
-    // Only the member loaded again decides it, with the tested view model.
-    expect(flow).toMatch(/const shown = unknownRequest \? unknownOutcomeFollowUp\(kind, \{ organization, member: result\.data\.member \}, unknownRequest\) : null;/);
-    // It comes before the "not available for this member now" state, which it replaces.
-    expect(flow.indexOf("if (saved && managed && followUp) {")).toBeGreaterThan(0);
-    expect(flow.indexOf("if (saved && managed && followUp) {")).toBeLessThan(flow.indexOf("is not available for this member now"));
-    // The resend is the review step itself: same gate, same one sendWrite, the new version.
-    expect(flow).toMatch(/return followUp\.resend \? \(\s*<ReviewStep\s+key=\{`finish-\$\{saved\.id\}`\}\s+kind=\{kind\}\s+organization=\{organization\}\s+member=\{managed\}\s+request=\{saved\.request\}\s+finish=\{followUp\}/);
-    expect(flow).toMatch(/\) : \(\s*<SavedStep organizationId=\{organization\.id\} memberId=\{managed\.member\.userId\} followUp=\{followUp\} \/>/);
-    expect(flow.match(/<ReviewStep\b/g)).toHaveLength(2);
-    expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: saved\.request, answer, history: \{ finishingSignOut: true \} \}\)\}/);
-    // The step with no resend sends nothing at all.
-    const savedStep = flow.slice(flow.indexOf("function SavedStep("), flow.indexOf("function ResultStep("));
-    expect(savedStep).not.toMatch(/Action\(|<button\b|<form\b|gate\./);
-  });
-
-  it("names the Owner a transfer demotes only as the Owner when the page loaded, on the form and the review", () => {
-    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    expect(flow).toMatch(/\{currentOwnerLine\(organization\)\} An organization has exactly one Owner\./);
-    expect(flow).not.toMatch(/The current Owner\{owner|organization\.owner/);
-    // Loading the current member again reads the member only: the organization is not read again.
-    expect(actionsIn(`${COMPONENTS}/WriteFlow.tsx`)).not.toContain("getManagedOrganizationAction");
-  });
-
-  it("remembers an unconfirmed attempt for as long as the page lives, and tells the result", () => {
-    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    expect(flow).toMatch(/const outcomeUnknown = \(request: WriteRequest\) => \{\s*setUnknownRequest\(request\);\s*setEverUnknown\(true\);/);
-    expect(flow.match(/setEverUnknown\(/g)).toHaveLength(1);
-    expect(flow).toMatch(/history=\{\{ \.\.\.done\.history, afterUnknownOutcome: everUnknown \}\}/);
-  });
-
-  it("starts the flow again when the page reads the member again", () => {
-    // The flow's client state (the member, the open review, a refusal, the gate) is keyed by the member as read.
-    const writeScreen = read(`${COMPONENTS}/MemberWriteScreen.tsx`);
-    expect(writeScreen).toMatch(/<WriteFlow kind=\{write\} organization=\{load\.organization\} member=\{load\.member\} continueToDeactivate=\{continueToDeactivate\} key=\{flowKey\(write, load\.member\)\} \/>/);
-    // "Open this page again" after OWNER_CHANGED is a full load, not a same-route Link that keeps the state.
-    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    expect(flow).toMatch(/refusal\.failure === "owner_changed" && memberId \? \(\s*(\/\/.*\s*)*<a href=\{memberWritePath\(organization\.id, memberId, "transfer"\)\} className=\{linkClass\}>\s*Open this page again\s*<\/a>/);
-    expect(flow.match(/<a\b/g)).toHaveLength(1);
-    expect(flow).not.toMatch(/<Link[^>]*>\s*Open this page again/);
-  });
-
-  it("shows the result from the API's answer, with the ways back, and makes no read to show it", () => {
-    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: review\.request, answer \}\)\}/);
+    expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(answer\)\}/);
     const result = flow.slice(flow.indexOf("function ResultStep("));
-    expect(result).toMatch(/const summary = resultSummary\(kind, \{ organization, member: member\?\.member \}, request, answer, history\);/);
+    expect(result).toMatch(/const summary = resultSummary\(\{ organization \}, answer\);/);
     expect(result).not.toMatch(/Action\(/);
-    expect(result).toMatch(/<Link href=\{memberManagementPath\(organization\.id, memberId\)\} prefetch=\{false\} className=\{linkClass\}>\s*Back to this member/);
-    expect(result).toMatch(/<Link href=\{organizationMembersPath\(organization\.id\)\} prefetch=\{false\} className=\{linkClass\}>\s*Members list/);
     expect(result).toMatch(/<Link href=\{organizationAccountPath\(organization\.id\)\} prefetch=\{false\} className=\{linkClass\}>\s*Back to the organization/);
-    expect(result).toMatch(/<Link href=\{memberWritePath\(organization\.id, memberId, "deactivate"\)\} prefetch=\{false\} className=\{linkClass\}>\s*Continue to deactivate this member/);
     expect(result).toMatch(/role="status" aria-live="polite"/);
   });
 
-  it("leads from a refused deactivation into reassigning the member's proposals, and back", () => {
+  it("leads from an unconfirmed block or reactivation to the organization, to check", () => {
     const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    expect(flow).toMatch(
-      /refusal\.failure === "owner_has_proposals" && memberId \? \(\s*<Link href=\{kind === "deactivate" \? reassignBeforeDeactivatePath\(organization\.id, memberId\) : memberWritePath\(organization\.id, memberId, "reassign"\)\} prefetch=\{false\}/,
-    );
-    expect(read(`${COMPONENTS}/MemberWriteScreen.tsx`)).toMatch(/continueToDeactivate=\{continueToDeactivate\}/);
+    expect(flow).toMatch(/refusal\.failure === "outcome_unknown" \? \(\s*<Link href=\{organizationAccountPath\(organization\.id\)\} prefetch=\{false\} className=\{linkClass\}>\s*Open the organization to check/);
+    // The flow is handed the organization's name, standing and block, never its Owner, and reads nothing itself.
+    expect(flow).not.toMatch(/organization\.owner/);
+    expect(actionsIn(`${COMPONENTS}/WriteFlow.tsx`)).not.toContain("getManagedOrganizationAction");
   });
 
   it("shows a refusal as fixed wording with the code beside it, and announces it", () => {
     const chrome = read(`${COMPONENTS}/ManageChrome.tsx`);
-    expect(chrome.match(/managementFailureCopy\(refusal\)/g)).toHaveLength(2);
+    // The note inside the block flow words a change; the whole-page state words a view on the two view pages.
+    expect(chrome.match(/managementFailureCopy\(refusal\)/g)).toHaveLength(1);
+    expect(chrome.match(/managementFailureCopy\(refusal, viewOnly \? "view" : "change"\)/g)).toHaveLength(1);
+    expect(chrome.match(/managementFailureCopy\(/g)).toHaveLength(2);
+    for (const page of [`${ROOT}/members/[userId]/page.tsx`, `${ROOT}/teams/[teamId]/page.tsx`]) expect(read(page)).toMatch(/<ManageFailureState viewOnly refusal=\{result\}/);
+    expect(read(`${COMPONENTS}/OrganizationWriteScreen.tsx`)).toMatch(/<ManageFailureState refusal=\{load\.refusal\}/);
     expect(chrome.match(/<RefusalCode code=\{refusal\.code\} \/>/g)).toHaveLength(2);
     expect(chrome).toMatch(/Code: <span className="break-all font-mono">\{code\}<\/span>/);
     expect(chrome).toMatch(/<div role="alert"/);
@@ -431,45 +309,22 @@ describe("the staff management screens", () => {
     expect(read(`${LIB}/management.ts`)).toMatch(/export const REASON_RULE = `Give a reason of \$\{REASON_MIN\} to \$\{REASON_MAX\} characters\.`;/);
   });
 
-  it("offers a role only from the list the API accepts", () => {
-    const flow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    expect(flow).toMatch(/\{\(member \? roleChoicesFor\(member\.member\) : \[\]\)\.map\(\(role\) => \(\s*<option key=\{role\} value=\{role\}>/);
-    expect(flow).not.toMatch(/value="owner"/);
-    expect(read(`${LIB}/management.ts`)).toMatch(/export const ASSIGNABLE_ROLES = \["organization_admin", "team_manager", "planner", "viewer"\] as const;/);
-  });
-
-  it("draws on the member page only the writes the member's state offers, as links", () => {
+  it("draws the member page with no control at all: the member, and the way back", () => {
     const page = read(`${COMPONENTS}/MemberManagement.tsx`);
-    expect(page).toMatch(/const writes = memberWritesFor\(member\);/);
-    expect(page).toMatch(/\{writes\.map\(\(write\) => \(/);
-    expect(page).toMatch(/href=\{memberWritePath\(organizationId, member\.userId, write\)\}\s+prefetch=\{false\}/);
-    // Nothing is sent from the member page: it has no control but links.
+    expect(page).toMatch(/<MemberSummary member=\{managed\.member\} eyebrow="Member" \/>/);
+    expect(page).not.toMatch(/What you can change|Each change opens its own page/);
+    expect(page.match(/<Link\b/g)).toHaveLength(1);
+    expect(page).toMatch(/<Link href=\{organizationMembersPath\(organizationId\)\} prefetch=\{false\} className=\{linkClass\}>\s*Back to the Members list/);
+    // Nothing is sent from the member page: it has no control but that link.
     expect(page).not.toMatch(/<button\b|<form\b|<input\b|onClick=|"use client"|Action\b/);
+    expect(read(`${ROOT}/members/[userId]/page.tsx`)).toMatch(/<ManageFrame organizationId=\{known\} viewOnly>/);
   });
 
-  it("says of a write it leaves out that it is not offered here, never that it is impossible", () => {
-    const page = read(`${COMPONENTS}/MemberManagement.tsx`);
-    expect(page).not.toMatch(/nothing about them can be changed|have proposals reassigned|Nothing can be changed/);
-    expect(page).toMatch(/A change of role or status is not offered here for a removed member; proposals they still own can be reassigned\./);
-    expect(page).toMatch(/Deactivating them is not offered here, and ownership can only go to an active member\./);
-    expect(page).toMatch(/No change is offered here for this member as they are now\./);
-  });
-
-  it("keeps the keyboard focus after a page of members loads, and uses the tested rule for the block link", () => {
-    const picker = read(`${COMPONENTS}/ReassignTargetPicker.tsx`);
-    // The pressed control is gone once the read ends: focus goes to the loaded list, or to the retry.
-    expect(picker).toMatch(/focusAfter\.current = result\.ok \? "results" : "retry";/);
-    expect(picker).toMatch(/if \(focusAfter\.current === "results"\) results\.current\?\.focus\(\);\s*if \(focusAfter\.current === "retry"\) retry\.current\?\.focus\(\);/);
-    expect(picker).toMatch(/<div\s+ref=\{results\}\s+tabIndex=\{-1\}\s+role="group"\s+aria-label=\{`Members who can receive the proposals, page /);
-    expect(picker).toMatch(/<button ref=\{retry\} type="button" onClick=\{\(\) => load\(firstOrSame\)\}/);
+  it("uses the tested rule for the block link", () => {
     // The detail page decides "Block organization" with the management pages' own rule.
     const account = read("components/organizations/OrganizationAccount.tsx");
     expect(account).toMatch(/const canBlock = organizationWritesFor\(\{ standing: organization\.standing, blocked: organization\.blocked \?\? null \}\)\.includes\("block"\);/);
     expect(account).not.toMatch(/organization\.standing === "inactive"/);
-    // The repo's notes name every refusal that offers "Load the current member".
-    const notes = read("CLAUDE.md");
-    for (const failure of ["stale_version", "version_required", "outcome_unknown"]) expect(read(`${COMPONENTS}/WriteFlow.tsx`)).toContain(`"${failure}"`);
-    expect(notes).toMatch(/offered after a\s+`STALE_VERSION`, a `VERSION_REQUIRED` and a write whose outcome is unknown/);
   });
 
   it("gives every control a name and a visible keyboard focus", () => {
@@ -483,7 +338,7 @@ describe("the staff management screens", () => {
       const source = read(file);
       for (const element of elements(source, /<(button|Link)\b/g, (name) => `</${name}>`)) {
         controls += 1;
-        expect({ file, element, focus: /focusRing|linkClass|backClass|linkButton|dangerLinkButton|primaryButton|secondaryButton|dangerButton/.test(element) }).toMatchObject({ focus: true });
+        expect({ file, element, focus: /focusRing|linkClass|backClass|primaryButton|secondaryButton|dangerButton/.test(element) }).toMatchObject({ focus: true });
         // Every one has words inside it: none is an icon alone.
         expect({ file, element, named: /aria-label=|>\s*[A-Z{][^<]*$|\}\s*$|[a-z.]\s*$/.test(element) }).toMatchObject({ named: true });
       }
@@ -495,18 +350,18 @@ describe("the staff management screens", () => {
       }
       expect(source).not.toMatch(/tabIndex=\{[1-9]|tabIndex="[1-9]/);
     }
-    expect(controls).toBeGreaterThan(30);
+    expect(controls).toBeGreaterThanOrEqual(18);
     // A checkbox or radio shows its focus on the label around it.
-    for (const file of [`${COMPONENTS}/WriteFlow.tsx`, `${COMPONENTS}/ReassignTargetPicker.tsx`]) expect(read(file)).toMatch(/has-\[:focus-visible\]:outline has-\[:focus-visible\]:outline-2/);
+    for (const file of [`${COMPONENTS}/WriteFlow.tsx`]) expect(read(file)).toMatch(/has-\[:focus-visible\]:outline has-\[:focus-visible\]:outline-2/);
     const chrome = read(`${COMPONENTS}/ManageChrome.tsx`);
     expect(chrome).toMatch(/import \{ ContentBadge, focusRing \} from "@\/components\/organizations\/content\/ContentChrome";/);
-    for (const name of ["linkClass", "primaryButton", "dangerButton", "secondaryButton", "linkButton", "dangerLinkButton"]) {
+    for (const name of ["linkClass", "primaryButton", "dangerButton", "secondaryButton"]) {
       expect(chrome).toMatch(new RegExp(`export const ${name} =[^;]*\\$\\{focusRing\\}`));
     }
     expect(chrome).toMatch(/export const inputClass =\s*"[^"]*focus:border-\[#00aeb5\] focus:ring-4/);
-    // The two links on the detail page and the one on the Members list carry the same outline.
-    for (const file of ["components/organizations/OrganizationAccount.tsx", "components/organizations/content/MembersList.tsx"]) {
-      for (const link of elements(read(file), /<(Link)\b/g, (name) => `</${name}>`)) expect({ file, link, focus: /\$\{focusRing\}/.test(link) }).toMatchObject({ focus: true });
+    // The two links on the detail page, the one on the Members list and the one on the Teams list carry the same outline.
+    for (const file of ["components/organizations/OrganizationAccount.tsx", "components/organizations/content/MembersList.tsx", "components/organizations/content/TeamsList.tsx"]) {
+      for (const link of elements(read(file), /<(Link)\b/g, (name) => `</${name}>`)) expect({ file, link, focus: /\$\{focusRing\}|className=\{staffLink\}/.test(link) }).toMatchObject({ focus: true });
     }
   });
 
@@ -534,10 +389,7 @@ describe("the staff management screens", () => {
   });
 });
 
-describe("the team management screens", () => {
-  const flowFile = `${COMPONENTS}/TeamWriteFlow.tsx`;
-  const screensFile = `${COMPONENTS}/TeamWriteScreens.tsx`;
-  const pickerFile = `${COMPONENTS}/TeamMemberPicker.tsx`;
+describe("the team page", () => {
   const pageFile = `${COMPONENTS}/TeamManagement.tsx`;
 
   it("has every team file under the management addresses, and none in the view-only browser", () => {
@@ -548,156 +400,36 @@ describe("the team management screens", () => {
     expect(sourceFiles(PAGES).filter((file) => /\/teams\//.test(file)).sort()).toEqual([...TEAM_PAGES].sort());
   });
 
-  it("calls the team actions only from the team files, each write once, from the one function the gate calls", () => {
-    const names = new RegExp(`\\b(${[...TEAM_READ_ACTIONS, ...TEAM_WRITE_ACTIONS].join("|")})\\b`);
+  it("calls the team read only from the team page, and has no team write to call", () => {
+    const names = new RegExp(`\\b(${TEAM_READ_ACTIONS.join("|")})\\b`);
     for (const file of everywhere) {
       if (file === ACTIONS || TEAM_FILES.includes(file)) continue;
       expect({ file, names: names.test(read(file)) }).toEqual({ file, names: false });
     }
-    const flow = read(flowFile);
-    for (const action of TEAM_WRITE_ACTIONS) expect({ action, calls: (flow.match(new RegExp(`\\b${action}\\(`, "g")) ?? []).length }).toEqual({ action, calls: 1 });
-    for (const file of screenFiles.filter((path) => path !== flowFile)) {
-      for (const action of TEAM_WRITE_ACTIONS) expect({ file, action, named: new RegExp(`\\b${action}\\b`).test(read(file)) }).toEqual({ file, action, named: false });
-    }
-    // The team flow sends no member, ownership or block write.
-    for (const action of WRITE_ACTIONS) expect({ action, named: new RegExp(`\\b${action}\\b`).test(flow) }).toEqual({ action, named: false });
-    const send = flow.slice(flow.indexOf("const sendTeamWrite = async"), flow.indexOf("/** The address of the page a flow is on"));
-    for (const action of TEAM_WRITE_ACTIONS) expect(send).toMatch(new RegExp(`\\b${action}\\(`));
-    expect(flow.match(/\bsendTeamWrite\(/g)).toHaveLength(1);
-    expect(flow).toMatch(/createWriteGate<Answered>\(\{\s*send: \(\) => sendTeamWrite\(kind, organization\.id, subject, request\),\s*succeeded: \(result\) => result\.ok,\s*requiredName,\s*onChange: setGateState,/);
-    expect(flow.match(/createWriteGate</g)).toHaveLength(1);
-    expect(flow.match(/gate\.submit\(\)/g)).toHaveLength(1);
-    expect(flow).toMatch(/import \{ createWriteGate, type WriteGateState \} from "@\/lib\/organizationManagement\/confirmGate";/);
-    // The confirm control is off until the confirmation is given and while a request is in flight.
-    expect(flow).toMatch(/<button type="submit" disabled=\{!gateState\.confirmed \|\| busy\} className=\{copy\.danger \? dangerButton : primaryButton\}>/);
-    expect(flow).toMatch(/const busy = gateState\.inFlight \|\| gateState\.done;/);
-    // Only the reviewed values are sent, written out per write; the version is the member's as loaded.
-    expect(send).not.toMatch(/\.\.\.request|\.\.\.member|\.\.\.team|rfpIds|proposal/i);
-    expect(send.match(/version: member\.version/g)).toHaveLength(1);
-    expect(send).toMatch(/setMemberTeamsAction\(organizationId, member\.member\.userId, \{ teamIds: request\.teamIds, version: member\.version, reason: request\.reason \}\)/);
-    expect(send).toMatch(/removeTeamMemberAction\(organizationId, team\.id, member\.member\.userId, \{ reason: request\.reason \}\)/);
-    // A request with no answer may have been saved.
-    expect(send).toMatch(/\} catch \{[\s\S]*?return refused\("outcome_unknown"\);/);
+    // No source file names an action that would write to a team or to a member's teams.
+    for (const file of everywhere) expect({ file, teamWrite: /\b(create|rename|archive|add|remove|set)\w*Team\w*Action\b/.test(read(file)) }).toEqual({ file, teamWrite: false });
   });
 
-  it("confirms an archive by the team's name, typed, and every other team write by a tick", () => {
-    const flow = read(flowFile);
-    expect(flow).toMatch(/const requiredName = kind === "archive" && team \? team\.name : undefined;/);
-    expect(flow).toMatch(/onChange=\{\(event\) => gate\.setTypedName\(event\.target\.value\)\}/);
-    expect(flow).toMatch(/onChange=\{\(event\) => gate\.setAcknowledged\(event\.target\.checked\)\}/);
-    expect(flow).toMatch(/Type the team&apos;s name to confirm/);
-    // The form and the review both state what an archive does, from the one tested list.
-    expect(flow.match(/ARCHIVE_EFFECTS/g)).toHaveLength(2);
-    expect(flow).toMatch(/<Lines lines=\{ARCHIVE_EFFECTS\} \/>/);
-    expect(flow).toMatch(/const lines = teamReviewLines\(kind, context, request\);/);
+  it("sits in the frame that says the page is view only, beside the block pages' own note", () => {
+    expect(read(`${ROOT}/teams/[teamId]/page.tsx`)).toMatch(/<ManageFrame organizationId=\{known\} teams viewOnly>/);
+    const chrome = read(`${COMPONENTS}/ManageChrome.tsx`);
+    expect(chrome).toMatch(/Proposals, templates and vendors can&apos;t be changed from here\./);
+    expect(chrome).toMatch(/View only\. Members, teams, proposals, templates and vendors can&apos;t be changed from here\. Each page you open is recorded on the\s+RFPilot side\./);
+    expect(chrome).toMatch(/\{viewOnly \? <ViewOnlyNote \/> : <ManagementNote \/>\}/);
+    // The block and reactivate pages keep the note of a page that changes something.
+    expect(read(`${COMPONENTS}/OrganizationWriteScreen.tsx`)).not.toMatch(/viewOnly/);
   });
 
-  it("reuses the member flow's reason field, review facts, refusal note and frame, and copies none of them", () => {
-    const flow = read(flowFile);
-    expect(flow).toMatch(/import \{ Field, ReasonField, ReviewFact \} from "@\/components\/organizations\/manage\/WriteFlow";/);
-    expect(flow.match(/<ReasonField\b/g)).toHaveLength(1);
-    expect(flow).not.toMatch(/const ReasonField|const ReviewFact|const Field\b|<textarea\b/);
-    expect(flow).toMatch(/<RefusalNote refusal=\{refusal\}>/);
-    const memberFlow = read(`${COMPONENTS}/WriteFlow.tsx`);
-    for (const name of ["Field", "ReasonField", "ReviewFact"]) expect(memberFlow).toMatch(new RegExp(`export const ${name} = `));
-    // Every team screen sits in the management frame, which says what staff management is.
-    const screens = read(screensFile);
-    expect(screens.match(/<ManageFrame organizationId=\{known\}/g)).toHaveLength(4);
-    expect(read(`${ROOT}/teams/[teamId]/page.tsx`)).toMatch(/<ManageFrame organizationId=\{known\} teams>/);
-    expect(read(`${COMPONENTS}/ManageChrome.tsx`)).toMatch(/Proposals, templates and vendors can&apos;t be changed from here\./);
-  });
-
-  it("makes no backend read a team page does not show", () => {
+  it("makes no backend read the team page does not show", () => {
     // The team page: the team, once.
     const teamPage = read(`${ROOT}/teams/[teamId]/page.tsx`);
     expect(actionsIn(`${ROOT}/teams/[teamId]/page.tsx`)).toEqual(["getManagedTeamAction"]);
     expect(teamPage).toMatch(/await loadTeamPage\(\{ team: getManagedTeamAction \}, organizationId, teamId\)/);
     expect(teamPage.match(/getManagedTeamAction/g)).toHaveLength(2);
     expect(teamPage).toMatch(/<TeamManagement organizationId=\{organizationId\} managed=\{result\.data\} \/>/);
-    // The write screens: each through its tested loader, which decides the reads.
-    const screens = read(screensFile);
-    expect(actionsIn(screensFile)).toEqual(["getManagedMemberAction", "getManagedOrganizationAction", "getManagedTeamAction", "listActiveTeamsAction"]);
-    expect(screens).toMatch(/await loadCreateTeamPage\(\{ organization: getManagedOrganizationAction \}, organizationId\)/);
-    expect(screens).toMatch(/await loadTeamWritePage\(\{ team: getManagedTeamAction, organization: getManagedOrganizationAction \}, organizationId, teamId, write\)/);
-    expect(screens).toMatch(/await loadTeamMemberWritePage\(\{ member: getManagedMemberAction, organization: getManagedOrganizationAction \}, organizationId, teamId, userId, write\)/);
-    expect(screens).toMatch(/await loadMemberTeamsPage\(\{ member: getManagedMemberAction, activeTeams: listActiveTeamsAction, organization: getManagedOrganizationAction \}, organizationId, userId\)/);
-    // Each action is named once in the import and once per loader it is handed to: no other call.
-    expect(screens.match(/getManagedTeamAction/g)).toHaveLength(2);
-    expect(screens.match(/getManagedMemberAction/g)).toHaveLength(3);
-    expect(screens.match(/listActiveTeamsAction/g)).toHaveLength(2);
-    expect(screens.match(/getManagedOrganizationAction/g)).toHaveLength(5);
-    expect(screens).not.toMatch(/Action\(/);
-    // What was read is shown: the team's or the member's summary, the organization's name, the choices.
-    expect(screens.match(/<TeamSummary team=\{load\.team\.team\}/g)).toHaveLength(2);
-    expect(screens.match(/<MemberSummary member=\{load\.member\.member\}/g)).toHaveLength(4);
-    expect(screens).toMatch(/\{organizationLabel\(load\.organization\)\}/);
-    expect(screens).toMatch(/<TeamWriteFlow kind="memberTeams" organization=\{load\.organization\} member=\{load\.member\} choices=\{load\.choices\}/);
-    // Every other team page only hands its address to one of those screens.
-    const thin = TEAM_PAGES.filter((file) => file !== `${ROOT}/teams/[teamId]/page.tsx`);
-    expect(thin).toHaveLength(8);
-    for (const file of thin) {
-      const source = read(file);
-      expect({ file, actions: actionsIn(file) }).toEqual({ file, actions: [] });
-      expect({ file, screens: (source.match(/<(CreateTeamScreen|TeamWriteScreen|TeamMemberWriteScreen|MemberTeamsScreen)\b/g) ?? []).length }).toEqual({ file, screens: 1 });
-      expect({ file, query: /searchParams/.test(source) }).toEqual({ file, query: false });
-      expect({ file, dynamic: /export const dynamic = "force-dynamic";/.test(source) }).toEqual({ file, dynamic: true });
-    }
-    // In the browser: the member is read again only from the control that says so, and the
-    // members to choose from only from a press, one page at a time, filtered on the server.
-    const flow = read(flowFile);
-    expect(actionsIn(flowFile).filter((action) => !TEAM_WRITE_ACTIONS.includes(action))).toEqual(["getManagedMemberAction"]);
-    expect(flow.match(/getManagedMemberAction\(/g)).toHaveLength(1);
-    expect(flow).toMatch(/const loadCurrentMember = async \(\) => \{[\s\S]*?result = await getManagedMemberAction\(organization\.id, managed\.member\.userId\);/);
-    expect(flow.match(/onClick=\{onLoadCurrentMember\}/g)).toHaveLength(1);
-    // The member loaded again replaces the ticks: none of the member as first loaded is kept.
-    expect(flow).toMatch(/setManaged\(result\.data\);\s*(\/\/.*\s*)*setBasis\(result\.data\);\s*setDraft\(\(current\) => reloadedTeamDraft\(current, result\.data\.member, choices\)\);/);
-    expect(flow).not.toMatch(/The teams ticked now are the ones they are on/);
-    expect(flow).toMatch(/The ticks were set back to the teams they are on now/);
-    // And once per press of Review on a member's teams, through the tested view model: the review
-    // is built from that read, never from the member as the page loaded them.
-    expect(flow.match(/getManagedMemberAction/g)).toHaveLength(3);
-    expect(flow).toMatch(/const outcome = await reviewMemberTeams\(\{ member: getManagedMemberAction \}, organization\.id, basis \?\? loaded, draft, choices, choicesCut\);/);
-    expect(flow.match(/reviewMemberTeams\(/g)).toHaveLength(1);
-    expect(flow.match(/toMemberTeamsReview\(/g)).toHaveLength(1);
-    expect(flow).toMatch(/const toReview = \(\) => \{\s*if \(block\) return;\s*if \(kind === "memberTeams" && managed\) \{\s*void toMemberTeamsReview\(managed\);\s*return;\s*\}/);
-    expect(flow.match(/\btoReview\(\)/g)).toHaveLength(1);
-    expect(flow).toMatch(/onSubmit=\{\(event\) => \{\s*event\.preventDefault\(\);\s*toReview\(\);/);
-    // A failed read shows the failure and no review; a second press while one is in flight reads nothing.
-    expect(flow).toMatch(/if \(outcome\.state === "read_failed"\) \{\s*setReviewRead\(\{ phase: "failed", refusal: outcome\.refusal \}\);\s*return;/);
-    expect(flow).toMatch(/if \(reviewRead\.phase === "loading"\) return;/);
-    expect(flow).toMatch(/<button type="submit" disabled=\{reviewRead\.phase === "loading" \|\| block !== null\} className=\{primaryButton\}>/);
-    // The member read on the press is the one the review and the request's version are about.
-    expect(flow).toMatch(/setManaged\(outcome\.member\);/);
-    expect(flow).toMatch(/const notice = teamsChangedNotice\(memberLabel\(outcome\.member\.member\), outcome\.changed\);/);
-    expect(flow).toMatch(/\{notice \? \(\s*<p role="alert"/);
-    expect(flow).toMatch(/const offersReload = kind === "memberTeams" && Boolean\(member\) && failure !== undefined && \["stale_version", "version_required", "outcome_unknown"\]\.includes\(failure\);/);
-    const picker = read(pickerFile);
-    expect(actionsIn(pickerFile)).toEqual(["listTeamCandidatesAction"]);
-    expect(picker.match(/listTeamCandidatesAction\(/g)).toHaveLength(1);
-    expect(picker).toMatch(/await listTeamCandidatesAction\(organizationId, teamId, page\);/);
-    expect(picker).toMatch(/const others = ready \? ready\.notEligibleCount : 0;/);
-    expect(picker.match(/\bload\(/g)).toHaveLength(3);
-    for (const call of picker.match(/.*\bload\(.*/g) ?? []) expect(call).toMatch(/onClick=\{\(\) => load\(/);
     // The team page and the team summary send and read nothing.
     const page = read(pageFile);
     expect(page).not.toMatch(/<button\b|<form\b|<input\b|onClick=|"use client"|Action\b/);
-  });
-
-  it("offers on the team page only what the team's and each member's state offer, as links", () => {
-    const page = read(pageFile);
-    expect(page).toMatch(/const writes = teamWritesFor\(team\);/);
-    expect(page).toMatch(/\{writes\.map\(\(write\) => \(/);
-    expect(page).toMatch(/<Link href=\{teamWritePath\(organizationId, team\.id, write\)\} prefetch=\{false\}/);
-    expect(page).toMatch(/const rowWrites = teamMemberWritesFor\(\{ isManager, roles: member\.roles, status: member\.status \}, team\);/);
-    expect(page).toMatch(/href=\{teamMemberWritePath\(organizationId, team\.id, member\.userId, write\)\}\s+prefetch=\{false\}/);
-    // An archived team: the statement, and no control.
-    expect(page).toMatch(/\{writes\.length === 0 \? \(\s*<p[^>]*>\s*\{ARCHIVED_TEAM_NOTE\} Proposals on it keep their team\./);
-    // "Make manager" on the add form is offered only for a member who holds the Team Manager role.
-    const flow = read(flowFile);
-    expect(flow).toMatch(/const canManage = draft\.target \? holdsTeamManagerRole\(draft\.target\.roles\) : false;/);
-    expect(flow).toMatch(/\{draft\.target && canManage \? \(\s*<label/);
-    // Choosing another member clears the tick.
-    expect(flow).toMatch(/onChoose=\{\(target\) => edit\(\{ target, makeManager: false \}, "target"\)\}/);
   });
 
   it("shows the backend's counts, and says when a list is shorter than its count", () => {
@@ -707,86 +439,36 @@ describe("the team management screens", () => {
     expect(page).toMatch(/\{cut \? `\. \$\{cut\}` : "\."\}/);
     // The manager note is decided by how many rows the answer held, on every page that shows the team.
     expect(page).toMatch(/const cut = managerListNote\(\{ team, managersListed \}\);/);
-    expect(page).toMatch(/<TeamSummary team=\{team\} managersListed=\{managed\.managersListed\} eyebrow="Manage team" \/>/);
-    expect(read(screensFile).match(/<TeamSummary team=\{load\.team\.team\} managersListed=\{load\.team\.managersListed\} eyebrow=/g)).toHaveLength(2);
+    expect(page).toMatch(/<TeamSummary team=\{team\} managersListed=\{managed\.managersListed\} eyebrow="Team" \/>/);
     // The count is never taken from the length of a list.
     expect(page).not.toMatch(/countLabel\(members\.length|members\.length\.toLocaleString|managers\.length\.toLocaleString/);
-    // A member's teams are replaced whole: a list that may be cut is never chosen against.
-    const flow = read(flowFile);
-    expect(flow).not.toMatch(/memberTeamsNote|there may be more/);
-    expect(flow).toMatch(/const block = kind === "memberTeams" \? memberTeamsBlock\(managed\?\.member, choices, choicesCut\) : null;/);
-    expect(flow).toMatch(/if \(kind === "memberTeams" && managed && \(!memberTeamsOffered\(managed\.member\) \|\| memberTeamsAtBound\(managed\.member\)\)\) \{/);
-    expect(flow).toMatch(/<p className="break-words font-semibold">Review is off\. \{block\}<\/p>\s*<Link href=\{organizationTeamsPath\(organization\.id\)\} prefetch=\{false\}/);
-    const screens = read(screensFile);
-    expect(screens).toMatch(/load\.tooManyTeams\s*\? memberTeamsTooMany\(memberLabel\(load\.member\.member\)\)/);
-    expect(screens).toMatch(/choices=\{load\.choices\} choicesCut=\{load\.choicesCut\}/);
-    // "Not on this team" is said only when the member read can tell.
-    expect(screens).toMatch(/!load\.membership\s*\? notOnTeamNote\(memberLabel\(load\.member\.member\), load\.member\.member\)/);
-    expect(screens).not.toMatch(/is not on this team/);
     // Dates are UTC and labelled.
     expect(page.match(/formatContentDate\(/g)).toHaveLength(2);
     for (const file of TEAM_COMPONENTS) expect({ file, local: /toLocaleDateString|toLocaleTimeString|new Date\(/.test(read(file)) }).toEqual({ file, local: false });
   });
 
-  it("has no control over a proposal, a template or a vendor, and none over which team a proposal is on", () => {
+  it("has no control over a team, a proposal, a template or a vendor", () => {
     for (const file of TEAM_FILES) {
       const source = withoutComments(read(file));
       expect({ file, content: /organization(Proposals?|VendorResponses|Templates?|Vendors|Section)Path|\/proposals|\/templates|\/vendors|vendor-responses|rfpIds|proposalId|templateId|vendorId/.test(source) }).toEqual({ file, content: false });
       expect({ file, list: /(list|get)Organization\w+Action/.test(source) }).toEqual({ file, list: false });
     }
-    // What the archive and remove controls are named is in one tested table, and names a team each time.
-    const lib = read(`${LIB}/teams.ts`);
-    expect(lib).toMatch(/archive: \{ title: "Archive team", confirm: "Archive team"/);
-    expect(lib).toMatch(/removeMember: \{ title: "Remove from team", confirm: "Remove from team"/);
-    expect(lib).toMatch(/removeManager: \{ title: "Remove as team manager", confirm: "Remove as team manager"/);
-    // The page tells staff what they can't change.
-    expect(read(pageFile)).toMatch(/Which team a proposal is on can&apos;t be changed by staff\./);
+    const page = read(pageFile);
+    expect(page).not.toMatch(/What you can change|Each change opens its own page|teamWritePath|teamMemberWritePath|TEAM_WRITE_COPY/);
+    // Its only links: each listed member's own page, and the way back to the Teams list.
+    expect(page.match(/<Link\b/g)).toHaveLength(2);
   });
 
-  it("starts the flow again when the page reads another team, member or version, and reloads fully after UNKNOWN_TEAMS", () => {
-    const screens = read(screensFile);
-    // Every flow is keyed, the create flow too, and every key names the organization as read.
-    expect(screens.match(/key=\{teamFlowKey\(/g)).toHaveLength(4);
-    expect(screens.match(/<TeamWriteFlow\b/g)).toHaveLength(4);
-    expect(screens.match(/key=\{teamFlowKey\((write|"create"|"memberTeams"), load\.organization\.id[,)]/g)).toHaveLength(4);
-    const flow = read(flowFile);
-    expect(flow).toMatch(/failure === "unknown_teams" && member \? \(\s*(\/\/.*\s*)*<a href=\{memberTeamsPath\(organization\.id, member\.member\.userId\)\} className=\{linkClass\}>\s*Open this page again\s*<\/a>/);
-    expect(flow.match(/<a\b/g)).toHaveLength(1);
-  });
-
-  it("shows the result from the API's answer, with the ways back, and makes no read to show it", () => {
-    const flow = read(flowFile);
-    expect(flow).toMatch(/onDone=\{\(answer\) => setDone\(\{ request: review\.request, answer \}\)\}/);
-    const result = flow.slice(flow.indexOf("function TeamResultStep("));
-    expect(result).toMatch(/const summary = teamResultSummary\(kind, context, request, answer\);/);
-    expect(result).not.toMatch(/Action\(|<button\b|<form\b/);
-    expect(result).toMatch(/<Link href=\{teamManagementPath\(organizationId, answer\.team\.team\.id\)\} prefetch=\{false\} className=\{linkClass\}>/);
-    expect(result).toMatch(/<Link href=\{memberManagementPath\(organizationId, answer\.member\.userId\)\} prefetch=\{false\} className=\{linkClass\}>/);
-    expect(result).toMatch(/role="status" aria-live="polite"/);
-    // A refused write moves focus to the refusal, which sits above the confirmation.
-    expect(flow).toMatch(/useEffect\(\(\) => \{\s*if \(refusal\) refusalNote\.current\?\.focus\(\);\s*\}, \[refusal\]\);/);
-    const review = flow.slice(flow.indexOf("function TeamReviewStep("), flow.indexOf("function TeamResultStep("));
-    const note = review.indexOf("<div ref={refusalNote}");
-    expect(note).toBeGreaterThan(0);
-    expect(note).toBeLessThan(review.indexOf("{requiredName !== undefined ? ("));
-    expect(review.indexOf("{requiredName !== undefined ? (")).toBeLessThan(review.indexOf('<button type="submit"'));
-  });
-
-  it("leads in from the Teams list, the member page and the frame with links that never prefetch", () => {
+  it("leads in from the Teams list and the frame with links that never prefetch", () => {
     const list = read("components/organizations/content/TeamsList.tsx");
-    expect(list).toMatch(/<Link href=\{teamManagementPath\(organizationId, team\.id\)\} prefetch=\{false\} aria-label=\{`Manage \$\{team\.name\}`\} className=\{staffLink\}>\s*Manage\s*<\/Link>/);
-    expect(list).toMatch(/<Link href=\{teamCreatePath\(organizationId\)\} prefetch=\{false\} className=\{staffLink\}>\s*Create a team\s*<\/Link>/);
-    expect(list.match(/<Link\b/g)).toHaveLength(2);
+    expect(list).toMatch(/<Link href=\{teamManagementPath\(organizationId, team\.id\)\} prefetch=\{false\} aria-label=\{`View \$\{team\.name\}`\} className=\{staffLink\}>\s*View\s*<\/Link>/);
+    expect(list).not.toMatch(/Create a team|teamCreatePath|controls=/);
+    expect(list.match(/<Link\b/g)).toHaveLength(1);
     expect(list).toMatch(/const staffLink = `[^`]*\$\{focusRing\}`;/);
     // The view-only list still sends nothing itself.
     expect(list).not.toMatch(/Action\b|<button\b|<form\b|onClick=|"use client"/);
-    const member = read(`${COMPONENTS}/MemberManagement.tsx`);
-    expect(member).toMatch(/\{memberTeamsOffered\(member\) \? \(/);
-    expect(member).toMatch(/<Link href=\{memberTeamsPath\(organizationId, member\.userId\)\} prefetch=\{false\} className=\{`shrink-0 \$\{linkButton\}`\}>\s*\{TEAM_WRITE_COPY\.memberTeams\.title\}\s*<\/Link>/);
-    expect(read(`${LIB}/teams.ts`)).toMatch(/memberTeams: \{ title: "Change teams"/);
     const chrome = read(`${COMPONENTS}/ManageChrome.tsx`);
     expect(chrome).toMatch(/\{teams \? \(\s*<Link href=\{organizationTeamsPath\(organizationId\)\} prefetch=\{false\} className=\{backClass\}>\s*Teams\s*<\/Link>/);
-    expect(chrome).toMatch(/\{teamId \? \(\s*<Link href=\{teamManagementPath\(organizationId, teamId\)\} prefetch=\{false\} className=\{backClass\}>\s*This team\s*<\/Link>/);
     // Every Link in a team file opts out, whatever it leads to.
     let found = 0;
     for (const file of TEAM_FILES.filter((path) => /\.tsx$/.test(path))) {
@@ -795,15 +477,14 @@ describe("the team management screens", () => {
         expect({ file, link, optsOut: /prefetch=\{false\}/.test(link) }).toMatchObject({ optsOut: true });
       }
     }
-    expect(found).toBeGreaterThanOrEqual(15);
+    expect(found).toBeGreaterThanOrEqual(2);
   });
 
-  it("names the team screens in the repo's notes", () => {
+  it("names the view-only pages and the block flow in the repo's notes", () => {
     const notes = read("CLAUDE.md");
-    expect(notes).toMatch(/\*\*Team management\*\*/);
+    expect(notes).toMatch(/\*\*Organization management\*\* \(owner decision, 2026-11-24,/);
     expect(notes).toMatch(/`lib\/organizationManagement\/teams\.ts`/);
-    expect(notes).not.toMatch(/Team management is a separate ticket/);
-    // The recorded reads of the member-teams flow: three for the page, and one member read per press of Review.
-    expect(notes).toMatch(/a member's teams 3 \(the\s+member, the content browser's teams read for the active teams, the organization\), and one more\s+member read on each press of "Review"/);
+    expect(notes).toMatch(/`app\/actions\/staffViewOnly\.test\.ts`/);
+    expect(notes).not.toMatch(/\*\*Team management\*\*|Change teams|transfer ownership, and block/);
   });
 });

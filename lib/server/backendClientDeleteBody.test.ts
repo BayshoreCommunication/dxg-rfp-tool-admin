@@ -7,10 +7,12 @@ jest.mock("@/lib/server/backendSession", () => ({
 import { createAuthenticatedBackendClient } from "./backendClient";
 import type { BackendSession } from "./backendSession";
 
-// Removing a member from a team is `DELETE .../teams/:teamId/members/:userId` with `{ reason }`
-// in a JSON body (the backend never reads the reason from the address). This checks that the
-// app's signed fetch hands a DELETE's body on as it was given, on the first try and on the one
-// retry after a refreshed session, and that the runtime's fetch accepts a body on a DELETE.
+// A capability of the signed backend client, kept and tested on its own: a DELETE can carry a JSON
+// body (for example `{ reason }`, so that a reason never travels in the address). No action in the
+// app sends one today: the staff "remove a member from a team" request that did was removed on
+// 2026-11-24, and the two DELETEs left (a canned reply, an admin user) send no body. This checks
+// that the app's signed fetch hands a DELETE's body on as it was given, on the first try and on the
+// one retry after a refreshed session, and that the runtime's fetch accepts a body on a DELETE.
 
 const session = (accessToken: string): BackendSession => ({
   accessToken,
@@ -22,7 +24,7 @@ const session = (accessToken: string): BackendSession => ({
   retryableError: false,
 });
 
-const URL_ = "http://backend.test/api/v1/admin/organizations/6b0000000000000000000002/teams/6c0000000000000000000003/members/6a0000000000000000000001";
+const URL_ = "http://backend.test/api/v1/example/items/6a0000000000000000000001";
 const BODY = JSON.stringify({ reason: "Requested by the account owner in ticket 4411." });
 const init = (): RequestInit => ({ method: "DELETE", headers: { Accept: "application/json", "Content-Type": "application/json" }, cache: "no-store", body: BODY });
 

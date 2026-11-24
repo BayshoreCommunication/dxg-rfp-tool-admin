@@ -4,7 +4,7 @@ import TeamManagement from "@/components/organizations/manage/TeamManagement";
 import { isManagementId } from "@/lib/organizationManagement/management";
 import { loadTeamPage, teamManagementPath } from "@/lib/organizationManagement/teams";
 
-export const metadata = { title: "Manage team" };
+export const metadata = { title: "Team" };
 // The team read is recorded on the RFPilot side: the page is rendered for every request, links
 // into it opt out of prefetching, and it asks the backend for nothing but the team it shows.
 export const dynamic = "force-dynamic";
@@ -17,11 +17,11 @@ export default async function ManageTeamPage({ params }: Props) {
   const known = isManagementId(organizationId) ? organizationId : null;
 
   return (
-    <ManageFrame organizationId={known} teams>
+    <ManageFrame organizationId={known} teams viewOnly>
       {result.ok ? (
         <TeamManagement organizationId={organizationId} managed={result.data} />
       ) : (
-        <ManageFailureState refusal={result} retryHref={known && isManagementId(teamId) ? teamManagementPath(known, teamId) : undefined} />
+        <ManageFailureState viewOnly refusal={result} retryHref={known && isManagementId(teamId) ? teamManagementPath(known, teamId) : undefined} />
       )}
     </ManageFrame>
   );

@@ -3,20 +3,19 @@ import { ORGANIZATIONS_PATH, organizationAccountPath } from "@/lib/organizationA
 import { formatContentDate, memberStatusBadge, organizationMembersPath, organizationTeamsPath, rolesLabel, sessionRenewPath, type Member } from "@/lib/organizationContent/content";
 import {
   managementFailureCopy,
-  memberManagementPath,
   memberStanding,
   memberStatusLabel,
   type ManagementFailure,
   type ManagementRefusal,
 } from "@/lib/organizationManagement/management";
-import { teamManagementPath } from "@/lib/organizationManagement/teams";
-import { AlertCircle, ArrowLeft, Clock, FileQuestion, ShieldAlert } from "lucide-react";
+import { AlertCircle, ArrowLeft, Clock, Eye, FileQuestion, ShieldAlert } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/* The frame and the states the staff management pages share. These pages change a customer
-   organization, so they live outside the view-only content browser
-   (/organizations/[organizationId]/...), which may hold no control at all.
+/* The frame and the states these pages share: one member and one team, each view only, and the
+   block and reactivate pages, the one change staff make to a customer organization. They live
+   outside the content browser (/organizations/[organizationId]/...), which may hold no control
+   at all.
 
    Every link into an organization page or a management page opts out of prefetch: opening any of
    them is a read recorded on the RFPilot side. The look and the focus outline follow the content
@@ -32,12 +31,9 @@ export const secondaryButton = `inline-flex min-h-11 items-center justify-center
 export const inputClass =
   "w-full rounded-xl border border-slate-300 bg-white px-3.5 text-sm text-[#20304b] outline-none transition placeholder:text-slate-400 focus:border-[#00aeb5] focus:ring-4 focus:ring-cyan-500/20 aria-[invalid=true]:border-rose-500";
 export const cardClass = "rounded-2xl border border-[#dce5ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)]";
-/** A link drawn as a 44px control: the way into each write from the member page and the detail page. */
-export const linkButton = `inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-[#34445f] transition hover:border-[#00aeb5] hover:text-[#007f86] ${focusRing}`;
-export const dangerLinkButton = `inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-rose-300 bg-white px-4 text-sm font-bold text-rose-700 transition hover:border-rose-500 hover:bg-rose-50 ${focusRing}`;
-
 const backClass = `inline-flex min-h-11 items-center gap-1.5 rounded-lg text-sm font-semibold text-slate-600 transition hover:text-[#007f86] dark:hover:text-cyan-300 ${focusRing}`;
 
+/** Said on the block and reactivate pages, the only pages here that change anything. */
 export const ManagementNote = () => (
   <p className="flex items-start gap-2 text-xs leading-5 text-slate-600">
     <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -48,23 +44,31 @@ export const ManagementNote = () => (
   </p>
 );
 
-/** The page width and the ways back: the organization, its Members page and, under a member, the
-    member. A team page also leads back to the Teams list and, under a team, to the team. */
+/** Said on the member page and the team page: nothing on them changes anything. */
+export const ViewOnlyNote = () => (
+  <p className="flex items-start gap-2 text-xs leading-5 text-slate-600">
+    <Eye className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+    <span>
+      View only. Members, teams, proposals, templates and vendors can&apos;t be changed from here. Each page you open is recorded on the
+      RFPilot side.
+    </span>
+  </p>
+);
+
+/** The page width and the ways back: the organization and its Members page; from a team page
+    the Teams list too. */
 export const ManageFrame = ({
   organizationId,
-  memberId,
   teams = false,
-  teamId,
+  viewOnly = false,
   children,
 }: {
   /** Null when the address does not name an organization: the way back is the list. */
   organizationId: string | null;
-  /** Set on a page under a member, to lead back to the member's management page. */
-  memberId?: string;
-  /** Set on a team page: the Teams list is a way back too. */
+  /** Set on the team page: the Teams list is a way back too. */
   teams?: boolean;
-  /** Set on a page under a team, to lead back to the team's management page. */
-  teamId?: string;
+  /** Set on the member page and the team page, which change nothing and say so. */
+  viewOnly?: boolean;
   children: ReactNode;
 }) => (
   <div className="mx-auto w-full max-w-[1100px] space-y-5 pb-10">
@@ -82,18 +86,8 @@ export const ManageFrame = ({
               Teams
             </Link>
           ) : null}
-          {teamId ? (
-            <Link href={teamManagementPath(organizationId, teamId)} prefetch={false} className={backClass}>
-              This team
-            </Link>
-          ) : null}
-          {memberId ? (
-            <Link href={memberManagementPath(organizationId, memberId)} prefetch={false} className={backClass}>
-              This member
-            </Link>
-          ) : null}
         </nav>
-        <ManagementNote />
+        {viewOnly ? <ViewOnlyNote /> : <ManagementNote />}
       </>
     ) : (
       <Link href={ORGANIZATIONS_PATH} className={backClass}>
@@ -121,12 +115,15 @@ const RETRY: ManagementFailure[] = ["rate_limited", "unavailable"];
 export const ManageFailureState = ({
   refusal,
   retryHref,
+  viewOnly = false,
 }: {
   refusal: ManagementRefusal;
+  /** Set on the member page and the team page: the wording is of a view, not of a change. */
+  viewOnly?: boolean;
   /** This same page: where "Try again" leads, and where signing in again returns to. */
   retryHref?: string;
 }) => {
-  const { title, message, tone } = managementFailureCopy(refusal);
+  const { title, message, tone } = managementFailureCopy(refusal, viewOnly ? "view" : "change");
   const calm = tone === "calm";
   const Icon = WAIT.includes(refusal.failure) ? Clock : calm ? FileQuestion : AlertCircle;
   return (
@@ -188,9 +185,8 @@ const Fact = ({ label, children }: { label: string; children: ReactNode }) => (
   </div>
 );
 
-/** The member as the API returned it: who every write on these pages is about. */
-export const MemberSummary = ({ member, eyebrow, heading = "h1" }: { member: Member; eyebrow: string; heading?: "h1" | "h2" }) => {
-  const Heading = heading;
+/** The member as the API returned it. */
+export const MemberSummary = ({ member, eyebrow }: { member: Member; eyebrow: string }) => {
   // The stored status of a deactivated member is `suspended`: it is shown as Deactivated.
   const standing = memberStanding(member.status);
   const badge = standing === "other" ? memberStatusBadge(member.status) : { label: memberStatusLabel(member.status), tone: memberStatusBadge(standing).tone };
@@ -198,7 +194,7 @@ export const MemberSummary = ({ member, eyebrow, heading = "h1" }: { member: Mem
     <section className={`px-5 py-5 sm:px-6 ${cardClass}`} aria-label="Member">
       <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#007f86]">{eyebrow}</p>
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        <Heading className="min-w-0 break-words text-2xl font-extrabold tracking-[-0.03em] text-[#12213a]">{member.name ?? member.email ?? "Member with no name on file"}</Heading>
+        <h1 className="min-w-0 break-words text-2xl font-extrabold tracking-[-0.03em] text-[#12213a]">{member.name ?? member.email ?? "Member with no name on file"}</h1>
         <ContentBadge tone={badge.tone}>{badge.label}</ContentBadge>
       </div>
       <dl className="mt-3 divide-y divide-slate-100">

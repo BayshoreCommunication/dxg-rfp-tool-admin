@@ -9,18 +9,7 @@ import { auth } from "@/auth";
 import { authenticatedBackendFetch } from "@/lib/server/backendClient";
 import * as actions from "./organizationManagement";
 
-const {
-  blockOrganizationAction,
-  changeMemberRoleAction,
-  deactivateMemberAction,
-  getManagedMemberAction,
-  getManagedOrganizationAction,
-  listReassignCandidatesAction,
-  reactivateMemberAction,
-  reactivateOrganizationAction,
-  reassignMemberProposalsAction,
-  transferOwnershipAction,
-} = actions;
+const { blockOrganizationAction, getManagedMemberAction, getManagedOrganizationAction, getManagedTeamAction, reactivateOrganizationAction } = actions;
 
 const mockedFetch = jest.mocked(authenticatedBackendFetch);
 const mockedAuth = auth as unknown as jest.Mock;
@@ -28,6 +17,7 @@ const mockedAuth = auth as unknown as jest.Mock;
 const ORG = "6b0000000000000000000002";
 const USER = "6a0000000000000000000001";
 const OTHER = "6a0000000000000000000009";
+const TEAM = "6c0000000000000000000003";
 const API = `/api/v1/admin/organizations/${ORG}`;
 const REASON = "Requested by the account owner in ticket 4411.";
 const SECRET = "BACKEND TEXT mongodb://host/secret";
@@ -58,7 +48,9 @@ const member = (change: Record<string, unknown> = {}) => ({
   lastSignedInAt: null,
   ...change,
 });
-const changed = (change: Record<string, unknown> = {}) => ok({ organizationId: ORG, changed: true, member: member(change), version: 5 });
+const team = (change: Record<string, unknown> = {}) => ({ id: TEAM, name: "West", archived: false, archivedAt: null, createdAt: "2026-10-01T00:00:00.000Z", memberCount: 1, managers: [], ...change });
+const row = (change: Record<string, unknown> = {}, isManager = false) => ({ member: member(change), version: 4, isManager });
+const teamAnswer = (teamChange: Record<string, unknown> = {}, members: unknown[] = [row()]) => ok({ organizationId: ORG, team: team(teamChange), members });
 const account = (organization: Record<string, unknown> = {}) =>
   ok({
     organization: { id: ORG, name: "Acme Events", slug: "acme", createdAt: null, country: null, status: "active", kind: "customer", standing: "active", ...organization },
@@ -69,55 +61,10 @@ const account = (organization: Record<string, unknown> = {}) =>
     activity: {},
   });
 
-type Case = { name: string; run: (organizationId?: string, userId?: string) => Promise<{ ok: boolean }>; method: string; url: string; body?: Record<string, unknown>; answer: () => Response };
+type Case = { name: string; run: (organizationId?: string, secondId?: string) => Promise<{ ok: boolean }>; method: string; url: string; body?: Record<string, unknown>; answer: () => Response };
 
-/** Every write with valid arguments, the request it makes and an answer that satisfies it. */
+/** The two writes left, a block and a reactivation of the organization: each with valid arguments, the request it makes and an answer that satisfies it. */
 const WRITES: Case[] = [
-  {
-    name: "role",
-    run: (o = ORG, u = USER) => changeMemberRoleAction(o, u, { role: "viewer", version: 4, reason: REASON }),
-    method: "PATCH",
-    url: `${API}/members/${USER}/role`,
-    body: { role: "viewer", version: 4, reason: REASON },
-    answer: () => changed({ roles: ["viewer"] }),
-  },
-  {
-    name: "deactivate",
-    run: (o = ORG, u = USER) => deactivateMemberAction(o, u, { version: 4, reason: REASON }),
-    method: "POST",
-    url: `${API}/members/${USER}/deactivate`,
-    body: { version: 4, reason: REASON },
-    answer: () => changed({ status: "suspended" }),
-  },
-  {
-    name: "reactivate member",
-    run: (o = ORG, u = USER) => reactivateMemberAction(o, u, { version: 4, reason: REASON }),
-    method: "POST",
-    url: `${API}/members/${USER}/reactivate`,
-    body: { version: 4, reason: REASON },
-    answer: () => changed(),
-  },
-  {
-    name: "reassign",
-    run: (o = ORG, u = USER) => reassignMemberProposalsAction(o, u, { toUserId: OTHER, reason: REASON }),
-    method: "POST",
-    url: `${API}/members/${USER}/reassign-rfps`,
-    body: { toUserId: OTHER, reason: REASON },
-    answer: () => ok({ organizationId: ORG, reassignedCount: 2, rfpIds: ["6d0000000000000000000001", "6d0000000000000000000002"] }),
-  },
-  {
-    name: "transfer",
-    run: (o = ORG, u = USER) => transferOwnershipAction(o, { toUserId: u, version: 4, reason: REASON }),
-    method: "POST",
-    url: `${API}/ownership/transfer`,
-    body: { toUserId: USER, version: 4, reason: REASON },
-    answer: () =>
-      ok({
-        organizationId: ORG,
-        previousOwner: { member: member({ userId: OTHER, name: "Olive Owner", roles: ["organization_admin"] }), version: 9 },
-        owner: { member: member({ roles: ["owner"] }), version: 5 },
-      }),
-  },
   {
     name: "block",
     run: (o = ORG) => blockOrganizationAction(o, { reason: REASON }),
@@ -139,13 +86,7 @@ const WRITES: Case[] = [
 const READS: Case[] = [
   { name: "member", run: (o = ORG, u = USER) => getManagedMemberAction(o, u), method: "GET", url: `${API}/members/${USER}`, answer: () => ok({ organizationId: ORG, member: member(), version: 4 }) },
   { name: "organization", run: (o = ORG) => getManagedOrganizationAction(o), method: "GET", url: API, answer: () => account() },
-  {
-    name: "candidates",
-    run: (o = ORG) => listReassignCandidatesAction(o, USER, 1),
-    method: "GET",
-    url: `${API}/members`,
-    answer: () => ok({ organizationId: ORG, members: [member()], pagination: { page: 1, perPage: 50, total: 1, totalPages: 1 }, pendingInvitations: [], pendingInvitationsTotal: 0 }),
-  },
+  { name: "team", run: (o = ORG, t = TEAM) => getManagedTeamAction(o, t), method: "GET", url: `${API}/teams/${TEAM}`, answer: () => teamAnswer() },
 ];
 const ALL = [...READS, ...WRITES];
 
@@ -157,29 +98,8 @@ beforeEach(() => {
 
 describe("organization management actions", () => {
   it("covers every action the file exports", () => {
-    expect(Object.keys(actions).sort()).toEqual([
-      "addTeamMemberAction",
-      "archiveTeamAction",
-      "blockOrganizationAction",
-      "changeMemberRoleAction",
-      "createTeamAction",
-      "deactivateMemberAction",
-      "getManagedMemberAction",
-      "getManagedOrganizationAction",
-      "getManagedTeamAction",
-      "listActiveTeamsAction",
-      "listReassignCandidatesAction",
-      "listTeamCandidatesAction",
-      "reactivateMemberAction",
-      "reactivateOrganizationAction",
-      "reassignMemberProposalsAction",
-      "removeTeamMemberAction",
-      "renameTeamAction",
-      "setMemberTeamsAction",
-      "setTeamManagerAction",
-      "transferOwnershipAction",
-    ]);
-    expect(ALL).toHaveLength(10);
+    expect(Object.keys(actions).sort()).toEqual(["blockOrganizationAction", "getManagedMemberAction", "getManagedOrganizationAction", "getManagedTeamAction", "reactivateOrganizationAction"]);
+    expect(ALL).toHaveLength(5);
   });
 
   it.each(ALL)("$name: makes exactly one request, to its own route, uncached", async ({ run, method, url, body, answer }) => {
@@ -234,17 +154,14 @@ describe("every id is checked before the backend is asked", () => {
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 
-  it.each(ALL.filter(({ name }) => !["organization", "candidates", "block", "reactivate organization"].includes(name)))("$name: refuses a member id that is not one", async ({ run }) => {
+  it.each(ALL.filter(({ name }) => name === "member"))("$name: refuses a member id that is not one", async ({ run }) => {
     for (const id of BAD) await expect(run(ORG, id)).resolves.toMatchObject({ ok: false, failure: "invalid_id" });
     for (const id of [null, 12, {}]) await expect(run(ORG, id as unknown as string)).resolves.toMatchObject({ ok: false, failure: "invalid_id" });
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 
-  it("refuses a receiving member that is not an id, or is the member themselves", async () => {
-    for (const toUserId of ["", "abc", OTHER.toUpperCase(), null, undefined, 7, { $ne: null }, [OTHER]]) {
-      await expect(reassignMemberProposalsAction(ORG, USER, { toUserId, reason: REASON })).resolves.toEqual({ ok: false, failure: "invalid_request", code: null });
-    }
-    await expect(reassignMemberProposalsAction(ORG, USER, { toUserId: USER, reason: REASON })).resolves.toEqual({ ok: false, failure: "reassign_to_self", code: null });
+  it("team: refuses a team id that is not one", async () => {
+    for (const bad of BAD) await expect(getManagedTeamAction(ORG, bad)).resolves.toEqual({ ok: false, failure: "invalid_team_id", code: null });
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 });
@@ -253,13 +170,8 @@ describe("the body is rebuilt field by field", () => {
   it.each(WRITES)("$name: drops every field the route does not take", async ({ name, answer, body }) => {
     mockedFetch.mockResolvedValue(answer());
     const extras = { organizationId: OTHER, userId: OTHER, memberUserId: OTHER, rfpIds: ["6d0000000000000000000001"], status: "removed", roles: ["owner"], actor: "someone", __proto__: { polluted: true }, $where: "1" };
-    const input = { ...extras, role: "viewer", version: 4, reason: `   ${REASON}  `, toUserId: name === "transfer" ? USER : OTHER };
+    const input = { ...extras, role: "viewer", version: 4, reason: `   ${REASON}  `, toUserId: OTHER };
     const run: Record<string, () => Promise<{ ok: boolean }>> = {
-      role: () => changeMemberRoleAction(ORG, USER, input),
-      deactivate: () => deactivateMemberAction(ORG, USER, input),
-      "reactivate member": () => reactivateMemberAction(ORG, USER, input),
-      reassign: () => reassignMemberProposalsAction(ORG, USER, input),
-      transfer: () => transferOwnershipAction(ORG, input),
       block: () => blockOrganizationAction(ORG, input),
       "reactivate organization": () => reactivateOrganizationAction(ORG, input),
     };
@@ -269,44 +181,10 @@ describe("the body is rebuilt field by field", () => {
     expect(Object.keys(bodyOf()).sort()).toEqual(Object.keys(body ?? {}).sort());
   });
 
-  it("never sends rfpIds: without it the API moves every proposal the member owns", async () => {
-    mockedFetch.mockResolvedValue(WRITES[3].answer());
-    await reassignMemberProposalsAction(ORG, USER, { toUserId: OTHER, reason: REASON, rfpIds: "all" });
-    expect(bodyOf()).not.toHaveProperty("rfpIds");
-    expect(String(initOf().body)).not.toMatch(/rfpIds/);
-  });
-
-  it("refuses Owner and any role outside the list before any backend call", async () => {
-    for (const role of ["owner", "Owner", "OWNER", "super_admin", "dxg_admin", "admin", "Planner", "", " planner", null, undefined, 3, ["planner"], { role: "planner" }]) {
-      await expect(changeMemberRoleAction(ORG, USER, { role, version: 4, reason: REASON })).resolves.toEqual({ ok: false, failure: "invalid_role", code: null });
-    }
-    expect(mockedFetch).not.toHaveBeenCalled();
-    for (const role of ["organization_admin", "team_manager", "planner", "viewer"]) {
-      mockedFetch.mockResolvedValue(changed({ roles: [role] }));
-      await expect(changeMemberRoleAction(ORG, USER, { role, version: 4, reason: REASON })).resolves.toMatchObject({ ok: true });
-    }
-    expect(mockedFetch).toHaveBeenCalledTimes(4);
-  });
-
   it.each(WRITES)("$name: refuses a reason that is too short, too long or not text before any backend call", async ({ name }) => {
     const withReason = (reason: unknown): Promise<{ ok: boolean }> => {
-      const input = { role: "viewer", version: 4, reason, toUserId: name === "transfer" ? USER : OTHER };
-      switch (name) {
-        case "role":
-          return changeMemberRoleAction(ORG, USER, input);
-        case "deactivate":
-          return deactivateMemberAction(ORG, USER, input);
-        case "reactivate member":
-          return reactivateMemberAction(ORG, USER, input);
-        case "reassign":
-          return reassignMemberProposalsAction(ORG, USER, input);
-        case "transfer":
-          return transferOwnershipAction(ORG, input);
-        case "block":
-          return blockOrganizationAction(ORG, input);
-        default:
-          return reactivateOrganizationAction(ORG, input);
-      }
+      const input = { role: "viewer", version: 4, reason, toUserId: OTHER };
+      return name === "block" ? blockOrganizationAction(ORG, input) : reactivateOrganizationAction(ORG, input);
     };
     for (const reason of ["", "too short", `   ${"x".repeat(9)}                `, "x".repeat(501), null, undefined, 1234567890123, ["a reason long enough"], { text: "a reason long enough" }]) {
       await expect(withReason(reason)).resolves.toEqual({ ok: false, failure: "invalid_reason", code: null });
@@ -320,26 +198,9 @@ describe("the body is rebuilt field by field", () => {
     }
   });
 
-  it("refuses a version that is not a whole number from 1 before any backend call", async () => {
-    for (const version of ["4", 0, -1, 1.5, null, undefined, Number.NaN, [4], { $gt: 0 }]) {
-      await expect(changeMemberRoleAction(ORG, USER, { role: "viewer", version, reason: REASON })).resolves.toEqual({ ok: false, failure: "version_required", code: null });
-      await expect(deactivateMemberAction(ORG, USER, { version, reason: REASON })).resolves.toMatchObject({ failure: "version_required" });
-      await expect(reactivateMemberAction(ORG, USER, { version, reason: REASON })).resolves.toMatchObject({ failure: "version_required" });
-      await expect(transferOwnershipAction(ORG, { toUserId: USER, version, reason: REASON })).resolves.toMatchObject({ failure: "version_required" });
-    }
-    expect(mockedFetch).not.toHaveBeenCalled();
-  });
-
   it.each(WRITES)("$name: refuses an input that is not an object", async ({ name }) => {
     for (const input of [null, undefined, "role=viewer", 4, [{ role: "viewer", version: 4, reason: REASON }]]) {
-      const result =
-        name === "role" ? changeMemberRoleAction(ORG, USER, input)
-        : name === "deactivate" ? deactivateMemberAction(ORG, USER, input)
-        : name === "reactivate member" ? reactivateMemberAction(ORG, USER, input)
-        : name === "reassign" ? reassignMemberProposalsAction(ORG, USER, input)
-        : name === "transfer" ? transferOwnershipAction(ORG, input)
-        : name === "block" ? blockOrganizationAction(ORG, input)
-        : reactivateOrganizationAction(ORG, input);
+      const result = name === "block" ? blockOrganizationAction(ORG, input) : reactivateOrganizationAction(ORG, input);
       await expect(result).resolves.toMatchObject({ ok: false });
     }
     expect(mockedFetch).not.toHaveBeenCalled();
@@ -349,33 +210,10 @@ describe("the body is rebuilt field by field", () => {
 describe("every status and refusal code becomes a fixed kind, never the backend's text", () => {
   const CODES: Array<[status: number, code: string | undefined, failure: string, extra?: Record<string, unknown>, kept?: Record<string, unknown>]> = [
     [400, "INVALID_REASON", "invalid_reason", { fields: { reason: SECRET } }],
-    [400, "INVALID_ROLE", "invalid_role"],
-    [400, "VERSION_REQUIRED", "version_required"],
     [400, "INVALID_ORGANIZATION_ID", "invalid_id"],
-    [400, "INVALID_MEMBER_ID", "invalid_id"],
-    [400, "MEMBER_REQUIRED", "invalid_request"],
-    [400, "REASSIGN_TARGET_REQUIRED", "invalid_request"],
-    [400, "INVALID_RFP_SELECTION", "invalid_request"],
-    [400, "REASSIGN_TO_SELF", "reassign_to_self"],
-    [400, "ALREADY_OWNER", "already_owner"],
     [404, "ORGANIZATION_NOT_FOUND", "organization_not_found"],
-    [404, "MEMBER_NOT_FOUND", "member_not_found"],
-    [404, "REASSIGN_TARGET_NOT_FOUND", "reassign_target_not_found"],
-    [409, "STALE_VERSION", "stale_version", { currentVersion: 9 }],
-    [409, "OWNERSHIP_TRANSFER_REQUIRED", "ownership_transfer_required"],
-    [409, "OWNER_HAS_RFPS", "owner_has_proposals", { ownedRfpCount: 3 }, { ownedProposalCount: 3 }],
-    [409, "OWNER_HAS_RFPS", "owner_has_proposals", { ownedRfpCount: 1, reverted: true }, { ownedProposalCount: 1, reverted: true }],
-    [409, "LAST_OWNER", "last_owner"],
-    [409, "MEMBER_REMOVED", "member_removed"],
-    [409, "MEMBER_NOT_DEACTIVATED", "member_not_deactivated"],
-    [409, "MEMBER_INACTIVE", "member_inactive"],
-    [409, "ALREADY_OWNER", "already_owner"],
-    [409, "OWNER_CHANGED", "owner_changed"],
-    [409, "OWNER_NOT_FOUND", "owner_not_found"],
     [409, "ORGANIZATION_NOT_MANAGEABLE", "organization_not_manageable", { standing: "legacy_holding" }, { standing: "legacy_holding" }],
     [409, "ORGANIZATION_NOT_MANAGEABLE", "organization_not_manageable", { standing: "platform" }, { standing: "platform" }],
-    [409, "REASSIGN_TARGET_INELIGIBLE", "reassign_target_ineligible"],
-    [409, "RFPS_NOT_OWNED_BY_MEMBER", "proposals_not_owned", { notOwnedCount: 2 }, { notOwnedCount: 2 }],
     [403, "STAFF_ACCESS_FORBIDDEN", "forbidden"],
     [403, undefined, "forbidden"],
     [401, undefined, "session_ended"],
@@ -385,6 +223,9 @@ describe("every status and refusal code becomes a fixed kind, never the backend'
     [500, "STAFF_MEMBERS_INTERNAL_ERROR", "outcome_unknown"],
     [500, "STAFF_ORGANIZATION_BLOCK_INTERNAL_ERROR", "outcome_unknown"],
     [502, undefined, "outcome_unknown"],
+    // A code of a member or team write staff no longer make is an unknown code: never a change reported as made, and its details are not kept.
+    [409, "STALE_VERSION", "outcome_unknown", { currentVersion: 9 }],
+    [409, "OWNER_HAS_RFPS", "outcome_unknown", { ownedRfpCount: 3, reverted: true }],
   ];
 
   it.each(CODES)("a write answered %i %s is %s", async (status, code, failure, extra = {}, kept = {}) => {
@@ -419,6 +260,29 @@ describe("every status and refusal code becomes a fixed kind, never the backend'
     }
   });
 
+  it("maps the team read's refusals, and never calls a failed read a change that may be saved", async () => {
+    const reads: Array<[number, string | undefined, string]> = [
+      [404, "TEAM_NOT_FOUND", "team_not_found"],
+      [404, "ORGANIZATION_NOT_FOUND", "organization_not_found"],
+      [404, undefined, "not_available"],
+      [409, "ORGANIZATION_NOT_MANAGEABLE", "organization_not_manageable"],
+      [400, "INVALID_TEAM_ID", "invalid_team_id"],
+      [401, undefined, "session_ended"],
+      [403, "STAFF_ACCESS_FORBIDDEN", "forbidden"],
+      [429, undefined, "rate_limited"],
+      [500, "STAFF_TEAMS_INTERNAL_ERROR", "unavailable"],
+      [502, undefined, "unavailable"],
+    ];
+    for (const [status, code, failure] of reads) {
+      mockedFetch.mockResolvedValue(refusal(status, code));
+      const result = await getManagedTeamAction(ORG, TEAM);
+      expect(result).toMatchObject({ ok: false, failure, code: code ?? null });
+      expect(JSON.stringify(result)).not.toMatch(/BACKEND|mongodb/);
+    }
+    mockedFetch.mockRejectedValue(new Error("ECONNRESET"));
+    await expect(getManagedTeamAction(ORG, TEAM)).resolves.toEqual({ ok: false, failure: "unavailable", code: null });
+  });
+
   it("keeps the wait of a 429 that names one", async () => {
     mockedFetch.mockResolvedValue(refusal(429, undefined, {}, { "Retry-After": "240" }));
     await expect(blockOrganizationAction(ORG, { reason: REASON })).resolves.toEqual({ ok: false, failure: "rate_limited", code: null, retryAfterSeconds: 240 });
@@ -442,34 +306,52 @@ describe("every status and refusal code becomes a fixed kind, never the backend'
 });
 
 describe("what the answers hand on", () => {
-  it("returns the member through the allowlist, with the version", async () => {
+  it("returns the member through the allowlist, and nothing else of the answer", async () => {
     mockedFetch.mockResolvedValue(ok({ organizationId: ORG, member: { ...member(), passwordHash: "x", twoFactorSecret: "y" }, version: 4, internal: SECRET }));
     const result = await getManagedMemberAction(ORG, USER);
-    expect(result).toEqual({ ok: true, data: { member: member(), version: 4 } });
+    expect(result).toEqual({ ok: true, data: { member: member() } });
+    // An answer without a version is a member all the same: nothing reads one now.
+    mockedFetch.mockResolvedValue(ok({ organizationId: ORG, member: member() }));
+    await expect(getManagedMemberAction(ORG, USER)).resolves.toEqual({ ok: true, data: { member: member() } });
     expect(JSON.stringify(result)).not.toMatch(/passwordHash|twoFactorSecret|BACKEND/);
   });
 
-  it("hands on the Owner's name and email to the transfer page only", async () => {
-    mockedFetch.mockResolvedValue(account());
-    await expect(getManagedOrganizationAction(ORG, "transfer")).resolves.toEqual({
+  it("returns the team and its members through the allowlists, each member with their manager setting", async () => {
+    mockedFetch.mockResolvedValue(
+      ok({
+        organizationId: ORG,
+        team: { ...team({ memberCount: 250, managers: [{ id: USER, name: "Pat Planner", email: "pat@acme.example", passwordHash: SECRET }] }), createdBy: OTHER, secret: SECRET },
+        members: [{ member: { ...member(), passwordHash: SECRET }, version: 4, isManager: true, token: SECRET }, { member: member({ userId: "not-an-id" }), version: 4 }, { member: member({ userId: OTHER }), version: "7" }],
+      }),
+    );
+    const result = await getManagedTeamAction(ORG, TEAM);
+    expect(result).toEqual({
       ok: true,
-      data: { id: ORG, name: "Acme Events", standing: "active", blocked: null, owner: { name: "Olive Owner", email: "olive@acme.example" } },
+      data: {
+        managersListed: 1,
+        team: { id: TEAM, name: "West", archived: false, archivedAt: null, createdAt: "2026-10-01T00:00:00.000Z", memberCount: 250, managers: [{ id: USER, name: "Pat Planner", email: "pat@acme.example" }] },
+        // A row without a usable id is left out; the count stays the backend's. A row's version is not read.
+        members: [{ member: member(), isManager: true }, { member: member({ userId: OTHER }), isManager: false }],
+      },
     });
-    // Every other page, and a caller that names no page or something else, gets no Owner at all.
-    for (const write of [undefined, "role", "deactivate", "reactivate", "reassign", "block", "unblock", "TRANSFER", "transfer ", ["transfer"], { write: "transfer" }, true, 1, null]) {
-      const result = await getManagedOrganizationAction(ORG, write);
-      expect(result).toEqual({ ok: true, data: { id: ORG, name: "Acme Events", standing: "active", blocked: null, owner: null } });
+    expect(JSON.stringify(result)).not.toMatch(/BACKEND|createdBy/);
+  });
+
+  it("never hands on the Owner, whatever the caller passes", async () => {
+    mockedFetch.mockResolvedValue(account());
+    for (const write of [undefined, "transfer", "block", "unblock", ["transfer"], { write: "transfer" }, true, 1, null]) {
+      const result = await (getManagedOrganizationAction as (organizationId: string, extra?: unknown) => Promise<unknown>)(ORG, write);
+      expect(result).toEqual({ ok: true, data: { id: ORG, name: "Acme Events", standing: "active", blocked: null } });
       expect(JSON.stringify(result)).not.toMatch(/Olive|olive@/);
     }
-    // One request each: asking for the Owner is not a second read.
-    expect(mockedFetch).toHaveBeenCalledTimes(15);
+    expect(mockedFetch).toHaveBeenCalledTimes(9);
   });
 
   it("hands on the facts of the organization, with the block only while blocked", async () => {
     mockedFetch.mockResolvedValue(account());
     await expect(getManagedOrganizationAction(ORG)).resolves.toEqual({
       ok: true,
-      data: { id: ORG, name: "Acme Events", standing: "active", blocked: null, owner: null },
+      data: { id: ORG, name: "Acme Events", standing: "active", blocked: null },
     });
     mockedFetch.mockResolvedValue(account({ blocked: true, blockedAt: "2026-11-20T09:00:00.000Z" }));
     await expect(getManagedOrganizationAction(ORG)).resolves.toMatchObject({ ok: true, data: { blocked: { at: "2026-11-20T09:00:00.000Z" } } });
@@ -500,74 +382,9 @@ describe("what the answers hand on", () => {
     await expect(getManagedOrganizationAction(ORG)).resolves.toEqual({ ok: false, failure: "unavailable", code: null });
   });
 
-  it("lists only the members of one page who can receive the proposals, and counts the rest without naming them", async () => {
-    mockedFetch.mockResolvedValue(
-      ok({
-        organizationId: ORG,
-        members: [
-          // The member the proposals come from: never a receiver.
-          member({ teams: [{ id: "6c0000000000000000000003", name: "West", archived: false, isManager: true }] }),
-          member({ userId: OTHER, name: "Ada Admin", email: "ada@acme.example", roles: ["organization_admin"] }),
-          member({ userId: "6a00000000000000000000a1", name: "Vic Viewer", email: "vic@acme.example", roles: ["viewer"] }),
-          member({ userId: "6a00000000000000000000a2", name: "Dee Deactivated", email: "dee@acme.example", status: "suspended" }),
-          member({ userId: "6a00000000000000000000a3", name: "Ina Invited", email: "ina@acme.example", status: "invited" }),
-          member({ userId: "6a00000000000000000000a4", name: "Rem Removed", email: "rem@acme.example", status: "removed" }),
-          member({ userId: "6a00000000000000000000a5", name: "Olive Owner", email: "olive@acme.example", roles: ["owner"] }),
-        ],
-        pagination: { page: 2, perPage: 50, total: 120, totalPages: 3 },
-        pendingInvitations: [{ id: "6e0000000000000000000001", email: "new@acme.example", role: "planner", status: "pending" }],
-        pendingInvitationsTotal: 1,
-      }),
-    );
-    const result = await listReassignCandidatesAction(ORG, USER, 2);
-    expect(result).toEqual({
-      ok: true,
-      data: {
-        candidates: [
-          { userId: OTHER, name: "Ada Admin", email: "ada@acme.example", roles: ["organization_admin"], status: "active" },
-          { userId: "6a00000000000000000000a5", name: "Olive Owner", email: "olive@acme.example", roles: ["owner"], status: "active" },
-        ],
-        notEligibleCount: 5,
-        pagination: { page: 2, perPage: 50, total: 120, totalPages: 3 },
-      },
-    });
-    expect(urlOf().endsWith(`${API}/members?page=2`)).toBe(true);
-    // Nobody who can't receive the proposals reaches the browser, by name, email or id.
-    expect(JSON.stringify(result)).not.toMatch(/Pat Planner|pat@|Vic|vic@|Dee|dee@|Ina|ina@|Rem Removed|rem@|6a00000000000000000000a[1-4]/);
-    expect(JSON.stringify(result)).not.toMatch(/new@acme\.example|West|joinedAt/);
-    expect(mockedFetch).toHaveBeenCalledTimes(1);
-  });
-
-  it("refuses a list of receivers without the member the proposals come from, before any backend call", async () => {
-    for (const from of ["", "abc", USER.toUpperCase(), `${USER}0`, undefined, null, 7, {}, [USER]]) {
-      await expect(listReassignCandidatesAction(ORG, from as unknown as string, 1)).resolves.toEqual({ ok: false, failure: "invalid_id", code: null });
-    }
-    expect(mockedFetch).not.toHaveBeenCalled();
-  });
-
-  it("asks for page 1 when the page is not a whole number, and never puts anything else in the address", async () => {
-    for (const page of [undefined, null, "2", 0, -1, 1.5, "1&search=x", { page: 2 }]) {
-      mockedFetch.mockReset();
-      mockedFetch.mockResolvedValue(READS[2].answer());
-      await listReassignCandidatesAction(ORG, USER, page);
-      expect(urlOf().endsWith(`${API}/members`)).toBe(true);
-    }
-    mockedFetch.mockResolvedValue(refusal(429));
-    await expect(listReassignCandidatesAction(ORG, USER, 1)).resolves.toEqual({ ok: false, failure: "rate_limited", code: null });
-    mockedFetch.mockResolvedValue(refusal(404));
-    await expect(listReassignCandidatesAction(ORG, USER, 1)).resolves.toEqual({ ok: false, failure: "not_available", code: null });
-  });
-
   it("returns each write's answer as the result the screen shows", async () => {
-    mockedFetch.mockResolvedValue(changed({ roles: ["viewer"] }));
-    await expect(changeMemberRoleAction(ORG, USER, { role: "viewer", version: 4, reason: REASON })).resolves.toEqual({
-      ok: true,
-      data: { answer: "member", changed: true, member: member({ roles: ["viewer"] }), version: 5 },
-    });
-    mockedFetch.mockResolvedValue(WRITES[3].answer());
-    await expect(WRITES[3].run()).resolves.toEqual({ ok: true, data: { answer: "reassign", reassignedCount: 2 } });
-    mockedFetch.mockResolvedValue(WRITES[5].answer());
-    await expect(WRITES[5].run()).resolves.toEqual({ ok: true, data: { answer: "organization", changed: true, blocked: true, blockedAt: "2026-11-20T09:00:00.000Z", sessionsEnded: 3 } });
+    mockedFetch.mockResolvedValue(WRITES[0].answer());
+    await expect(WRITES[0].run()).resolves.toEqual({ ok: true, data: { answer: "organization", changed: true, blocked: true, blockedAt: "2026-11-20T09:00:00.000Z", sessionsEnded: 3 } });
     // Idempotent: nothing to change is still a success.
     mockedFetch.mockResolvedValue(ok({ organizationId: ORG, changed: false, blocked: false, blockedAt: null }));
     await expect(reactivateOrganizationAction(ORG, { reason: REASON })).resolves.toMatchObject({ ok: true, data: { changed: false, blocked: false } });

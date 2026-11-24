@@ -77,17 +77,17 @@ export default function MembersList({ organizationId, page }: { organizationId: 
                       <span className={label}>Last sign-in: </span>
                       {member.lastSignedInAt ? formatContentDate(member.lastSignedInAt) : "Never"}
                     </p>
-                    {/* The way to the member's management page, which is outside this view-only browser.
+                    {/* The way to the member's own page, also view only, which is outside this browser.
                         It reads the member when it opens, so it is never fetched ahead of the click. */}
                     {isManagementId(member.userId) ? (
                       <p className="min-w-0">
                         <Link
                           href={memberManagementPath(organizationId, member.userId)}
                           prefetch={false}
-                          aria-label={`Manage ${personName(member)}`}
+                          aria-label={`View ${personName(member)}`}
                           className={`inline-flex min-h-11 items-center text-sm font-bold text-[#007f86] underline-offset-2 hover:underline dark:text-cyan-300 ${focusRing}`}
                         >
-                          Manage
+                          View
                         </Link>
                       </p>
                     ) : null}

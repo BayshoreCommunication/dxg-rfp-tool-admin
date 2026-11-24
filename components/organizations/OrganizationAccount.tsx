@@ -132,7 +132,7 @@ export default function OrganizationAccount({ account, plans }: Props) {
                 {organization.blocked.at ? `Blocked since ${formatContentDate(organization.blocked.at)}` : "Blocked (the date is not recorded)"}
               </span>
               RFPilot staff blocked this organization. Its members can&apos;t sign in, and its vendor links, shared proposal pages and
-              invitation links are closed. All of its data is kept, and staff can still view and manage it.
+              invitation links are closed. All of its data is kept, and staff can still view it and reactivate it.
             </span>
           </p>
           {/* The reactivate page reads the organization when it opens: never fetched ahead of the click. */}

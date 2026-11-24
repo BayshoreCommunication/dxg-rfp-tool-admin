@@ -57,7 +57,8 @@ describe("the removed Clients and Legacy customers screens", () => {
 
   it("are not named as a path anywhere in the code, tests included", () => {
     const files = [...ROOTS.flatMap(sourceFiles), ...TOP_FILES];
-    expect(files.length).toBeGreaterThan(200);
+    // The floor only proves the scan found the source tree; lowered from 200 on 2026-11-24 by the owner's decision when the staff member and team write screens were removed (193 files remain).
+    expect(files.length).toBeGreaterThan(150);
     const mentioning = files.filter((file) => /\/(clients|legacy-customers)\b|all-clients/.test(readFileSync(file, "utf8")));
     expect(mentioning.filter((file) => !MAY_MENTION.has(file))).toEqual([]);
     // The allow-list stays exact: a file on it that no longer mentions a path must come off it.

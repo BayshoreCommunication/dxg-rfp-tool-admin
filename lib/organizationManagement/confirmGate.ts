@@ -1,7 +1,7 @@
-// The gate in front of every staff write to a customer organization, as plain code
-// (confirmGate.test.ts). It is the confirmed-submit gate (lib/confirmedSubmit.ts)
-// with the confirmation itself decided here: a ticked acknowledgement, or, for a transfer of
-// ownership and a block, the organization's name typed out.
+// The gate in front of the one staff write to a customer organization, its block or its
+// reactivation, as plain code (confirmGate.test.ts). It is the confirmed-submit gate
+// (lib/confirmedSubmit.ts) with the confirmation itself decided here: a ticked acknowledgement
+// for a reactivation, or, for a block, the organization's name typed out.
 //
 // Nothing is sent until the confirmation is given; while a request is in flight a second submit
 // sends nothing and the confirmation cannot be changed; after a success the gate stays shut; after
