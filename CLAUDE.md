@@ -1,8 +1,12 @@
 # CLAUDE.md — dxg-rfp-tool-admin
 
-Back-office app for RFPilot: clients, users, organizations (plans, account detail and a read-only
-browser of each organization's content), legacy customer placement, support desk and AI operations (Next.js 16 App Router, React 19, NextAuth v5, Tailwind CSS 4).
-Knowledge and pricing screens were removed on 2026-10-25. This repo is one of
+Back-office app for RFPilot: users, organizations (plans, account detail and a read-only
+browser of each organization's content), support desk and AI operations (Next.js 16 App Router, React 19, NextAuth v5, Tailwind CSS 4).
+Knowledge and pricing screens were removed on 2026-10-25. The Clients directory (`/clients`) and
+the Legacy customers placement screens (`/legacy-customers`) were removed on 2026-11-24 (owner
+decision: no tenancy cutover will run); both addresses are a 404 and
+`app/(page)/removedScreens.test.ts` keeps them out. The backend routes they called
+(`/api/all-clients`, `/api/admin/legacy-customers`) are unchanged. This repo is one of
 three (with `dxg-rfp-tool-backend` and `dxg-rfp-tool-dashboard`). The backend owns
 the API and the shared project docs.
 
@@ -110,40 +114,10 @@ npm run ci           # lint -> type-check -> test -> build (what .github/workflo
     listed N of M members" when it is not (rows the backend or the parser left out). Removing a team member is a DELETE with
     `{ reason }` in a JSON body. `MEMBER_NOT_FOUND` on add and make-manager means "not an active
     member" and is worded so. The Teams list has "Create a team" and one "Manage" link per team.
-- **Legacy customers** (`/legacy-customers`, backend ORG-110): staff place a legacy customer, with
-  their proposals, into a new or an existing organization. It moves tenant data and is the most
-  consequential action in this app. Pages: the list, `/[userId]/place` (form, then a review with an
-  explicit confirmation) and `/placements/[runId]` (the run, followed until it finishes; rollback).
-  Code: `app/actions/legacyCustomers.ts` (the five routes under `/api/admin/legacy-customers`, not
-  `/api/v1/admin`), `lib/legacyCustomers/` (pure, tested code) and `components/legacyCustomers/`.
-  - On production the API answers 202 and a one-off task does the move; the run page polls
-    `GET /placements/:runId`. **Never faster than 3 seconds** (`MIN_POLL_INTERVAL_MS` in
-    `pollController.ts`, which is the only loop: one read at a time, stops on a finished run, a
-    404 and repeated errors, waits while the tab is hidden, backs off on 429).
-  - Allowances per staff member per 15 minutes: 1,500 run reads, 600 list and search reads
-    together, 120 placements and rollbacks. Links into the place and run pages opt out of prefetch.
-  - **Two different "busy" answers, both 429:** `PLACEMENT_RATE_LIMITED` (this account used an
-    allowance: wait) and `PLACEMENT_CAPACITY_REACHED` (another placement or rollback is running:
-    one at a time). And two 409s: `PLACEMENT_IN_PROGRESS` (this customer is being placed, or on a
-    rollback the run has not finished) and `NOT_A_LEGACY_CUSTOMER` (already placed).
-    503 `PLACEMENT_REQUIRES_MIGRATION_ROLE` means the server cannot start placements.
-  - Every action: staff check, ids checked (24 lower-case hex, or the `placement-<ISO>-<8 hex>` run
-    id), the body rebuilt field by field, then one request. Place and rollback send an
-    `Idempotency-Key` made when the confirmation opens, so a repeat returns the same run. Backend
-    message text (`message`, `error`, `task.message`) is never shown: codes map to wording in
-    `placement.ts` and `runView.ts`.
-  - The list is paged and searched on the Next server (the backend has neither): one page of at
-    most 50 customers reaches the browser, `?page=` is a number only, and the search is a form
-    POST to a server action, so a name or email is never in an address. One backend list read per
-    page view or search; every link to `/legacy-customers` inside the feature opts out of prefetch.
-  - An empty list does not mean everyone is placed. A customer is in the backend's list only after
-    the tenancy cutover has moved their account out of the shared organization; before that the
-    list is empty while the accounts still show under Clients. The app cannot tell the two apart,
-    so the empty state says only "No customers are waiting to be placed" and links to `/clients`.
-  - After any rollback answer that is not an accepted run, the run is read again
-    (`rollbackFollowUp`, `recheck`). The loop also stops after 30 minutes of queued or running.
-  - The optional team comes from the content browser's teams read (recorded, and counted in that
-    browser's allowance), asked only when staff press "Choose a team".
+- Shared pieces: `components/shared/pageList.ts` (`buildPageList`, the pager's page numbers),
+  `components/shared/ClientSearchForm.tsx` (the search box that navigates on its own; never used
+  in the content browser) and `lib/confirmedSubmit.ts` (the gate under
+  `lib/organizationManagement/confirmGate.ts`).
 - Config comes from `BACKEND_URL`, `NEXTAUTH_URL`, `AUTH_SECRET` and `BFF_SHARED_SECRET`
   (see `.env.example`). The build needs none of them.
 
