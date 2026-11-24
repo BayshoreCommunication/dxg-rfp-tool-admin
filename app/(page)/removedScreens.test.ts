@@ -2,7 +2,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 // The Clients directory and the Legacy customers screens were removed on 2026-11-24 (owner
-// decision). A removed screen must not answer at its address: no page, no redirect, no link.
+// decision). This proves what a source scan can: no route directory that would serve either
+// address, no feature folder, and no mention of either path in the app's code. It does not
+// request the addresses, so it does not itself prove the 404.
 
 const ROOTS = ["app", "components", "config", "lib"];
 const TOP_FILES = ["proxy.ts", "next.config.ts", "auth.ts"];
@@ -11,8 +13,16 @@ const sourceFiles = (directory: string): string[] =>
   readdirSync(directory).flatMap((name) => {
     const path = join(directory, name);
     if (statSync(path).isDirectory()) return sourceFiles(path);
-    return /\.(ts|tsx)$/.test(name) && !/\.test\.ts$/.test(name) ? [path] : [];
+    return /\.(ts|tsx)$/.test(name) ? [path] : [];
   });
+
+// The only files that may spell either path, each for a reason unrelated to a link:
+const MAY_MENTION = new Set([
+  // this test, which has to name what it bans;
+  "app/(page)/removedScreens.test.ts",
+  // a path-traversal fixture ("../clients" as a malformed organization id).
+  "lib/support/organization.test.ts",
+]);
 
 describe("the removed Clients and Legacy customers screens", () => {
   it("have no route, at any depth of the app directory", () => {
@@ -27,6 +37,16 @@ describe("the removed Clients and Legacy customers screens", () => {
     // No catch-all page that would answer for them instead of the 404. The only catch-all is
     // NextAuth's own route under /api/auth.
     expect(names.filter((name) => name.startsWith("[...") || name.startsWith("[[..."))).toEqual(["[...nextauth]"]);
+    // No dynamic segment at the first level of the address (such as app/(page)/[section]) either.
+    // Route groups add no segment, so their children are first-level too.
+    const firstLevel = (directory: string): string[] =>
+      readdirSync(directory).flatMap((name) => {
+        const path = join(directory, name);
+        if (!statSync(path).isDirectory()) return [];
+        return /^\(.*\)$/.test(name) ? firstLevel(path) : [name];
+      });
+    expect(firstLevel("app")).toEqual(expect.arrayContaining(["dashboard", "organizations", "support"]));
+    expect(firstLevel("app").filter((name) => name.startsWith("["))).toEqual([]);
   });
 
   it("have no feature folder left behind", () => {
@@ -35,13 +55,13 @@ describe("the removed Clients and Legacy customers screens", () => {
     }
   });
 
-  it("are not linked, redirected to or revalidated from anywhere", () => {
+  it("are not named as a path anywhere in the code, tests included", () => {
     const files = [...ROOTS.flatMap(sourceFiles), ...TOP_FILES];
-    expect(files.length).toBeGreaterThan(100);
-    for (const file of files) {
-      const source = readFileSync(file, "utf8");
-      expect({ file, mentions: /["'`(]\/(clients|legacy-customers)\b|all-clients|admin\/legacy-customers/.test(source) }).toEqual({ file, mentions: false });
-    }
+    expect(files.length).toBeGreaterThan(200);
+    const mentioning = files.filter((file) => /\/(clients|legacy-customers)\b|all-clients/.test(readFileSync(file, "utf8")));
+    expect(mentioning.filter((file) => !MAY_MENTION.has(file))).toEqual([]);
+    // The allow-list stays exact: a file on it that no longer mentions a path must come off it.
+    expect(mentioning.sort()).toEqual([...MAY_MENTION].sort());
   });
 
   it("are not in the navigation, which keeps one entry per remaining screen", () => {
