@@ -154,8 +154,6 @@ describe("lists the backend cuts short", () => {
     expect(managedTeam({ managers: undefined }).managersListed).toBe(0);
     expect(managerListNote(managedTeam({ managers: "x" }))).toBeNull();
   });
-
-  const memberships = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `6c${String(index).padStart(22, "0")}`, name: `T ${index}`, archived: index % 2 === 1, isManager: false }));
 });
 
 describe("which backend read the team page makes", () => {

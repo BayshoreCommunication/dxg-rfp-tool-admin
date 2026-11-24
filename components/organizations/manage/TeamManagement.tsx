@@ -108,7 +108,3 @@ export default function TeamManagement({ organizationId, managed }: { organizati
     </div>
   );
 }
-      </section>
-    </div>
-  );
-}
