@@ -306,14 +306,17 @@ describe("every status and refusal code becomes a fixed kind, never the backend'
 });
 
 describe("what the answers hand on", () => {
-  it("returns the member through the allowlist, with the version", async () => {
+  it("returns the member through the allowlist, and nothing else of the answer", async () => {
     mockedFetch.mockResolvedValue(ok({ organizationId: ORG, member: { ...member(), passwordHash: "x", twoFactorSecret: "y" }, version: 4, internal: SECRET }));
     const result = await getManagedMemberAction(ORG, USER);
-    expect(result).toEqual({ ok: true, data: { member: member(), version: 4 } });
+    expect(result).toEqual({ ok: true, data: { member: member() } });
+    // An answer without a version is a member all the same: nothing reads one now.
+    mockedFetch.mockResolvedValue(ok({ organizationId: ORG, member: member() }));
+    await expect(getManagedMemberAction(ORG, USER)).resolves.toEqual({ ok: true, data: { member: member() } });
     expect(JSON.stringify(result)).not.toMatch(/passwordHash|twoFactorSecret|BACKEND/);
   });
 
-  it("returns the team and its members through the allowlists, each member with their version and manager setting", async () => {
+  it("returns the team and its members through the allowlists, each member with their manager setting", async () => {
     mockedFetch.mockResolvedValue(
       ok({
         organizationId: ORG,
@@ -327,8 +330,8 @@ describe("what the answers hand on", () => {
       data: {
         managersListed: 1,
         team: { id: TEAM, name: "West", archived: false, archivedAt: null, createdAt: "2026-10-01T00:00:00.000Z", memberCount: 250, managers: [{ id: USER, name: "Pat Planner", email: "pat@acme.example" }] },
-        // A row without a usable id or version is left out; the count stays the backend's.
-        members: [{ member: member(), version: 4, isManager: true }],
+        // A row without a usable id is left out; the count stays the backend's. A row's version is not read.
+        members: [{ member: member(), isManager: true }, { member: member({ userId: OTHER }), isManager: false }],
       },
     });
     expect(JSON.stringify(result)).not.toMatch(/BACKEND|createdBy/);

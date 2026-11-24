@@ -21,7 +21,7 @@ export default async function ManageTeamPage({ params }: Props) {
       {result.ok ? (
         <TeamManagement organizationId={organizationId} managed={result.data} />
       ) : (
-        <ManageFailureState refusal={result} retryHref={known && isManagementId(teamId) ? teamManagementPath(known, teamId) : undefined} />
+        <ManageFailureState viewOnly refusal={result} retryHref={known && isManagementId(teamId) ? teamManagementPath(known, teamId) : undefined} />
       )}
     </ManageFrame>
   );

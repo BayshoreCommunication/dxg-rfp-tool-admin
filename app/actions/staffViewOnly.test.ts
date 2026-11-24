@@ -95,9 +95,41 @@ const WRITE_ONLY_PATHS: Array<[route: string, pattern: RegExp]> = [
   ["teams/:teamId/members", new RegExp(`teams/${SEGMENT}/members\\b`)],
   ["teams/:teamId/<variable>", new RegExp(`teams/${SEGMENT}/\\$\\{`)],
 ];
-/** Paths that are also a read (the teams list, one team, one member): only a GET may name them. */
-const READ_PATHS = /\/(members|teams)\b/;
+/** A members or a teams path segment, however the rest of the address is put together. */
+const MEMBERS_OR_TEAMS = /\/(members|teams)\b|\b(members|teams)\//;
 const NON_GET = /["'`](POST|PUT|PATCH|DELETE)["'`]/;
+
+/* The exports of every server action file about a customer organization, exactly. A new export
+   in one of them is a new public endpoint: it has to be added here, in view of this file. */
+const ORGANIZATION_ACTION_EXPORTS: Record<string, string[]> = {
+  "app/actions/organizationManagement.ts": ALLOWED_ACTIONS,
+  // The content browser: eight reads.
+  "app/actions/organizationContent.ts": [
+    "getOrganizationProposalAction",
+    "getOrganizationTemplateAction",
+    "listOrganizationMembersAction",
+    "listOrganizationProposalsAction",
+    "listOrganizationTeamsAction",
+    "listOrganizationTemplatesAction",
+    "listOrganizationVendorResponsesAction",
+    "listOrganizationVendorsAction",
+  ],
+  // Plans and the account page: three reads and the plan change, which touches no member and no team.
+  "app/actions/organizationPlans.ts": ["changeOrganizationPlanAction", "getOrganizationAccountAction", "getOrganizationPlanAction", "listOrganizationPlansAction"],
+};
+
+/* The only server action files that may name a members or a teams path at all. */
+const MAY_NAME_MEMBERS_OR_TEAMS = [
+  // Two reads with GET (one member, one team); its only POSTs are the block and the reactivation.
+  "app/actions/organizationManagement.ts",
+  // The content browser's Members list and Teams list: GET only, and no other method in the file.
+  "app/actions/organizationContent.ts",
+];
+/* The only source files that may name such a path and also hold a method other than GET. */
+const MAY_NAME_THEM_BESIDE_A_WRITE_METHOD = [
+  // Its POST is asserted below to be the block or the reactivation of the organization, and nothing else.
+  "app/actions/organizationManagement.ts",
+];
 
 describe("staff view members and teams, and change neither (owner decision, 2026-11-24)", () => {
   it("scans the whole of app, components and lib", () => {
@@ -129,14 +161,24 @@ describe("staff view members and teams, and change neither (owner decision, 2026
       for (const name of exportedNames(read(file))) {
         exports += 1;
         expect({ file, name, removed: REMOVED_ACTIONS.includes(name) }).toEqual({ file, name, removed: false });
-        // A staff action on a customer organization lives in the organization action files: none there writes to a member or a team.
-        if (/app\/actions\/organization\w*\.ts$/.test(file)) expect({ file, name, write: MEMBER_OR_TEAM_WRITE.test(name) }).toEqual({ file, name, write: false });
+        // In every server action file, not only the organization ones: nothing named like a write to a member, a team, a role or the ownership.
+        expect({ file, name, write: MEMBER_OR_TEAM_WRITE.test(name) }).toEqual({ file, name, write: false });
       }
     }
     expect(exports).toBeGreaterThan(20);
     // And nothing anywhere names a removed action: no import, no call, no re-export.
     const names = new RegExp(`\\b(${REMOVED_ACTIONS.join("|")})\\b`);
     for (const file of sources) expect({ file, names: names.test(read(file)) }).toEqual({ file, names: false });
+  });
+
+  it("pins the exports of every organization action file", () => {
+    const organizationFiles = sources.filter((file) => /^app\/actions\/organization\w*\.ts$/.test(file)).sort();
+    expect(organizationFiles).toEqual(Object.keys(ORGANIZATION_ACTION_EXPORTS).sort());
+    for (const file of organizationFiles) {
+      const source = read(file);
+      expect({ file, server: source.startsWith('"use server";') }).toEqual({ file, server: true });
+      expect({ file, exports: exportedNames(source).sort() }).toEqual({ file, exports: [...ORGANIZATION_ACTION_EXPORTS[file]].sort() });
+    }
   });
 
   it("recognises every removed route, as the removed code wrote it", () => {
@@ -153,12 +195,14 @@ describe("staff view members and teams, and change neither (owner decision, 2026
       "ask(\"write\", `/${organizationId}/teams/${teamId}/members/${userId}`, { method: \"DELETE\", body: { reason } }",
     ];
     for (const call of deleted) expect({ call, caught: WRITE_ONLY_PATHS.some(([, pattern]) => pattern.test(call)) }).toEqual({ call, caught: true });
-    // The two that share their path with a read are caught by their method.
+    // The two that share their path with a read are caught by their method, wherever the base address comes from.
     for (const call of [
       "ask(\"write\", `/${organizationId}/teams`, { method: \"POST\", body: { name, reason } }",
       "ask(\"write\", `/${organizationId}/teams/${teamId}`, { method: \"PATCH\", body: { name, reason } }",
+      "fetch(`${API}/${organizationId}/teams`, { method: 'POST' })",
+      "fetch(base + \"/members/\" + userId + \"/\" + segment, { method: \"PUT\" })",
     ]) {
-      expect({ call, caught: READ_PATHS.test(call) && NON_GET.test(call) }).toEqual({ call, caught: true });
+      expect({ call, caught: MEMBERS_OR_TEAMS.test(call) && NON_GET.test(call) }).toEqual({ call, caught: true });
     }
     for (const literal of ["/api/v1/admin/organizations/6b0000000000000000000002/members/6a0000000000000000000001/deactivate", "members/:userId/reactivate", "teams/[teamId]/members/add"]) {
       expect({ literal, caught: WRITE_ONLY_PATHS.some(([, pattern]) => pattern.test(literal)) }).toEqual({ literal, caught: true });
@@ -180,17 +224,19 @@ describe("staff view members and teams, and change neither (owner decision, 2026
   });
 
   it("asks a members or teams path with GET only", () => {
-    // Every source file that names a members or a teams path of a customer organization.
-    const naming = sources.filter((file) => {
-      const code = withoutComments(read(file));
-      return /organizations/.test(code) && READ_PATHS.test(code);
-    });
+    // Every source file that names a members or a teams path segment, whatever the rest of the address is built from.
+    const naming = sources.filter((file) => MEMBERS_OR_TEAMS.test(withoutComments(read(file))));
     expect(naming).toContain(ACTIONS);
     expect(naming).toContain("app/actions/organizationContent.ts");
-    for (const file of naming) {
+    expect(naming.length).toBeGreaterThanOrEqual(5);
+    // None of them holds a method other than GET, in any form, except the files listed with their reason.
+    const withWriteMethod = naming.filter((file) => NON_GET.test(withoutComments(read(file))));
+    expect(withWriteMethod.sort()).toEqual([...MAY_NAME_THEM_BESIDE_A_WRITE_METHOD].sort());
+    // No server action file names such a path at all, except the two listed with their reason.
+    const actionFiles = sources.filter((file) => /^\s*["']use server["'];/.test(read(file)));
+    expect(actionFiles.filter((file) => MEMBERS_OR_TEAMS.test(withoutComments(read(file)))).sort()).toEqual([...MAY_NAME_MEMBERS_OR_TEAMS].sort());
+    for (const file of MAY_NAME_MEMBERS_OR_TEAMS.filter((path) => !MAY_NAME_THEM_BESIDE_A_WRITE_METHOD.includes(path))) {
       const code = withoutComments(read(file));
-      if (file === ACTIONS) continue;
-      // Outside the management actions, a file that names such a path names no other method at all.
       expect({ file, method: code.match(NON_GET)?.[0] ?? null }).toEqual({ file, method: null });
       expect({ file, method: code.match(/method:(?!\s*["'`]GET["'`])[^,}\n]+/)?.[0] ?? null }).toEqual({ file, method: null });
     }
@@ -205,7 +251,13 @@ describe("staff view members and teams, and change neither (owner decision, 2026
       { mode: "write", path: '/${organizationId}/${write === "block" ? "block" : "reactivate"}', method: "POST" },
       { mode: "read", path: "/${organizationId}/teams/${teamId}", method: "GET" },
     ]);
-    for (const { path, method } of asks) if (READ_PATHS.test(path)) expect({ path, method }).toEqual({ path, method: "GET" });
+    for (const { path, method } of asks) if (MEMBERS_OR_TEAMS.test(path)) expect({ path, method }).toEqual({ path, method: "GET" });
+    // The POST targets, exactly: the block and the reactivation of the organization. The path is the
+    // organization's id and then one of two fixed words, with no member or team in it.
+    expect(asks.filter(({ method }) => method !== "GET").map(({ path }) => path)).toEqual(['/${organizationId}/${write === "block" ? "block" : "reactivate"}']);
+    // A path is always a template written at the call: none is a variable, a concatenation or a helper's answer.
+    expect(actions.match(/\bask\(\s*"(read|write)",\s*`/g)).toHaveLength(asks.length);
+    expect(actions).not.toMatch(/["'`]\s*\+|\+\s*["'`]|\.concat\(|\.join\(/);
     // The only request helper is `ask`: no other fetch could carry a write past the list above.
     expect(actions.match(/authenticatedBackendFetch\(/g)).toHaveLength(1);
     expect(actions).not.toMatch(/\bfetch\s*\(|axios|XMLHttpRequest/);

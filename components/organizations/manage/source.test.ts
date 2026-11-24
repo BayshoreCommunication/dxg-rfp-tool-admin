@@ -274,7 +274,12 @@ describe("the staff management screens", () => {
 
   it("shows a refusal as fixed wording with the code beside it, and announces it", () => {
     const chrome = read(`${COMPONENTS}/ManageChrome.tsx`);
-    expect(chrome.match(/managementFailureCopy\(refusal\)/g)).toHaveLength(2);
+    // The note inside the block flow words a change; the whole-page state words a view on the two view pages.
+    expect(chrome.match(/managementFailureCopy\(refusal\)/g)).toHaveLength(1);
+    expect(chrome.match(/managementFailureCopy\(refusal, viewOnly \? "view" : "change"\)/g)).toHaveLength(1);
+    expect(chrome.match(/managementFailureCopy\(/g)).toHaveLength(2);
+    for (const page of [`${ROOT}/members/[userId]/page.tsx`, `${ROOT}/teams/[teamId]/page.tsx`]) expect(read(page)).toMatch(/<ManageFailureState viewOnly refusal=\{result\}/);
+    expect(read(`${COMPONENTS}/OrganizationWriteScreen.tsx`)).toMatch(/<ManageFailureState refusal=\{load\.refusal\}/);
     expect(chrome.match(/<RefusalCode code=\{refusal\.code\} \/>/g)).toHaveLength(2);
     expect(chrome).toMatch(/Code: <span className="break-all font-mono">\{code\}<\/span>/);
     expect(chrome).toMatch(/<div role="alert"/);
@@ -333,7 +338,7 @@ describe("the staff management screens", () => {
       const source = read(file);
       for (const element of elements(source, /<(button|Link)\b/g, (name) => `</${name}>`)) {
         controls += 1;
-        expect({ file, element, focus: /focusRing|linkClass|backClass|linkButton|dangerLinkButton|primaryButton|secondaryButton|dangerButton/.test(element) }).toMatchObject({ focus: true });
+        expect({ file, element, focus: /focusRing|linkClass|backClass|primaryButton|secondaryButton|dangerButton/.test(element) }).toMatchObject({ focus: true });
         // Every one has words inside it: none is an icon alone.
         expect({ file, element, named: /aria-label=|>\s*[A-Z{][^<]*$|\}\s*$|[a-z.]\s*$/.test(element) }).toMatchObject({ named: true });
       }

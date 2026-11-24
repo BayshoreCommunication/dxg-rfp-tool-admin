@@ -32,14 +32,15 @@ export const TEAM_MEMBER_LIMIT = 200;
 /** And at most this many managers, with no count of them. */
 export const TEAM_MANAGER_LIMIT = 200;
 
-/** One member of a team: the member, their membership version, and whether they manage the team. */
+/** One member of a team: the member, and whether they manage the team. A row's `version` is not read. */
 export type TeamMember = ManagedMember & { isManager: boolean };
 
 /** One team as the staff team routes return it, with the members listed (at most 200), and how
     many manager rows the answer held before any that could not be read was left out. */
 export type ManagedTeam = { team: Team; members: TeamMember[]; managersListed: number };
 
-/* `{ organizationId, team, members: [{ member, version, isManager }] }`: the team read. The team
+/* `{ organizationId, team, members: [{ member, isManager }] }`: the team read (each row also
+   carries a `version`, which is not read). The team
    is read through the Teams list's own parser and each member through the member read's (the allowlists the view-only pages use), so a field added to
    the answer later does not reach the screen. An answer that names another organization or
    another team is never shown. A member row that cannot be read is left out: the count beside
@@ -53,7 +54,7 @@ export const parseManagedTeam = (data: unknown, organizationId: string, teamId: 
   for (const row of raw.members) {
     const entry = record(row);
     const userId = record(entry?.member)?.userId;
-    const found = entry && isManagementId(userId) ? parseManagedMember({ organizationId, member: entry.member, version: entry.version }, organizationId, userId) : null;
+    const found = entry && isManagementId(userId) ? parseManagedMember({ organizationId, member: entry.member }, organizationId, userId) : null;
     if (found) members.push({ ...found, isManager: entry?.isManager === true });
   }
   const managers = record(raw.team)?.managers;

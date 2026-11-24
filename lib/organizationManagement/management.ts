@@ -23,7 +23,7 @@ import { countLabel } from "@/lib/plural";
 /** The backend refuses anything but a 24-character lower-case hex id; so do the actions and links here. */
 export const isManagementId = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{24}$/.test(value);
 
-export const ORGANIZATION_WRITES = ["block", "unblock"] as const;
+const ORGANIZATION_WRITES = ["block", "unblock"] as const;
 export type OrganizationWrite = (typeof ORGANIZATION_WRITES)[number];
 /* The management pages live outside /organizations/[organizationId]/: everything under that
    address is the view-only content browser (components/organizations/content/readOnly.test.ts). */
@@ -53,10 +53,6 @@ export const reasonOf = (value: unknown): string | null => {
 /** What the counter under the field shows: the length that is checked, after trimming. */
 export const reasonLength = (value: string): number => value.trim().length;
 
-/** A membership version, as the member read carries it: a whole number from 1. Null for anything else, a numeric string included. */
-export const versionOf = (value: unknown): number | null =>
-  typeof value === "number" && Number.isInteger(value) && value >= 1 ? value : null;
-
 /* ---------- reading the answers ---------- */
 
 const record = (value: unknown): Record<string, unknown> | null =>
@@ -68,8 +64,9 @@ const instant = (value: unknown): string | null =>
 const wholeNumber = (value: unknown): number | null =>
   typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
 
-/** One member as the staff members read returns it, with the membership version beside it. */
-export type ManagedMember = { member: Member; version: number };
+/** One member as the staff members read returns it. The answer also carries a membership
+    `version`, which only the removed member writes needed: it is not read, and not required. */
+export type ManagedMember = { member: Member };
 
 /** What the block and reactivate pages show of the organization: its name, standing and block. */
 export type ManagedOrganization = {
@@ -85,10 +82,9 @@ export type ManagedOrganization = {
 const memberWithVersion = (holder: Record<string, unknown> | null, organizationId: string, userId?: string): ManagedMember | null => {
   if (!holder) return null;
   const member = parseMembersPage({ organizationId, members: [holder.member] }, organizationId)?.members[0];
-  const version = versionOf(holder.version);
-  if (!member || version === null || !isManagementId(member.userId)) return null;
+  if (!member || !isManagementId(member.userId)) return null;
   if (userId !== undefined && member.userId !== userId) return null;
-  return { member, version };
+  return { member };
 };
 
 /** Every answer names the organization it acted on. One that names another is never shown. */
@@ -217,8 +213,33 @@ export type FailureCopy = { title: string; message: string; tone: "calm" | "prob
 const waitText = (seconds: number | null | undefined) =>
   seconds ? ` Try again in about ${seconds < 90 ? countLabel(seconds, "second") : countLabel(Math.ceil(seconds / 60), "minute")}.` : " Wait a few minutes, up to 15, then try again.";
 
-/** The sentence for a refusal. Fixed wording: nothing the backend wrote is shown. */
-export const managementFailureCopy = (refusal: Pick<ManagementRefusal, "failure" | "standing" | "retryAfterSeconds">): FailureCopy => {
+/** Which page shows the refusal: one that only views (the member page, the team page), or the
+    block and reactivate pages, where something could have been changed. */
+export type CopyMode = "view" | "change";
+
+/* What a view page says where the wording of a change would mislead: nothing on it could have
+   changed anything, so it never says "Nothing was changed", and it speaks of viewing. */
+const viewCopy = (refusal: Pick<ManagementRefusal, "failure" | "standing" | "retryAfterSeconds">, copy: FailureCopy): FailureCopy => {
+  switch (refusal.failure) {
+    case "forbidden":
+      return { title: "This account can't view customer organizations here", message: "Viewing a customer organization's members and teams needs an RFPilot staff account with an admin role.", tone: copy.tone };
+    case "rate_limited":
+      return { ...copy, message: `Pages opened here count toward the 300 views of customer content per 15 minutes for each staff account.${waitText(refusal.retryAfterSeconds)}` };
+    case "organization_not_manageable":
+      return refusal.standing === "platform"
+        ? { ...copy, title: "RFPilot's own organization can't be viewed here", message: "Staff accounts live in it. Nothing in it is read from this screen." }
+        : { ...copy, title: "This organization can't be viewed yet", message: "It is awaiting placement, so its members and teams can't be opened here." };
+    default:
+      return { ...copy, message: copy.message.replace(/ Nothing was changed\.$/, "") };
+  }
+};
+
+/** The sentence for a refusal. Fixed wording: nothing the backend wrote is shown. `mode` is the
+    page showing it: the block and reactivate wording unless a view page asks. */
+export const managementFailureCopy = (refusal: Pick<ManagementRefusal, "failure" | "standing" | "retryAfterSeconds">, mode: CopyMode = "change"): FailureCopy =>
+  mode === "view" ? viewCopy(refusal, changeCopy(refusal)) : changeCopy(refusal);
+
+const changeCopy = (refusal: Pick<ManagementRefusal, "failure" | "standing" | "retryAfterSeconds">): FailureCopy => {
   switch (refusal.failure) {
     case "session_ended":
       return { title: "Your session has ended", message: "Sign in again to continue. Nothing was changed.", tone: "problem" };
@@ -375,7 +396,7 @@ export const BLOCK_EFFECTS = {
 export type WriteDraft = { reason: string };
 export const emptyDraft = (): WriteDraft => ({ reason: "" });
 
-export type DraftField = "reason";
+type DraftField = "reason";
 export type DraftErrors = Partial<Record<DraftField, string>>;
 
 /** The checked value a review states and a confirmation sends. */

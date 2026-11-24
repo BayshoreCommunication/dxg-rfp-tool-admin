@@ -50,7 +50,8 @@ describe("reading a team", () => {
       TEAM,
     );
     expect(team?.team).toEqual({ id: TEAM, name: "West", archived: false, archivedAt: null, createdAt: "2026-10-01T00:00:00.000Z", memberCount: 2, managers: [{ id: USER, name: "Pat Planner", email: "pat@acme.example" }] });
-    expect(team?.members.map((entry) => [entry.member.userId, entry.version, entry.isManager])).toEqual([[USER, 4, true], [OTHER, 2, false]]);
+    expect(team?.members.map((entry) => [entry.member.userId, entry.isManager])).toEqual([[USER, true], [OTHER, false]]);
+    expect(JSON.stringify(team)).not.toMatch(/version/);
     expect(JSON.stringify(team)).not.toMatch(/passwordHash|token|createdBy|hash/);
   });
 
@@ -64,9 +65,16 @@ describe("reading a team", () => {
   });
 
   it("leaves out a member row it cannot read, and keeps the backend's count", () => {
-    const team = managedTeam({ memberCount: 3 }, [{ member: memberView(), version: 4, isManager: false }, { member: memberView({ userId: "x" }), version: 4 }, { member: memberView({ userId: OTHER }), version: "2" }, null]);
+    const team = managedTeam({ memberCount: 3 }, [{ member: memberView(), version: 4, isManager: false }, { member: memberView({ userId: "x" }), version: 4 }, { member: { name: "No id" }, version: 2 }, null]);
     expect(team.members).toHaveLength(1);
     expect(team.team.memberCount).toBe(3);
+  });
+
+  it("still shows a team whose member rows have no version, or one that is not a number", () => {
+    // Nothing reads a version now: a row without one is a member of the team all the same.
+    const team = managedTeam({ memberCount: 3 }, [{ member: memberView(), isManager: true }, { member: memberView({ userId: OTHER }), version: "2" }, { member: memberView({ userId: TEAM_B.replace("6c", "6a") }), version: null, isManager: false }]);
+    expect(team.members.map((entry) => [entry.member.userId, entry.isManager])).toEqual([[USER, true], [OTHER, false], [TEAM_B.replace("6c", "6a"), false]]);
+    expect(memberListNote(team)).toBeNull();
   });
 });
 

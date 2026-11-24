@@ -22,7 +22,6 @@ import {
   resultSummary,
   retryAfterSecondsOf,
   reviewLines,
-  versionOf,
   type ManagedMember,
   type ManagedOrganization,
   type ManagementFailure,
@@ -83,27 +82,19 @@ describe("ids, paths and what a block or a reactivation carries", () => {
     for (const value of [null, undefined, 1234567890, ["a reason of some length"], { reason: "a reason of some length" }]) expect(reasonOf(value)).toBeNull();
     expect(reasonLength("  abc  ")).toBe(3);
   });
-
-  it("takes a version that is a whole number from 1, never a string", () => {
-    expect(versionOf(1)).toBe(1);
-    expect(versionOf(27)).toBe(27);
-    for (const value of [0, -1, 1.5, "3", null, undefined, Number.NaN, Infinity, [3]]) expect(versionOf(value)).toBeNull();
-  });
 });
 
 describe("reading the answers", () => {
-  it("reads one member through the members list's allowlist, with its version", () => {
+  it("reads one member through the members list's allowlist, and hands on nothing else", () => {
     const answer = { organizationId: ORG, member: { ...memberView(), passwordHash: "x", sessions: ["y"] }, version: 4, extra: "z" };
     const parsed = parseManagedMember(answer, ORG, USER);
-    expect(parsed).toEqual({ member: memberView(), version: 4 });
+    expect(parsed).toEqual({ member: memberView() });
     expect(JSON.stringify(parsed)).not.toMatch(/passwordHash|sessions|extra/);
   });
 
-  it("shows nothing for another organization, another member, or an answer without a version", () => {
+  it("shows nothing for another organization or another member", () => {
     expect(parseManagedMember({ organizationId: OTHER, member: memberView(), version: 4 }, ORG, USER)).toBeNull();
     expect(parseManagedMember({ organizationId: ORG, member: memberView({ userId: OTHER }), version: 4 }, ORG, USER)).toBeNull();
-    expect(parseManagedMember({ organizationId: ORG, member: memberView(), version: "4" }, ORG, USER)).toBeNull();
-    expect(parseManagedMember({ organizationId: ORG, member: memberView() }, ORG, USER)).toBeNull();
     expect(parseManagedMember({ organizationId: ORG, member: memberView({ userId: "not-an-id" }), version: 4 }, ORG, "not-an-id")).toBeNull();
     for (const value of [null, undefined, "x", [], { organizationId: ORG }]) expect(parseManagedMember(value, ORG, USER)).toBeNull();
   });
@@ -128,6 +119,18 @@ describe("reading the answers", () => {
     expect(parseBlockAnswer({ organizationId: ORG, changed: true, blocked: true, blockedAt: "2026-11-20T09:00:00.000Z" }, ORG, "unblock")).toBeNull();
     expect(parseBlockAnswer({ organizationId: OTHER, changed: true, blocked: true }, ORG, "block")).toBeNull();
     expect(parseBlockAnswer({ organizationId: ORG, blocked: true }, ORG, "block")).toBeNull();
+  });
+});
+
+describe("the membership version the removed writes needed", () => {
+  it("still shows a member whose answer has no version, or one that is not a number", () => {
+    // Nothing reads a version now: an answer without one is a member all the same.
+    for (const answer of [{ organizationId: ORG, member: memberView() }, { organizationId: ORG, member: memberView(), version: "4" }, { organizationId: ORG, member: memberView(), version: null }]) {
+      expect(parseManagedMember(answer, ORG, USER)).toEqual({ member: memberView() });
+    }
+    // Every other check on the answer stands.
+    expect(parseManagedMember({ organizationId: ORG, member: { ...memberView(), userId: undefined } }, ORG, USER)).toBeNull();
+    expect(parseManagedMember({ organizationId: ORG }, ORG, USER)).toBeNull();
   });
 });
 
@@ -230,6 +233,33 @@ describe("the refusal of every status and code", () => {
     expect(managementFailureCopy({ failure: "rate_limited", retryAfterSeconds: 45 }).message).toMatch(/Try again in about 45 seconds\./);
     expect(managementFailureCopy({ failure: "rate_limited", retryAfterSeconds: 600 }).message).toMatch(/Try again in about 10 minutes\./);
     expect(managementFailureCopy(refused("outcome_unknown")).message).toMatch(/Check the current state before trying again/);
+  });
+
+  it("words a refusal on a view page as a view: nothing there could have been changed", () => {
+    const failures: ManagementFailure[] = ["session_ended", "forbidden", "rate_limited", "not_available", "unavailable", "invalid_id", "organization_not_found", "member_not_found", "organization_not_manageable", "invalid_team_id", "team_not_found"];
+    for (const failure of failures) {
+      const copy = managementFailureCopy(refused(failure), "view");
+      expect({ failure, text: `${copy.title} ${copy.message}` }).not.toMatchObject({ text: expect.stringMatching(/Nothing was changed|can't manage|Managing|blocked|undefined|null/) });
+      expect(copy.message.length).toBeGreaterThan(20);
+      expect(copy.tone).toBe(managementFailureCopy(refused(failure)).tone);
+    }
+    expect(managementFailureCopy(refused("forbidden"), "view")).toEqual({
+      title: "This account can't view customer organizations here",
+      message: "Viewing a customer organization's members and teams needs an RFPilot staff account with an admin role.",
+      tone: "problem",
+    });
+    expect(managementFailureCopy(refused("member_not_found"), "view").message).toBe("This person is not a member of this organization.");
+    expect(managementFailureCopy({ failure: "rate_limited", retryAfterSeconds: 45 }, "view").message).toBe("Pages opened here count toward the 300 views of customer content per 15 minutes for each staff account. Try again in about 45 seconds.");
+    expect(managementFailureCopy({ failure: "organization_not_manageable", standing: "platform" }, "view").title).toBe("RFPilot's own organization can't be viewed here");
+    expect(managementFailureCopy({ failure: "organization_not_manageable", standing: "legacy_holding" }, "view").message).toBe("It is awaiting placement, so its members and teams can't be opened here.");
+    // The block and reactivate pages keep the wording of a change, which is also what is said when no page is named.
+    expect(managementFailureCopy(refused("forbidden"))).toEqual({
+      title: "This account can't manage organizations",
+      message: "Managing a customer organization needs an RFPilot staff account with an admin role. Nothing was changed.",
+      tone: "problem",
+    });
+    expect(managementFailureCopy(refused("forbidden"), "change")).toEqual(managementFailureCopy(refused("forbidden")));
+    expect(managementFailureCopy(refused("organization_not_found")).message).toMatch(/Nothing was changed\.$/);
   });
 
   it("says why an organization can't be managed, by its standing", () => {

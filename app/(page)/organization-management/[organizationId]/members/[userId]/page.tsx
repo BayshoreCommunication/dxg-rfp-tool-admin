@@ -20,7 +20,7 @@ export default async function ManageMemberPage({ params }: Props) {
       {result.ok ? (
         <MemberManagement organizationId={organizationId} managed={result.data} />
       ) : (
-        <ManageFailureState refusal={result} retryHref={known && isManagementId(userId) ? memberManagementPath(known, userId) : undefined} />
+        <ManageFailureState viewOnly refusal={result} retryHref={known && isManagementId(userId) ? memberManagementPath(known, userId) : undefined} />
       )}
     </ManageFrame>
   );

@@ -115,12 +115,15 @@ const RETRY: ManagementFailure[] = ["rate_limited", "unavailable"];
 export const ManageFailureState = ({
   refusal,
   retryHref,
+  viewOnly = false,
 }: {
   refusal: ManagementRefusal;
+  /** Set on the member page and the team page: the wording is of a view, not of a change. */
+  viewOnly?: boolean;
   /** This same page: where "Try again" leads, and where signing in again returns to. */
   retryHref?: string;
 }) => {
-  const { title, message, tone } = managementFailureCopy(refusal);
+  const { title, message, tone } = managementFailureCopy(refusal, viewOnly ? "view" : "change");
   const calm = tone === "calm";
   const Icon = WAIT.includes(refusal.failure) ? Clock : calm ? FileQuestion : AlertCircle;
   return (
