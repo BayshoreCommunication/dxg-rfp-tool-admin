@@ -1,28 +1,90 @@
-﻿"use client";
+"use client";
 
 import { signOutAction } from "@/app/actions/auth";
 import { navigationConfig, NavItem } from "@/config/navigation";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import AccountMenu, { type SidebarUser } from "@/components/layout/AccountMenu";
+import { isNavItemActive, splitNavigation } from "@/lib/layout/sidebar";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useAdminNotifications } from "@/components/notifications/AdminNotificationsProvider";
 import { badgeLabel } from "@/lib/notifications/adminNotifications";
 import { cn } from "@/lib/utils";
-import { LoaderCircle, LogOut } from "lucide-react";
+import { LoaderCircle, LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-const Sidebar = () => {
+function SidebarRow({
+  item,
+  active,
+  badge,
+  collapsed,
+  compact = false,
+}: {
+  item: NavItem;
+  active: boolean;
+  badge: string | null;
+  collapsed: boolean;
+  compact?: boolean;
+}) {
+  return (
+    <Link
+      href={item.href}
+      title={collapsed ? item.title : undefined}
+      aria-label={collapsed ? item.title : undefined}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group relative flex w-full shrink-0 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007f86]",
+        compact ? "h-11" : "h-12",
+        collapsed && "justify-center px-0",
+        active
+          ? // Dark teal, not the brand #00c2c9: white text needs 4.5:1 (WCAG AA); #007f86 gives 4.79:1.
+            "bg-[#007f86] text-white shadow-[0_10px_24px_-14px_rgba(0,127,134,0.9)]"
+          : "text-slate-600 hover:bg-primary/5 hover:text-[#007f86] dark:text-slate-300 dark:hover:text-cyan-300",
+      )}
+    >
+      <span className="relative flex h-6 w-6 shrink-0 items-center justify-center [&>svg]:h-5 [&>svg]:w-5">
+        {item.icon}
+        {badge && collapsed ? (
+          <span className="pointer-events-none absolute -right-2 -top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black leading-none text-white ring-2 ring-white dark:ring-[#0d1d28]">
+            {badge}
+          </span>
+        ) : null}
+      </span>
+      {!collapsed && <span className="min-w-0 flex-1 truncate">{item.title}</span>}
+      {!collapsed && badge ? (
+        <span
+          className={cn(
+            "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-black leading-none",
+            active ? "bg-white/25 text-white" : "bg-rose-500 text-white",
+          )}
+        >
+          {badge}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+const Sidebar = ({
+  currentUser,
+  collapsed = false,
+  onToggleCollapsed,
+}: {
+  currentUser?: SidebarUser;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}) => {
   const pathname = usePathname();
+  const { main, footer } = splitNavigation(navigationConfig);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { unreadCount } = useAdminNotifications();
   // Unread support alerts surface on the Support item from every page.
   const badgeFor = (item: NavItem) => (item.id === "support" ? badgeLabel(unreadCount) : null);
 
-  const isItemActive = (item: NavItem) =>
-    pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const isItemActive = (item: NavItem) => isNavItemActive(pathname, item.href);
 
   const signOutHandler = async () => {
     if (isSigningOut) return;
@@ -43,110 +105,103 @@ const Sidebar = () => {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-50 hidden h-dvh min-h-0 w-[90px] flex-col overflow-hidden border-r border-[#e1e8ee] bg-white transition-colors dark:border-[#253746] dark:bg-[#0d1d28] md:flex">
-      <div className="flex h-[68px] shrink-0 items-center justify-center border-b border-gray-200 dark:border-[#253746] max-[800px]:h-14">
-        <Link
-          href="/dashboard"
-          aria-label="Go to admin dashboard"
-          className="group flex h-12 w-12 items-center justify-center overflow-hidden transition-all duration-200 hover:-translate-y-0.5 max-[800px]:h-10 max-[800px]:w-10"
+      <aside
+        aria-label="Sidebar"
+        data-collapsed={collapsed}
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 hidden h-dvh min-h-0 flex-col overflow-visible border-r border-[#e1e8ee] bg-white transition-[width] duration-200 dark:border-[#253746] dark:bg-[#0d1d28] lg:flex",
+          collapsed ? "w-[88px]" : "w-[248px]",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-[68px] shrink-0 items-center border-b border-[#e1e8ee] px-3 dark:border-[#253746]",
+            collapsed ? "justify-center" : "justify-between",
+          )}
         >
-          <Image
-            src="/assets/logo/Logomark- White Background.png"
-            alt="RFPilot"
-            width={64}
-            height={64}
-            className="h-full w-full object-contain p-1.5"
-            priority
-          />
-        </Link>
-      </div>
-
-      <nav aria-label="Primary navigation" className="sidebar-scrollbar flex min-h-0 flex-1 flex-col items-center overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-2">
-        {navigationConfig.map((item) => {
-          const isActive = isItemActive(item);
-
-          return (
-            <Link key={item.id} href={item.href} className="flex min-h-[72px] w-full shrink-0 items-center max-[800px]:min-h-[60px]">
-              <div
-                className={cn(
-                  "group relative flex w-full flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 transition-all duration-200 max-[800px]:gap-0.5 max-[800px]:py-1",
-                  isActive
-                    ? "bg-[#eaf9f8] dark:bg-cyan-950/50"
-                    : "hover:bg-primary/5 dark:hover:bg-cyan-950/30",
-                )}
-              >
-                {isActive && (
-                  <div className="absolute -left-3 top-1/2 h-7 w-[4px] -translate-y-1/2 rounded-r-full bg-primary shadow-[2px_0_8px_rgba(0,194,201,0.4)]" />
-                )}
-
-                <div
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 max-[800px]:h-9 max-[800px]:w-9",
-                    isActive
-                      ? "bg-white text-primary shadow-[0_1px_3px_rgba(15,23,42,0.08)] dark:bg-[#142a37]"
-                      : "text-gray-400 group-hover:bg-primary/10 group-hover:text-primary dark:text-slate-500",
-                  )}
-                >
-                  {item.icon}
-                </div>
-                {badgeFor(item) ? (
-                  <span
-                    aria-label={`${unreadCount} unread`}
-                    className="absolute right-2 top-1 min-w-[18px] rounded-full bg-rose-500 px-1 text-center text-[10px] font-bold leading-[18px] text-white ring-2 ring-white dark:ring-[#0d1d28]"
-                  >
-                    {badgeFor(item)}
-                  </span>
-                ) : null}
-
-                <span
-                  className={cn(
-                    "w-full text-center text-[9.5px] font-bold leading-[1.08] tracking-wide max-[800px]:text-[9px]",
-                    isActive
-                      ? "text-primary"
-                      : "text-gray-400 group-hover:text-primary",
-                  )}
-                >
-                  {item.title}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="mx-4 h-px shrink-0 bg-slate-100 dark:bg-[#253746]" />
-
-      <div className="flex shrink-0 flex-col items-center gap-2 px-2.5 py-3 max-[800px]:gap-1.5 max-[800px]:py-2 [@media(max-height:800px)]:gap-1 [@media(max-height:800px)]:py-1.5">
-        <NotificationBell
-          placement="sidebar"
-          className="h-12 w-12 max-[800px]:h-10 max-[800px]:w-10 [@media(max-height:800px)]:h-9 [@media(max-height:800px)]:w-9"
-        />
-        <ThemeToggle className="h-12 w-12 rounded-2xl px-0 max-[800px]:h-10 max-[800px]:w-10 max-[800px]:rounded-xl [@media(max-height:800px)]:h-9 [@media(max-height:800px)]:w-9 [@media(max-height:800px)]:rounded-xl" />
-
-        <button
-          type="button"
-          onClick={() => void signOutHandler()}
-          disabled={isSigningOut}
-          aria-label="Sign out of the admin account"
-          title="Sign out"
-          className="group flex w-full flex-col items-center gap-1 rounded-2xl px-1 py-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-400 disabled:cursor-wait disabled:opacity-60 dark:text-slate-400 dark:hover:bg-rose-950/40 dark:hover:text-rose-300 [@media(max-height:800px)]:gap-0.5 [@media(max-height:800px)]:py-1"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white transition group-hover:border-rose-200 group-hover:bg-rose-50 dark:border-[#2b4352] dark:bg-[#102432] dark:group-hover:border-rose-800 dark:group-hover:bg-rose-950/40 max-[800px]:h-7 max-[800px]:w-7 max-[800px]:rounded-lg [@media(max-height:800px)]:h-7 [@media(max-height:800px)]:w-7 [@media(max-height:800px)]:rounded-lg">
-            {isSigningOut ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <LogOut className="h-4 w-4" aria-hidden="true" />
+          <Link
+            href="/dashboard"
+            aria-label="Go to admin dashboard"
+            className="group flex h-12 min-w-0 items-center gap-2 overflow-hidden rounded-xl transition-all duration-200 hover:-translate-y-0.5"
+          >
+            <Image
+              src="/assets/logo/Logomark- White Background.png"
+              alt="RFPilot"
+              width={64}
+              height={64}
+              className="h-12 w-12 shrink-0 object-contain p-1.5"
+              priority
+            />
+            {!collapsed && (
+              <span className="min-w-0 truncate text-base font-extrabold text-slate-900 dark:text-white">
+                RFPilot <span className="font-semibold text-slate-400">Admin</span>
+              </span>
             )}
-          </span>
-          <span className="text-[9.5px] font-bold leading-none tracking-wide">
-            {isSigningOut ? "Signing out" : "Sign out"}
-          </span>
-        </button>
+          </Link>
+          {!collapsed && (
+            <button
+              type="button"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+              onClick={onToggleCollapsed}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007f86] dark:hover:bg-[#12293a]"
+            >
+              <PanelLeftClose size={18} aria-hidden />
+            </button>
+          )}
+        </div>
 
-      </div>
+        <nav
+          aria-label="Primary navigation"
+          className="sidebar-scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4"
+        >
+          {collapsed && (
+            <button
+              type="button"
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+              onClick={onToggleCollapsed}
+              className="mb-2 grid h-10 w-full place-items-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007f86] dark:hover:bg-[#12293a]"
+            >
+              <PanelLeftOpen size={18} aria-hidden />
+            </button>
+          )}
+          {main.map((item) => (
+            <SidebarRow
+              key={item.id}
+              item={item}
+              active={isNavItemActive(pathname, item.href)}
+              badge={badgeFor(item)}
+              collapsed={collapsed}
+            />
+          ))}
+        </nav>
+
+        <div className="mx-4 h-px shrink-0 bg-linear-to-r from-transparent via-[#e1e8ee] to-transparent dark:via-[#283c4a]" />
+
+        <div className="flex shrink-0 flex-col gap-1 px-3 py-3">
+          {footer.map((item) => (
+            <SidebarRow
+              key={item.id}
+              item={item}
+              active={isNavItemActive(pathname, item.href)}
+              badge={badgeFor(item)}
+              collapsed={collapsed}
+              compact
+            />
+          ))}
+          <div className="mt-2">
+            <AccountMenu
+              currentUser={currentUser}
+              signingOut={isSigningOut}
+              onSignOut={() => void signOutHandler()}
+              collapsed={collapsed}
+            />
+          </div>
+        </div>
       </aside>
 
-      <header className="fixed inset-x-0 top-0 z-50 flex h-[62px] items-center justify-between border-b border-[#dce5ee] bg-white/95 px-4 backdrop-blur transition-colors dark:border-[#253746] dark:bg-[#0d1d28]/95 md:hidden">
+      <header className="fixed inset-x-0 top-0 z-50 flex h-[62px] items-center justify-between border-b border-[#dce5ee] bg-white/95 px-4 backdrop-blur transition-colors dark:border-[#253746] dark:bg-[#0d1d28]/95 lg:hidden">
         <Link
           href="/dashboard"
           className="rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -182,7 +237,7 @@ const Sidebar = () => {
 
       <nav
         aria-label="Mobile navigation"
-        className="fixed inset-x-0 bottom-0 z-50 grid h-[76px] grid-flow-col auto-cols-fr items-stretch overflow-x-hidden border-t border-[#dce5ee] bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur transition-colors dark:border-[#253746] dark:bg-[#0d1d28]/95 dark:shadow-[0_-8px_30px_rgba(0,0,0,0.3)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 grid h-[76px] grid-flow-col auto-cols-fr items-stretch overflow-x-hidden border-t border-[#dce5ee] bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur transition-colors dark:border-[#253746] dark:bg-[#0d1d28]/95 dark:shadow-[0_-8px_30px_rgba(0,0,0,0.3)] lg:hidden"
       >
         {navigationConfig.map((item) => {
           const isActive = isItemActive(item);
