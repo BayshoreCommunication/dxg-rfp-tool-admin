@@ -1,15 +1,15 @@
 import { countLabel } from "@/lib/plural";
 import { formatContentDate, personName, type TeamsList as Teams } from "@/lib/organizationContent/content";
 import { isManagementId } from "@/lib/organizationManagement/management";
-import { teamCreatePath, teamManagementPath } from "@/lib/organizationManagement/teams";
+import { teamManagementPath } from "@/lib/organizationManagement/teams";
 import { UsersRound } from "lucide-react";
 import Link from "next/link";
 import { ContentBadge, ContentCard, EmptyState, focusRing } from "./ContentChrome";
 
 const staffLink = `inline-flex min-h-11 items-center text-sm font-bold text-[#007f86] underline-offset-2 hover:underline dark:text-cyan-300 ${focusRing}`;
 
-/** The organization's teams, active first. View only: the two links lead to the staff management
-    pages, which are outside this browser and read what they show when they open. */
+/** The organization's teams, active first. View only: the one link per team leads to the team's
+    own page, also view only, which is outside this browser and reads the team when it opens. */
 export default function TeamsList({ organizationId, data }: { organizationId: string; data: Teams }) {
   const { teams } = data;
   return (
@@ -18,11 +18,6 @@ export default function TeamsList({ organizationId, data }: { organizationId: st
       title="Teams"
       count={`${teams.length.toLocaleString("en-US")} total`}
       description="This organization's teams, active first, with who manages each."
-      controls={
-        <Link href={teamCreatePath(organizationId)} prefetch={false} className={staffLink}>
-          Create a team
-        </Link>
-      }
     >
       {teams.length === 0 ? (
         <EmptyState icon={UsersRound} title="No teams yet" message="This organization has not created a team." />
@@ -58,8 +53,8 @@ export default function TeamsList({ organizationId, data }: { organizationId: st
               </p>
               {isManagementId(team.id) ? (
                 <p className="min-w-0">
-                  <Link href={teamManagementPath(organizationId, team.id)} prefetch={false} aria-label={`Manage ${team.name}`} className={staffLink}>
-                    Manage
+                  <Link href={teamManagementPath(organizationId, team.id)} prefetch={false} aria-label={`View ${team.name}`} className={staffLink}>
+                    View
                   </Link>
                 </p>
               ) : null}
