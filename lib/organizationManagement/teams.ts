@@ -44,11 +44,11 @@ export type ManagedTeam = { team: Team; members: TeamMember[]; managersListed: n
    the answer later does not reach the screen. An answer that names another organization or
    another team is never shown. A member row that cannot be read is left out: the count beside
    the list then says the list is shorter. */
-export const parseManagedTeam = (data: unknown, organizationId: string, teamId?: string): ManagedTeam | null => {
+export const parseManagedTeam = (data: unknown, organizationId: string, teamId: string): ManagedTeam | null => {
   const raw = record(data);
   if (!raw || raw.organizationId !== organizationId || !Array.isArray(raw.members)) return null;
   const team = parseTeams({ organizationId, teams: [raw.team] }, organizationId)?.teams[0];
-  if (!team || !isManagementId(team.id) || (teamId !== undefined && team.id !== teamId)) return null;
+  if (!team || !isManagementId(team.id) || team.id !== teamId) return null;
   const members: TeamMember[] = [];
   for (const row of raw.members) {
     const entry = record(row);
